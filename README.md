@@ -1,8 +1,7 @@
 # moca-experiments
 
 Reproducible performance/behaviour experiments and benchmark drivers for
-[MOCA](https://github.com/rossoctl/serverless-harness) (Micro Orchestrator for Cloud Agents;
-renaming from `serverless-harness` is in progress) — split out so people deploying MOCA aren't
+[MOCA](https://github.com/rossoctl/serverless-harness) (Micro Orchestrator for Cloud Agents) — split out so people deploying MOCA aren't
 exposed to research/experiment clutter in the main repo.
 
 ## Layout
