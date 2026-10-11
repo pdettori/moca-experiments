@@ -15,7 +15,11 @@ exposed to research/experiment clutter in the main repo.
   file; it is not independently maintained here).
 - `microvm/` — E10 (lifecycle), E11 (density/replenishment), E12 (vsock egress), E13 (restore
   capacity/telemetry): bare-metal microVM experiments, their `EXPERIMENTS.md`/`METAL-RUNBOOK.md`
-  write-ups, `predictions.json`, and their tests.
+  write-ups, `predictions.json`, and their tests. **Start at
+  [`microvm/RESULTS-SUMMARY.md`](microvm/RESULTS-SUMMARY.md)** — the acceptance bar and the
+  decision it produced, the latency decomposition, the instrument defects the density
+  conclusions rested on, and which published numbers were retracted. `EXPERIMENTS.md`
+  remains the source of truth.
 
 **A note on `microvm/` (E10/E11) too:** their cluster-free structural tests (`e10-lifecycle.test.sh`,
 `e11-density.test.sh`, `e12-vsock-egress-probe.test.sh`, `e13-*.test.sh`) run standalone here —
