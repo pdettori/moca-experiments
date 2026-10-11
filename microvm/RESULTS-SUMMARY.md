@@ -61,7 +61,7 @@ reasons given for both**.
 
 | Instrument defect | What it produced | Fix |
 |---|---|---|
-| Host resources sampled **after** the load stopped | `hostCpuFraction` **0.001**, read as "no CPU ceiling". Real under-load mean: **0.89** | [#291], in-rung 1 Hz sampling |
+| Host resources sampled **after** the load stopped | `hostCpuFraction` **0.001**, read as "no CPU ceiling" — a comparison that could never fire, since the threshold is 0.9. In-rung means are **0.067** (microVM) and **0.093** (container); the no-backend arm peaked at **0.9598** | [#291], in-rung 1 Hz sampling |
 | Load generator cost inside the timed window — one `execve` per operation (`grpcurl` re-parsing the proto descriptor set per call) | up to **23.7%** of measured p95 | persistent-connection Go client; its share is **<0.4%** |
 | An application constant mistaken for a platform ceiling — the worker admitted 4 concurrent Execs whatever concurrency was offered | the entire `c>4` plateau | [#305], [#312] |
 
@@ -97,12 +97,12 @@ correction auditable.
 
 | Claim | Status |
 |---|---|
-| "host CPU fraction stayed flat at 0.001 through c=64" | **Artifact.** Idle-host, post-window sampling. Not evidence of anything. |
-| "nothing resembling a CPU or memory ceiling was reached" | **True but for a different reason** — `coresBusy` 4.81 of 72 because the server admitted 4 Execs at a time. Not a density property. |
-| "the bound is sandbox replenishment" | **Superseded 2026-09-22.** It is the 4-slot cap. The arithmetic: replenishment supplies ~4.5 VMs/s against a ~62 Exec/s plateau — 14x apart, so both cannot be the bound. |
+| "`hostCpuFraction` is 0.001 flat across the entire ladder" — often paraphrased as "host CPU stayed flat at 0.001 through c=64" | **Artifact of the sampling method**, not a measurement: idle host, after the window closed. Re-measured in-rung, the true under-load means are **0.067** (microVM) and **0.093** (container), from 20–284 ticks per rung. |
+| "nothing resembling a CPU or memory ceiling was reached" | **Still true, but it was not a finding when first published** — it restated the sampling bug, since `crosses('cpu')` needs `hostCpuFraction >= 0.9` and a post-load 0.0006 can never fire it. It is a real finding *after* the re-run, and the mechanism is the 4-slot cap: `coresBusy` 4.81 of 72 because the server admitted 4 Execs at a time. |
+| "`bound` is replenishment **on both arms**" | **Half retracted.** It holds on the **microVM** arm as a genuine crossing at the same `c` as the knee. It does **not** hold on the container arm, where it is `attributeBound`'s fallback rather than a crossing. Separately, the *plateau* is the 4-slot cap, not replenishment: replenishment supplies ~4.5 VMs/s against ~62 Exec/s — 14x apart, so both cannot bound the same ladder. |
 | "the knee is at c=8" (as a capacity property) | **Position reproduces; meaning does not.** It locates the slot count and moves when the slot count moves. |
 | `coldAcquireRate` | **Wrong by 13x** at c=8 and ~250x beyond (true rates 0.056 and 0.0039). Any argument resting on it is void. |
-| Any knee established on a **nested** substrate | Nested runs cannot establish the knee; see the E11 preamble. |
+| Any knee established on a **nested** substrate | Nested runs cannot establish the knee; see the [E11 preamble](EXPERIMENTS.md#e11--density-the-replenishment-ceiling-and-the-write-up). |
 
 ---
 
