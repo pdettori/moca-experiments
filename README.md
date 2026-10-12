@@ -35,6 +35,12 @@ main repo (or a sibling of it with `REMOTE_WORKER_DIR`/`PROTO_FILE`/`PROTO_IMPOR
 same caveat as `knative/`'s cluster experiments and `experiments/`'s E2/E5. `e11-density.test.sh`'s
 Go seam-closure check specifically skips gracefully (like its "no go on PATH" check) when no
 `remote-worker/` checkout is found, rather than failing.
+- `sbx/` — E14: stock coding agents (Claude Code, OpenCode) whose every command runs in a fresh
+  microVM, reached through the sandbox-service prototype (SBX1 wave 0). Three rounds, ending in
+  a 40-run SWE-bench Verified comparison of stock against remote. **Start at
+  [`sbx/RESULTS-SUMMARY.md`](sbx/RESULTS-SUMMARY.md)**; `EXPERIMENTS.md` is the record,
+  `RUNBOOK.md` the replication steps, and `HARNESS.md` every script and config used, embedded
+  as markdown.
 - `experiments/` — the original `@sh/experiments` workspace package: M6's E2/E5 in-process
   experiment runners, the E11 density-analysis module (`src/microvm-density.ts`, consumed by
   `microvm/e11-density.sh`), and `swebench/` — the SWE-bench sandbox-sharing evaluation harness
