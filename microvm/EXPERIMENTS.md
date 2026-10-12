@@ -1,5 +1,15 @@
 # microVM sandbox: experiments and correctness gates
 
+> **Looking for the result rather than the record?**
+> [`RESULTS-SUMMARY.md`](RESULTS-SUMMARY.md) states it on one screen: the acceptance bar
+> and the STOP, the latency decomposition, the three instrument defects the density
+> conclusions rested on, and an explicit list of the numbers that were **retracted and
+> must not be cited**.
+>
+> This file stays the source of truth. It is long because a superseded conclusion is
+> annotated in place, with its date, rather than rewritten — so the correction history is
+> itself the evidence. Where the two disagree, this file wins.
+
 ## Correctness gates (spec §8)
 
 Spec §8: "none of these produces a number, and all are blocking." This section is
