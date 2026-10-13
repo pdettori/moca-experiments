@@ -11,18 +11,28 @@ substitutions, so nothing internal is published:
 | `LITELLM_BASE_URL`, `LITELLM_KEY` | the model gateway and its key (any Anthropic-compatible endpoint) |
 
 Paths under `/tmp/...` are the scratch locations the runs used; [`RUNBOOK.md`](RUNBOOK.md) says
-which file goes where and in what order. Three pieces have no other published home yet, so this
-file is their only copy: the `sbx` CLI, the MCP server (rounds 1–2's MCP path), and the SWE-bench
-harness.
+which file goes where and in what order.
+
+**Where the code lives now:**
+- the `sbx` CLI: committed in the main repo, `pdettori/moca` `feat/relay-client-tokens` commit
+  `06560f8` (`docs/api/examples/sbx.py`);
+- the MCP server: the draft PR [rossoctl/moca#504](https://github.com/rossoctl/moca/pull/504),
+  `packages/sandbox-mcp`, commit `9b10fae`;
+- the SWE-bench harness: only here.
+
+The copies below are what ran.
 
 Every heading starts with the file's path; copy each file there. Logs go under `/tmp/sbx-logs/`.
 
 **Post-review fixes (after the runs; outcomes re-verified).** These scripts differ from what ran in
-four ways, all on failure paths:
+six ways, all on failure paths:
 - `batch.sh` now creates `/tmp/swe/runs-invalid/` before moving invalid runs into it. During the
   real run it had been created by hand.
 - `grade.py` records an `error` when `sbx push`/`put`/`run` fail, instead of reporting a wrong fix.
-- `report.py` never caches an errored grade.
+- `report.py` never caches an errored grade, shows it as `ERROR` rather than `fail`, and exits
+  non-zero while any grade is errored.
+- `verify.py` treats an errored gold or base grade as not verified. Before, an errored base had no
+  test counts, and `None == None` passed it as "fails every F2P".
 - The runners and graders stop if `cd` or `git apply` fails.
 
 All 40 round-3 runs were re-graded with the fixed `grade.py`/`report.py`, and every outcome matched
@@ -532,7 +542,7 @@ same restrictions). `< /dev/null` matters: without closed stdin OpenCode hangs h
 
 ## 3. Client: MCP server and configs (MCP path)
 
-An npm workspace package in the main repo (`packages/sandbox-mcp`, branch `spike/sandbox-mcp`, not pushed). It also needs two lines added to `packages/k8s-sandbox/src/index.ts` exporting `createPod{Bash,Edit,Find,Ls,Read,Write}Ops` from `./operations.js` and `createPodGrepTool` from `./grep-tool.js`.
+An npm workspace package in the main repo, `packages/sandbox-mcp`, now in the draft PR [rossoctl/moca#504](https://github.com/rossoctl/moca/pull/504) (commit `9b10fae`, on `upstream/main`). That PR also adds the exports it needs to `packages/k8s-sandbox/src/index.ts`: `createPod{Bash,Edit,Find,Ls,Read,Write}Ops` from `./operations.js`, and `createPodGrepTool` from `./grep-tool.js`. The copy below is what ran; the PR differs only in its README.
 
 ### `packages/sandbox-mcp/package.json`
 
@@ -1700,7 +1710,7 @@ for n in sys.argv[1:]:
 
 ## 5. Round 3: SWE-bench harness
 
-Run from `/tmp/swe/` in this order: `select_instances.py`, `prep.py`, `verify.py`, then `batch.sh` (which calls `run.sh`), then `report.py`.
+Run from `/tmp/swe/` in this order: `select_instances.py`, `prep.py`, `verify.py`, then `batch.sh` (which calls `run.sh`), then `report.py`. `audit_commands.py` checks, after any batch, that no remote-mode agent ran anything locally.
 
 ### `/tmp/swe/select_instances.py`
 
@@ -1878,7 +1888,7 @@ with ThreadPoolExecutor(4) as ex:
 by = {(r['id'], r['label']): r for r in res}
 for i in ids:
     g, b = by[(i, 'gold')], by[(i, 'base')]
-    ok = g['resolved'] and not b['resolved'] and b.get('f2p_failed') == b.get('f2p')
+    ok = 'error' not in g and 'error' not in b and g['resolved'] and not b['resolved'] and b.get('f2p_failed') == b.get('f2p')
     print(f"{'OK ' if ok else 'BAD'} {i:28} gold={g['resolved']} (f2p fail {g.get('f2p_failed')}/{g.get('f2p')}, p2p fail {g.get('p2p_failed')}/{g.get('p2p')}) "
           f"base f2p fail {b.get('f2p_failed')}/{b.get('f2p')} {g.get('error', '')} {g.get('missing_examples') if not g['resolved'] else ''}")
 json.dump(res, open('/tmp/swe/verify.json', 'w'), indent=1)
@@ -2025,7 +2035,7 @@ def one(run, iid):
     meta = json.load(open(f'{RUNS}/{run}/result.json'))
     calls = [json.loads(l) for l in open(f'{RUNS}/{run}/calls.jsonl')] if os.path.exists(f'{RUNS}/{run}/calls.jsonl') else []
     calls = [c for c in calls if c['op'] not in ('push', 'pull')]
-    return dict(run=run, iid=iid, resolved=res['resolved'], wall=meta['wall'], rc=meta['rc'],
+    return dict(run=run, iid=iid, resolved=res['resolved'], error=res.get('error'), wall=meta['wall'], rc=meta['rc'],
                 sbx_calls=len(calls), sbx_s=sum(c['ms'] for c in calls) / 1000, **agent_stats(run))
 
 
@@ -2040,9 +2050,9 @@ for i in ids:
     cells = []
     for v in ('cc-stock', 'cc-sbx', 'oc-stock', 'oc-sbx'):
         r = next((r for r in rows if r['run'] == f'{v}-{i.split("__")[1]}'), None)
-        cells.append('-' if not r else ('PASS' if r['resolved'] else 'fail') + ('*' if r['rc'] else ''))
+        cells.append('-' if not r else ('ERROR' if r['error'] else 'PASS' if r['resolved'] else 'fail') + ('*' if r['rc'] else ''))
     print(f"{i.split('__')[1]:16} " + ' '.join(f'{c:>9}' for c in cells))
-print('\n* = agent exited non-zero (timeout 124)\n')
+print('\n* = agent exited non-zero (timeout 124); ERROR = the grade itself failed (not a result)\n')
 print(f"{'variant':9} {'resolved':>8} {'tool calls':>10} {'sbx calls':>9} {'sbx s':>6} {'model s':>8} {'wall s':>7} {'in tok':>9} {'out tok':>8} {'cost':>7}")
 for v in ('cc-stock', 'cc-sbx', 'oc-stock', 'oc-sbx'):
     rs = [r for r in rows if r['run'].startswith(v + '-')]
@@ -2052,6 +2062,9 @@ for v in ('cc-stock', 'cc-sbx', 'oc-stock', 'oc-sbx'):
     print(f"{v:9} {sum(r['resolved'] for r in rs):>4}/{n:<3} {s('tools')/n:>10.1f} {s('sbx_calls')/n:>9.1f} {s('sbx_s')/n:>6.1f} "
           f"{s('model')/n:>8.0f} {s('wall')/n:>7.0f} {s('tin')/n:>9,.0f} {s('tout')/n:>8,.0f} {cost:>7}")
 print('(per-run means, except resolved and total cost)')
+errored = [r['run'] for r in rows if r['error']]
+if errored:
+    sys.exit(f'{len(errored)} grade(s) errored and are not results; rerun report.py: {errored}')
 ```
 
 ### `/tmp/swe/final.txt`
@@ -2067,4 +2080,56 @@ django__django-14765
 django__django-13012
 django__django-14034
 django__django-15098
+```
+
+### `/tmp/audit_commands.py` — every remote-mode shell command, checked for a local segment
+
+Covers rounds 1–3 (the gRPC-path logs under `/tmp/sbx-logs/grpc/` and `/tmp/swe/runs/*-sbx-*/`). On the published runs: 134 commands in 29 runs, 0 with a non-`sbx` segment. It was also checked to flag crafted offenders (`sbx run x && rm …`, and a local command after a heredoc) and to pass heredoc bodies.
+
+```python
+# Every shell command a remote-mode (gRPC path) agent issued: did any run something other than sbx
+# locally? Heredoc bodies are data for sbx, so they are stripped before splitting the command line.
+import glob, json, re
+
+LOGS = glob.glob('/tmp/sbx-logs/grpc/*.agent.log') + glob.glob('/tmp/swe/runs/*-sbx-*/agent.log')
+
+
+def commands(path):
+    for line in open(path):
+        try:
+            e = json.loads(line)
+        except Exception:
+            continue
+        if e.get('type') == 'assistant':  # Claude Code
+            for c in e['message']['content']:
+                if c['type'] == 'tool_use' and c['name'] == 'Bash':
+                    yield c['input']['command']
+        if e.get('type') == 'tool_use' and e['part'].get('tool') == 'bash':  # OpenCode
+            yield (e['part'].get('state', {}).get('input') or {}).get('command', '')
+
+
+def strip_heredocs(cmd):
+    out, lines, i = [], cmd.split('\n'), 0
+    while i < len(lines):
+        out.append(lines[i])
+        tags = re.findall(r"<<-?\s*['\"]?(\w+)['\"]?", lines[i])
+        for tag in tags:  # skip each heredoc body up to its terminator
+            i += 1
+            while i < len(lines) and lines[i].strip() != tag:
+                i += 1
+        i += 1
+    return '\n'.join(out)
+
+
+total = bad = 0
+for log in sorted(LOGS):
+    for cmd in commands(log):
+        total += 1
+        top = strip_heredocs(cmd)
+        segs = [s.strip() for s in re.split(r'&&|\|\||;|\||\n', top) if s.strip()]
+        offenders = [s for s in segs if not re.match(r'^sbx (run|put)\b', s)]
+        if offenders:
+            bad += 1
+            print(f'{log.split("/")[-2] if "runs" in log else log.split("/")[-1]}: {offenders} <- {cmd[:120]!r}')
+print(f'{total} shell commands in {len(LOGS)} remote-mode runs; {bad} contain a non-sbx segment')
 ```

@@ -1,12 +1,13 @@
 # E14 runbook — replicating the experiment
 
 How to rebuild what [`EXPERIMENTS.md`](EXPERIMENTS.md) measured, from a bare KVM host to a graded
-comparison. Every script and config named here is in [`HARNESS.md`](HARNESS.md), verbatim. Copy each
-to the path in its heading, then substitute the variables listed at the top of that file.
+comparison. Every script and config named here is in [`HARNESS.md`](HARNESS.md), as run plus the
+post-review fixes it lists. Copy each to the path in its heading, then substitute the variables
+listed at the top of that file.
 
-**Two parts of the experiment are left out on purpose:**
-- the AWS rig of rounds 1–2's MCP path, which was a P6 host with a systemd drop-in, a transitional
-  setup;
+**One part of the experiment is left out on purpose:** the AWS rig of rounds 1–2's MCP path, which
+was a P6 host with a systemd drop-in, a transitional setup.
+
 The bare-metal standalone backend below covers everything round 3 needs, and round 1–2's gRPC
 path. Round 1's toy repos are rebuilt by `sbx-toy-repos.sh` (`HARNESS.md` §4).
 

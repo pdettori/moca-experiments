@@ -177,7 +177,11 @@ only one VM at a time.
   OpenCode model call took 340 s, and Claude Code's T1 spent 97 of its 102 s in model API time.
 - **There are more sandbox calls than tool calls on the gRPC path** because one shell call
   sometimes chained several `sbx` commands.
-- **Zero permission denials:** neither agent ever tried a non-`sbx` command.
+- **No agent ran anything locally.** There were zero permission denials, but a denial count cannot show
+  that on its own: a command the allow-list wrongly admits runs instead of being denied. The evidence
+  is the commands themselves. All 134 shell commands from the 29 remote-mode runs of all three rounds
+  consist only of `sbx run` / `sbx put` segments, once heredoc bodies (the script sent to the
+  sandbox) are set aside (`audit_commands.py`, `HARNESS.md` §5).
 
 ---
 
@@ -466,9 +470,11 @@ read coalescing (SBX1 D15).
   reusing the setup:
   - **Stock mode:** Claude Code ran with `--permission-mode bypassPermissions`, and OpenCode with
     `"*": "allow"`. Agent commands executed on the laptop unprompted, in scratch checkouts.
-  - **Remote mode:** the agent's shell allow-list (`Bash(sbx run:*)`, OpenCode's `"sbx run*"`) is
-    the only thing keeping commands off the laptop. A matcher that admits a compound command would
-    run its other half locally. No run attempted one (zero permission denials).
+  - **Remote mode:** the agent's shell allow-list is the only thing keeping commands off the laptop:
+    Claude Code's `Bash(sbx run:*)` and `Bash(sbx put:*)`, OpenCode's `"sbx run*"` and `"sbx put *"`.
+    A matcher that admits a compound command (`sbx run … && <local command>`) would run its other half
+    locally, and that would not show up as a denial. OpenCode's glob is the case at risk. The command
+    audit found no such command in any remote-mode run (round 1 findings above).
   - **MCP path:** the MCP server's HTTP endpoint has no authentication. It binds `127.0.0.1` and is
     reached only through an SSH tunnel; anyone who can reach that port can run commands in its
     workspace.
