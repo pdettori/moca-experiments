@@ -1,7 +1,7 @@
 # E14 harness: every script and config used
 
-All code for E14, verbatim from the runs except for these substitutions, so nothing internal is
-published:
+All code for E14, as run, with two kinds of change: the post-review fixes listed below, and these
+substitutions, so nothing internal is published:
 
 | Variable | Stands for |
 | --- | --- |
@@ -14,6 +14,19 @@ Paths under `/tmp/...` are the scratch locations the runs used; [`RUNBOOK.md`](R
 which file goes where and in what order. Three pieces have no other published home yet, so this
 file is their only copy: the `sbx` CLI, the MCP server (rounds 1–2's MCP path), and the SWE-bench
 harness.
+
+Every heading starts with the file's path; copy each file there. Logs go under `/tmp/sbx-logs/`.
+
+**Post-review fixes (after the runs; outcomes re-verified).** These scripts differ from what ran in
+four ways, all on failure paths:
+- `batch.sh` now creates `/tmp/swe/runs-invalid/` before moving invalid runs into it. During the
+  real run it had been created by hand.
+- `grade.py` records an `error` when `sbx push`/`put`/`run` fail, instead of reporting a wrong fix.
+- `report.py` never caches an errored grade.
+- The runners and graders stop if `cd` or `git apply` fails.
+
+All 40 round-3 runs were re-graded with the fixed `grade.py`/`report.py`, and every outcome matched
+the published one (`EXPERIMENTS.md` §5).
 
 **Contents**
 
@@ -28,9 +41,9 @@ harness.
 Run as a sudo-capable user on the KVM host, in order. Each phase appends to
 `~/sbx-backend-manifest.md`, the record of every change made, for undoing it.
 
-### Phase 1: code, pi-fork, worker binary
+### `sbx-setup-1-code.sh` — phase 1: code, pi-fork, worker binary
 
-Expects `/tmp/sbx-backend.bundle` (`git bundle create /tmp/sbx-backend.bundle feat/relay-client-tokens` in `$MOCA`) and `/tmp/build-rootfs.sh` (`git show upstream/main:deploy/microvm/build-rootfs.sh` in the main repo).
+Expects `/tmp/sbx-backend.bundle` (`git bundle create /tmp/sbx-backend.bundle feat/relay-client-tokens` in `$MOCA`) and `/tmp/build-rootfs.sh` (`git show upstream/main:deploy/microvm/build-rootfs.sh` in the main repo). Copy to `/tmp/` on the rig and run with `bash`.
 
 ```bash
 #!/bin/bash
@@ -71,7 +84,9 @@ echo "- installed /usr/local/bin/sbx-microvm-worker (built from $D/remote-worker
 echo "phase 1 ok: $(git -C "$D" log --oneline -1)"
 ```
 
-### Phase 2: golden snapshot
+### `sbx-setup-2-snapshot.sh` — phase 2: golden snapshot
+
+Copy to `/tmp/` on the rig and run with `bash`.
 
 ```bash
 #!/bin/bash
@@ -110,9 +125,9 @@ echo "- built snapshot /srv/sbx/snapshots/default" >> "$M"
 sudo cat /srv/sbx/snapshots/default/manifest.json
 ```
 
-### Phase 3: Redis, relay and worker units, tokens
+### `sbx-setup-3-services.sh` — phase 3: Redis, relay and worker units, tokens
 
-Generates the client token into `~/sbx-exec-client.token` (mode 600) for hand-off.
+Generates the client token into `~/sbx-exec-client.token` (mode 600) for hand-off. Copy to `/tmp/` on the rig and run with `bash`.
 
 ```bash
 #!/bin/bash
@@ -202,7 +217,9 @@ sudo journalctl -u sbx-microvm-worker -n 4 --no-pager -o cat
 grep -E "^Environment(File)?=.*(SNAPSHOT_DIR|WORKSPACE_ROOT|CHROOT|worker.env)" "$U/sbx-microvm-worker.service"
 ```
 
-### Phase 4: verify with the client token
+### `sbx-setup-4-verify.sh` — phase 4: verify with the client token
+
+Copy to `/tmp/` on the rig and run with `bash`.
 
 ```bash
 #!/bin/bash
@@ -228,7 +245,9 @@ echo "--- wrong token:"; call sbx-exec-check 'true' "$(openssl rand -hex 32)" | 
 echo "--- P6 untouched: $(systemctl is-active sh-relay sh-supervisor sh-control-plane | tr '\n' ' ')"
 ```
 
-### Round 3 prerequisite: SWE-bench dependencies in the snapshot
+### `sbx-swe-snapshot.sh` — round 3 prerequisite: SWE-bench dependencies in the snapshot
+
+Copy to `/tmp/` on the rig and run with `bash`.
 
 ```bash
 #!/bin/bash
@@ -260,7 +279,9 @@ sudo journalctl -u sbx-microvm-worker -n 3 --no-pager -o cat
 sudo cat /srv/sbx/snapshots/default/manifest.json | grep -E '"hash"|built_at'
 ```
 
-### Round 3 prerequisite: `/workspace` on `sys.path` (editable-install stand-in)
+### `sbx-swe-pth.sh` — round 3 prerequisite: `/workspace` on `sys.path` (editable-install stand-in)
+
+Copy to `/tmp/` on the rig and run with `bash`.
 
 ```bash
 #!/bin/bash
@@ -288,7 +309,7 @@ sudo journalctl -u sbx-microvm-worker -n 1 --no-pager -o cat
 
 `sandbox_v1_client.py`, which `sbx.py` imports, is committed at `$MOCA/docs/api/examples/sandbox_v1_client.py`; generate the stubs it needs with `python -m grpc_tools.protoc -I $MOCA/proto --python_out=/tmp/sbx-py --grpc_python_out=/tmp/sbx-py sandbox/v1/sandbox.proto`.
 
-### `sbx.py`
+### `$MOCA/docs/api/examples/sbx.py`
 
 ```python
 """sbx: a command-line client for one sandbox/v1 workspace, built on sandbox_v1_client.py.
@@ -400,7 +421,7 @@ if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
 ```
 
-### `sbx` wrapper
+### `/tmp/sbx-bin/sbx` — wrapper
 
 ```sh
 #!/bin/sh
@@ -408,9 +429,9 @@ if __name__ == "__main__":
 PYTHONPATH=/tmp/sbx-py:$MOCA/docs/api/examples exec /tmp/sbx-venv/bin/python $MOCA/docs/api/examples/sbx.py "$@"
 ```
 
-### `AGENTS.md` / `CLAUDE.md` (identical)
+### `/tmp/sbx-grpc-cfg/AGENTS.md`, `/tmp/sbx-grpc-cfg/CLAUDE.md` — identical
 
-Copied into the project root for both agents.
+The runners copy both into the project root.
 
 ```markdown
 # Working in the MOCA sandbox
@@ -440,7 +461,7 @@ working directory is `/workspace`.
 - `sbx run` exits with the script's own exit code.
 ```
 
-### OpenCode `opencode.json` (gRPC path)
+### `/tmp/sbx-grpc-cfg/opencode.json` — OpenCode, gRPC path
 
 ```json
 {
@@ -473,7 +494,7 @@ working directory is `/workspace`.
 }
 ```
 
-### OpenCode provider config (`OPENCODE_CONFIG`)
+### `/tmp/sbx-oc-provider.json` — OpenCode provider (`OPENCODE_CONFIG`)
 
 Merged with the project `opencode.json`; replace `<LITELLM_BASE_URL>`.
 
@@ -494,8 +515,10 @@ Merged with the project `opencode.json`; replace `<LITELLM_BASE_URL>`.
 
 ### Claude Code (gRPC path): flags, not a settings file
 
-A project `.claude/settings.json` `permissions.allow` is ignored until the folder has been trusted
-interactively, so the headless runs pass everything as flags:
+In a folder never trusted interactively, Claude Code ignores a project `.claude/settings.json`'s
+`permissions.allow`. It logs `Ignoring 1 permissions.allow entry ... this workspace has not been
+trusted`, but still applies the file's `deny` list. The gRPC path needs its allow rules
+(`Bash(sbx run:*)`), so the headless runs pass everything as flags:
 
 ```sh
 claude -p "$PROMPT" --model aws/claude-sonnet-5-5 --setting-sources project --strict-mcp-config \
@@ -1128,7 +1151,7 @@ describe('sandbox-mcp', () => {
 });
 ```
 
-### `demo/sbx-push.sh`
+### `$MOCA/packages/sandbox-mcp/demo/sbx-push.sh`
 
 ```sh
 #!/bin/sh
@@ -1144,7 +1167,7 @@ git ls-files -z --cached --others --exclude-standard \
   | { read -r rev; read -r files; echo "pushed $files files (sandbox baseline $rev)"; }
 ```
 
-### `demo/sbx-pull.sh`
+### `$MOCA/packages/sandbox-mcp/demo/sbx-pull.sh`
 
 ```sh
 #!/bin/sh
@@ -1159,7 +1182,7 @@ git apply --stat .sbx.patch
 if [ "${1:-}" = "--apply" ]; then git apply .sbx.patch && rm .sbx.patch && echo "applied"; else echo "wrote .sbx.patch (re-run with --apply to apply it)"; fi
 ```
 
-### OpenCode `opencode.json` (MCP path)
+### `$MOCA/packages/sandbox-mcp/demo/opencode.json` — OpenCode, MCP path
 
 ```json
 {
@@ -1201,7 +1224,7 @@ if [ "${1:-}" = "--apply" ]; then git apply .sbx.patch && rm .sbx.patch && echo 
 }
 ```
 
-### Claude Code `.mcp.json` (MCP path)
+### `$MOCA/packages/sandbox-mcp/demo/.mcp.json` — Claude Code, MCP path
 
 ```json
 {
@@ -1214,7 +1237,7 @@ if [ "${1:-}" = "--apply" ]; then git apply .sbx.patch && rm .sbx.patch && echo 
 }
 ```
 
-### Claude Code `.claude/settings.json` (MCP path)
+### `$MOCA/packages/sandbox-mcp/demo/claude/settings.json` — Claude Code, MCP path; `sbx-run.sh` copies it to the project as `.claude/settings.json`
 
 ```json
 {
@@ -1242,7 +1265,7 @@ if [ "${1:-}" = "--apply" ]; then git apply .sbx.patch && rm .sbx.patch && echo 
 }
 ```
 
-### `AGENTS.md` (MCP path; `CLAUDE.md` names the tools `mcp__sandbox__*`)
+### `$MOCA/packages/sandbox-mcp/demo/AGENTS.md` — MCP path, OpenCode
 
 ```markdown
 # Working in the MOCA sandbox
@@ -1258,7 +1281,23 @@ tools; the working directory is `/workspace`.
   long commands to what you need.
 ```
 
-### `demo/compose.override.yml` (local dev loop only)
+### `$MOCA/packages/sandbox-mcp/demo/CLAUDE.md` — MCP path, Claude Code
+
+```markdown
+# Working in the MOCA sandbox
+
+This project's code lives in a remote sandbox, not on this machine. Use only the `mcp__sandbox__*`
+tools; the working directory is `/workspace`.
+
+- Every tool call runs in a fresh VM. No process survives between calls: never start a server,
+  watcher or background job expecting it to be there on the next call.
+- Files under `/workspace` persist between calls. Nothing else does.
+- The sandbox has no network access: package installs and `git push` will fail.
+- One command runs at a time. Prefer one `bash` call per test run over many small ones, and keep
+  long commands to what you need.
+```
+
+### `$MOCA/packages/sandbox-mcp/demo/compose.override.yml` — local dev loop only
 
 ```yaml
 # SPIKE, local dev only: publish the relay's SandboxExec listener on host loopback so a
@@ -1272,9 +1311,172 @@ services:
       - '127.0.0.1:9444:9444'
 ```
 
+**Claude Code on the MCP path.** The runs relied on this settings file without `--allowedTools`.
+Its `allow` entry was ignored (the folder was untrusted), but its `deny` list applied, so no built-in
+tool was offered. The MCP tools from `--mcp-config` ran without an allow rule in `-p` mode, as
+observed in every MCP-path run. Trusting the folder once interactively makes the `allow` entry
+take effect too.
+
 ## 4. Rounds 1–2 runners
 
-### MCP path runner (`sbx-run.sh`)
+### `/tmp/sbx-toy-repos.sh` — round 1 toy repos (`calc`, `inventory`), exactly as used
+
+```bash
+#!/bin/bash
+# Round 1's two toy repos, exactly as used: /tmp/sbx-demo-repo (calc) and /tmp/sbx-demo2 (inventory).
+set -euo pipefail
+commit() { git add -A && git -c user.name=t -c user.email=t@t commit -qm init; }
+
+# calc: add() subtracts. Task T1.
+mkdir /tmp/sbx-demo-repo && cd /tmp/sbx-demo-repo && git init -q
+printf '# demo\n\nA tiny repo.\n' > README.md
+printf 'def add(a, b):\n    return a - b\n' > calc.py
+printf 'from calc import add\nassert add(2, 3) == 5, add(2, 3)\nprint("ok")\n' > test_calc.py
+commit
+
+# inventory: 3 failing tests, root cause in pricing.apply_discount (two modules from the tests). Task T2.
+mkdir -p /tmp/sbx-demo2/inventory /tmp/sbx-demo2/tests && cd /tmp/sbx-demo2 && git init -q
+cat > inventory/__init__.py <<'EOF'
+from .models import Item
+from .store import Store
+EOF
+cat > inventory/models.py <<'EOF'
+from dataclasses import dataclass
+
+
+@dataclass
+class Item:
+    name: str
+    price_cents: int
+    qty: int
+    discount_pct: int = 0
+EOF
+cat > inventory/pricing.py <<'EOF'
+def apply_discount(price_cents: int, pct: int) -> int:
+    """Price after a percentage discount, rounded down to whole cents."""
+    if not 0 <= pct <= 100:
+        raise ValueError(f"discount out of range: {pct}")
+    return price_cents * pct // 100
+
+
+def line_total(price_cents: int, qty: int, pct: int = 0) -> int:
+    return apply_discount(price_cents, pct) * qty
+EOF
+cat > inventory/store.py <<'EOF'
+from .models import Item
+from .pricing import line_total
+
+
+class Store:
+    def __init__(self):
+        self._items: dict[str, Item] = {}
+
+    def add(self, item: Item) -> None:
+        if item.name in self._items:
+            self._items[item.name].qty += item.qty
+        else:
+            self._items[item.name] = item
+
+    def remove(self, name: str, qty: int) -> None:
+        item = self._items[name]
+        if qty > item.qty:
+            raise ValueError(f"only {item.qty} {name} in stock")
+        item.qty -= qty
+        if item.qty == 0:
+            del self._items[name]
+
+    def items(self) -> list[Item]:
+        return sorted(self._items.values(), key=lambda i: i.name)
+
+    def total_value(self) -> int:
+        return sum(line_total(i.price_cents, i.qty, i.discount_pct) for i in self._items.values())
+EOF
+cat > inventory/report.py <<'EOF'
+from .store import Store
+
+
+def cents(v: int) -> str:
+    return f"${v // 100}.{v % 100:02d}"
+
+
+def render(store: Store) -> str:
+    lines = [f"{i.name:<10} {i.qty:>4} x {cents(i.price_cents)}" for i in store.items()]
+    lines.append(f"{'TOTAL':<10} {cents(store.total_value())}")
+    return "\n".join(lines)
+EOF
+cat > inventory/csvload.py <<'EOF'
+from .models import Item
+
+
+def parse(text: str) -> list[Item]:
+    items = []
+    for n, line in enumerate(text.strip().splitlines(), 1):
+        if not line.strip() or line.startswith("#"):
+            continue
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) not in (3, 4):
+            raise ValueError(f"line {n}: expected 3 or 4 fields")
+        name, price, qty = parts[:3]
+        pct = int(parts[3]) if len(parts) == 4 else 0
+        items.append(Item(name, int(price), int(qty), pct))
+    return items
+EOF
+: > tests/__init__.py
+cat > tests/test_store.py <<'EOF'
+import unittest
+
+from inventory import Item, Store
+
+
+class StoreTest(unittest.TestCase):
+    def test_total_without_discount(self):
+        s = Store()
+        s.add(Item("apple", 50, 4))
+        s.add(Item("pear", 75, 2))
+        self.assertEqual(s.total_value(), 350)
+
+    def test_total_with_discount(self):
+        s = Store()
+        s.add(Item("tv", 10000, 1, discount_pct=25))
+        self.assertEqual(s.total_value(), 7500)
+
+    def test_remove(self):
+        s = Store()
+        s.add(Item("apple", 50, 4))
+        s.remove("apple", 4)
+        self.assertEqual(s.items(), [])
+EOF
+cat > tests/test_report.py <<'EOF'
+import unittest
+
+from inventory import Item, Store
+from inventory.report import render
+
+
+class ReportTest(unittest.TestCase):
+    def test_render(self):
+        s = Store()
+        s.add(Item("apple", 50, 4))
+        self.assertEqual(render(s).splitlines()[-1], "TOTAL      $2.00")
+EOF
+cat > tests/test_csvload.py <<'EOF'
+import unittest
+
+from inventory.csvload import parse
+
+
+class CsvTest(unittest.TestCase):
+    def test_parse(self):
+        items = parse("# name,price,qty\napple,50,4\ntv,10000,1,25\n")
+        self.assertEqual([(i.name, i.discount_pct) for i in items], [("apple", 0), ("tv", 25)])
+EOF
+printf '__pycache__/\n' > .gitignore
+printf '# inventory\n\nA tiny inventory library. Tests: `python3 -m unittest`.\n' > README.md
+commit
+python3 -m unittest 2>&1 | tail -1 || true   # expected: FAILED (failures=3)
+```
+
+### `/tmp/sbx-run.sh` — runner, MCP path
 
 ```bash
 #!/bin/bash
@@ -1282,11 +1484,11 @@ services:
 set -u
 agent=$1 repo=$2 name=$3 prompt=$4
 D=$MOCA/packages/sandbox-mcp/demo
-L=/tmp/kagenti/tdd/moca/cmp; mkdir -p $L
+L=/tmp/sbx-logs/cmp; mkdir -p $L
 RIG="ssh $AWS_SSH_OPTS -o LogLevel=ERROR $AWS_RIG"
 KEY=${LITELLM_KEY:?}
 BASE=${LITELLM_BASE_URL:?}
-cd $repo && git checkout -q -- . && git clean -qfdx
+cd $repo && git checkout -q -- . && git clean -qfdx || { echo "$name: cannot reset $repo"; exit 1; }
 cp $D/opencode.json $D/AGENTS.md $D/CLAUDE.md $D/.mcp.json . && mkdir -p .claude && cp $D/claude/settings.json .claude/
 $D/sbx-push.sh >/dev/null
 start=$($RIG 'wc -l < ~/sbx-mcp.log' 2>/dev/null)
@@ -1305,7 +1507,7 @@ $D/sbx-pull.sh > /dev/null 2>&1; [ -f .sbx.patch ] && cp .sbx.patch $L/$name.pat
 printf '%s rc=%s wall=%.1fs calls=%s\n' $name $rc $(echo "$E - $S" | bc) $(wc -l < $L/$name.calls.jsonl)
 ```
 
-### gRPC path runner (`sbx-grpc-run.sh`)
+### `/tmp/sbx-grpc-run.sh` — runner, gRPC path
 
 ```bash
 #!/bin/bash
@@ -1314,13 +1516,13 @@ printf '%s rc=%s wall=%.1fs calls=%s\n' $name $rc $(echo "$E - $S" | bc) $(wc -l
 set -u
 agent=$1 repo=$2 name=$3 prompt=$4
 C=/tmp/sbx-grpc-cfg
-L=/tmp/kagenti/tdd/moca/grpc; mkdir -p $L
+L=/tmp/sbx-logs/grpc; mkdir -p $L
 KEY=${LITELLM_KEY:?}
 BASE=${LITELLM_BASE_URL:?}
 export PATH=/tmp/sbx-bin:$PATH SBX_ADDR=localhost:9444 SBX_SANDBOX_ID=moca_microvm_0 \
   SBX_TOKEN_FILE=/tmp/sbx-exec.token SBX_WORKSPACE_KEY=sbx-exec-$name SBX_LOG=$L/$name.calls.jsonl
 rm -f $SBX_LOG
-cd $repo && git checkout -q -- . && git clean -qfdx
+cd $repo && git checkout -q -- . && git clean -qfdx || { echo "$name: cannot reset $repo"; exit 1; }
 cp $C/AGENTS.md $C/CLAUDE.md . && [ $agent = oc ] && cp $C/opencode.json .
 sbx push > /dev/null || { echo "$name: push failed"; exit 1; }
 S=$(date +%s.%N)
@@ -1340,13 +1542,13 @@ sbx pull > $L/$name.patch 2> /dev/null
 printf '%s rc=%s wall=%.1fs sbx-calls=%s\n' $name $rc $(echo "$E - $S" | bc) $(grep -cv '"op": "p[ul][sl]' $SBX_LOG)
 ```
 
-### Round 2 prompt
+### `/tmp/sbx-t3-prompt.txt` — round 2 prompt
 
 ```text
 Add a new built-in extension to Python-Markdown: `strikethrough`, which renders `~~text~~` as `<del>text</del>`. Follow the conventions of the existing built-in extensions: the implementation in markdown/extensions/, registered like the others so that `markdown.markdown(text, extensions=['strikethrough'])` works, tests in the existing test style under tests/, and a docs page in docs/extensions/ linked from the extensions index. Handle edge cases sensibly: for example, `~~` inside a code span must not be converted, and a single `~` is left alone. Run the full test suite (python3 -m unittest discover tests) at the end. Known pre-existing failures unrelated to this task: test_apis (needs PyYAML, which is not installed) and 8 tests in test_html_blocks / test_md_in_html (Python 3.9 html.parser differences). Do not try to fix those.
 ```
 
-### Round 2 test-environment shim (committed in the Markdown checkout before the baseline)
+### `/tmp/sbx-markdown/importlib_metadata.py` — round 2 test-environment shim, committed in the Markdown checkout before the baseline
 
 ```python
 """Test-environment shim, not part of Markdown.
@@ -1373,7 +1575,7 @@ def entry_points(group=None):
     return [e for e in eps if group is None or e.group == group]
 ```
 
-### Round 2 hidden acceptance checks
+### `/tmp/sbx-accept.py` — round 2 hidden acceptance checks
 
 ````python
 # Hidden acceptance checks for the strikethrough task. Prints one line per check.
@@ -1397,30 +1599,43 @@ for name, f in checks:
     print(f"{'PASS' if ok is True else 'FAIL'} {name}{'' if ok in (True, False) else ' ' + str(ok)}")
 ````
 
-### Round 2 grader, MCP path
+### `/tmp/sbx-eval.sh` — round 2 grader, MCP path
 
 ```bash
 #!/bin/bash
 # Throwaway: apply a run's patch to a clean copy, push it, run suite + acceptance in the sandbox.
 set -u
-name=$1 L=/tmp/kagenti/tdd/moca/cmp E=/tmp/sbx-markdown-eval
-rm -rf $E && git clone -q /tmp/sbx-markdown $E && cd $E && git apply $L/$name.patch && cp /tmp/sbx-accept.py .sbx_accept.py
+name=$1 L=/tmp/sbx-logs/cmp E=/tmp/sbx-markdown-eval
+rm -rf $E && git clone -q /tmp/sbx-markdown $E && cd $E && git apply $L/$name.patch && cp /tmp/sbx-accept.py .sbx_accept.py || { echo "$name: cannot prepare the patched copy"; exit 1; }
 $MOCA/packages/sandbox-mcp/demo/sbx-push.sh > /dev/null
 cd $MOCA/packages/sandbox-mcp && cp /tmp/sbx-eval-client.ts eval.tmp.ts && node --import tsx eval.tmp.ts > $L/$name.eval.txt 2>&1; rm -f eval.tmp.ts
 echo "== $name"; cat $L/$name.eval.txt
 ```
 
-### Round 2 grader, gRPC path
+### `/tmp/sbx-eval-client.ts` — MCP client the MCP-path grader runs (copied into `packages/sandbox-mcp/` for its node_modules)
+
+```ts
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+const c = new Client({ name: 'eval', version: '0' });
+await c.connect(new StreamableHTTPClientTransport(new URL('http://localhost:8787/mcp')));
+const r = await c.callTool({ name: 'bash', arguments: { command:
+  'cd /workspace && python3 -m unittest discover tests 2>&1 | grep -E "^(FAIL|ERROR):|^Ran|^FAILED|^OK" | grep -vE "test_apis|test_raw_missing_close_bracket|test_raw_unclosed_tag_in_code_span|test_unclosed_comment_"; python3 .sbx_accept.py; git status --short | grep -v sbx_accept' } });
+console.log((r.content as any[]).map((x) => x.text).join(''));
+await c.close();
+```
+
+### `/tmp/sbx-grpc-eval.sh` — round 2 grader, gRPC path
 
 ```bash
 #!/bin/bash
 # Throwaway: grade a Markdown run's patch over sandbox/v1. Usage: sbx-grpc-eval.sh <name> (or "baseline").
 set -u
-name=$1 L=/tmp/kagenti/tdd/moca/grpc E=/tmp/sbx-markdown-geval-$name
+name=$1 L=/tmp/sbx-logs/grpc E=/tmp/sbx-markdown-geval-$name
 export PATH=/tmp/sbx-bin:$PATH SBX_ADDR=localhost:9444 SBX_SANDBOX_ID=moca_microvm_0 \
   SBX_TOKEN_FILE=/tmp/sbx-exec.token SBX_WORKSPACE_KEY=sbx-exec-eval-$name
-rm -rf $E && git clone -q /tmp/sbx-markdown $E 2> /dev/null && cd $E
-[ $name = baseline ] || git apply $L/$name.patch
+rm -rf $E && git clone -q /tmp/sbx-markdown $E 2> /dev/null && cd $E || { echo "$name: cannot clone"; exit 1; }
+[ $name = baseline ] || git apply $L/$name.patch || { echo "$name: patch did not apply"; exit 1; }
 cp /tmp/sbx-accept.py .sbx_accept.py
 sbx push > /dev/null
 echo "== $name"
@@ -1432,11 +1647,11 @@ EOF
 rm -rf $E
 ```
 
-### Call-log summary, MCP path
+### `/tmp/sbx-compare.py` — call-log summary, MCP path
 
 ```python
 import json, sys, collections, datetime as dt
-L = '/tmp/kagenti/tdd/moca/cmp'
+L = '/tmp/sbx-logs/cmp'
 def iso(s): return dt.datetime.fromisoformat(s.replace('Z', '+00:00')).timestamp()
 print(f"{'run':8} {'calls':>5} {'VMs':>4} {'sbx s':>6} {'max par':>7} {'errs':>4}  tools")
 for name in sys.argv[1:]:
@@ -1450,12 +1665,12 @@ for name in sys.argv[1:]:
     print(f"{name:8} {len(recs):>5} {sum(r['execs'] for r in recs):>4} {sum(r['ms'] for r in recs)/1000:>6.1f} {mx:>7} {sum(not r['ok'] for r in recs):>4}  " + ' '.join(f'{k}={v}' for k, v in sorted(ops.items())))
 ```
 
-### Call-log summary, gRPC path
+### `/tmp/sbx-grpc-compare.py` — call-log summary, gRPC path
 
 ```python
 # Throwaway: summarize gRPC-path runs. Usage: python3 sbx-grpc-compare.py <run>...
 import json, sys
-L = '/tmp/kagenti/tdd/moca/grpc'
+L = '/tmp/sbx-logs/grpc'
 print(f"{'run':10} {'agent calls':>11} {'sbx calls':>9} {'sbx s':>6} {'denied':>6} {'model s':>7} {'in tok':>8} {'out tok':>7} {'cost':>6}")
 for n in sys.argv[1:]:
     calls = [json.loads(l) for l in open(f'{L}/{n}.calls.jsonl') if l.strip()]
@@ -1487,7 +1702,7 @@ for n in sys.argv[1:]:
 
 Run from `/tmp/swe/` in this order: `select_instances.py`, `prep.py`, `verify.py`, then `batch.sh` (which calls `run.sh`), then `report.py`.
 
-### `select_instances.py`
+### `/tmp/swe/select_instances.py`
 
 ```python
 # Pick the SWE-bench Verified candidates: sympy 1.5-1.12 and django 3.2-4.2 (Python 3.9), per project
@@ -1509,7 +1724,7 @@ for r in sel:
 d[d.instance_id.isin([r.instance_id for r in sel])].to_json('/tmp/swe/candidates.jsonl', orient='records', lines=True)
 ```
 
-### `prep.py`
+### `/tmp/swe/prep.py`
 
 ```python
 # Throwaway: one clean tree per candidate at its base commit, no history, committed as a baseline.
@@ -1545,7 +1760,7 @@ for line in open(f'{ROOT}/candidates.jsonl'):
     print(f'{iid}: {len(os.listdir(d + "/tree"))} top-level entries, push size {int(tgz) / 1e6:.1f} MB', flush=True)
 ```
 
-### `grade.py`
+### `/tmp/swe/grade.py`
 
 ```python
 # Throwaway: grade one patch for one instance in a fresh sbx sandbox workspace.
@@ -1613,9 +1828,10 @@ def grade(iid, patch, label):
     r = sbx(['push'], key, cwd=f'{d}/tree')
     if r.returncode:
         return {'id': iid, 'label': label, 'resolved': False, 'error': 'push: ' + r.stderr.decode()[-300:]}
-    if patch != '-':
-        sbx(['put', '.sbx/model.patch'], key, stdin=open(patch, 'rb').read())
-    sbx(['put', '.sbx/test.patch'], key, stdin=open(f'{d}/test.patch', 'rb').read())
+    for name, path in ([('model', patch)] if patch != '-' else []) + [('test', f'{d}/test.patch')]:
+        r = sbx(['put', f'.sbx/{name}.patch'], key, stdin=open(path, 'rb').read())
+        if r.returncode:
+            return {'id': iid, 'label': label, 'resolved': False, 'error': f'put {name} patch: exit {r.returncode}'}
     existing = ' '.join(meta['test_files'])
     script = f"""cd /workspace
 if [ -s .sbx/model.patch ]; then
@@ -1627,10 +1843,13 @@ git apply --whitespace=nowarn .sbx/test.patch 2>&1 || {{ echo SBX_TESTPATCH_FAIL
 true"""
     r = sbx(['run'], key, stdin=script.encode())
     log = r.stdout.decode(errors='replace') + r.stderr.decode(errors='replace')
+    # The script ends in `true`, so any non-zero exit is the sandbox's: 124 timeout, 125 unreachable.
+    if r.returncode:
+        return {'id': iid, 'label': label, 'resolved': False, 'error': f'test run: sbx exit {r.returncode}'}
     os.makedirs(f'{d}/grades', exist_ok=True)
     open(f'{d}/grades/{label}.log', 'w').write(log)
     if 'SBX_PATCH_FAILED' in log or 'SBX_TESTPATCH_FAILED' in log:
-        return {'id': iid, 'label': label, 'resolved': False, 'error': 'patch did not apply'}
+        return {'id': iid, 'label': label, 'resolved': False, 'note': 'patch did not apply'}  # an outcome, cached
     st = (parse_sympy if meta['repo'] == 'sympy' else parse_django)(log)
     f2p = [t for t in meta['f2p'] if st.get(t) != 'PASSED']
     p2p = [t for t in meta['p2p'] if st.get(t) != 'PASSED']
@@ -1643,7 +1862,7 @@ if __name__ == '__main__':
     print(json.dumps(grade(*sys.argv[1:4])))
 ```
 
-### `verify.py`
+### `/tmp/swe/verify.py`
 
 ```python
 # Throwaway: gold must resolve and the bare base must not, for every candidate. 4 at a time.
@@ -1665,7 +1884,7 @@ for i in ids:
 json.dump(res, open('/tmp/swe/verify.json', 'w'), indent=1)
 ```
 
-### `run.sh`
+### `/tmp/swe/run.sh`
 
 ```bash
 #!/bin/bash
@@ -1689,7 +1908,7 @@ The $repo repository is checked out $where. Resolve the issue above by changing 
 - python3 is Python 3.9 with the project's dependencies, and the project is importable. There is no network access.
 - To run tests: $tests_hint"
 
-cd $R/repo
+cd $R/repo || { echo "$run: no checkout"; exit 1; }
 printf '%s\n' AGENTS.md CLAUDE.md opencode.json .claude/ __pycache__/ '*.pyc' >> .git/info/exclude
 if [ $mode = sbx ]; then
   cp /tmp/sbx-grpc-cfg/AGENTS.md /tmp/sbx-grpc-cfg/CLAUDE.md .
@@ -1720,7 +1939,7 @@ printf '{"run":"%s","rc":%s,"wall":%.1f}\n' $run $rc $(echo "$E - $S" | bc) > $R
 cat $R/result.json
 ```
 
-### `batch.sh`
+### `/tmp/swe/batch.sh`
 
 ```bash
 #!/bin/bash
@@ -1744,6 +1963,7 @@ invalid() { # an outage touched this run: a sandbox call that never reached the 
   return 1
 }
 
+mkdir -p /tmp/swe/runs-invalid  # without it the mv fails, result.json stays, and an invalid run is graded
 for iid in $(cat /tmp/swe/final.txt); do
   for attempt in 1 2; do
     until healthy; do echo "$(date +%T) waiting: gateway or sandbox unavailable"; sleep 60; done
@@ -1762,7 +1982,7 @@ for iid in $(cat /tmp/swe/final.txt); do
 done
 ```
 
-### `report.py`
+### `/tmp/swe/report.py`
 
 ```python
 # Throwaway: grade every finished run (4 at a time, cached) and summarize per agent and mode.
@@ -1797,9 +2017,12 @@ def agent_stats(run):
 
 def one(run, iid):
     g = f'{RUNS}/{run}/grade.json'
-    if not os.path.exists(g):
-        json.dump(grade(iid, f'{RUNS}/{run}/patch', run), open(g, 'w'))
-    res = json.load(open(g)); meta = json.load(open(f'{RUNS}/{run}/result.json'))
+    res = json.load(open(g)) if os.path.exists(g) else None
+    if res is None or res.get('error'):  # an errored grade is retried, never cached as a result
+        res = grade(iid, f'{RUNS}/{run}/patch', run)
+        if not res.get('error'):
+            json.dump(res, open(g, 'w'))
+    meta = json.load(open(f'{RUNS}/{run}/result.json'))
     calls = [json.loads(l) for l in open(f'{RUNS}/{run}/calls.jsonl')] if os.path.exists(f'{RUNS}/{run}/calls.jsonl') else []
     calls = [c for c in calls if c['op'] not in ('push', 'pull')]
     return dict(run=run, iid=iid, resolved=res['resolved'], wall=meta['wall'], rc=meta['rc'],
@@ -1831,7 +2054,7 @@ for v in ('cc-stock', 'cc-sbx', 'oc-stock', 'oc-sbx'):
 print('(per-run means, except resolved and total cost)')
 ```
 
-### `final.txt`
+### `/tmp/swe/final.txt`
 
 ```text
 sympy__sympy-19637

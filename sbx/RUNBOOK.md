@@ -7,10 +7,8 @@ to the path in its heading, then substitute the variables listed at the top of t
 **Two parts of the experiment are left out on purpose:**
 - the AWS rig of rounds 1–2's MCP path, which was a P6 host with a systemd drop-in, a transitional
   setup;
-- rounds 1–2's toy repos, which are inline in `EXPERIMENTS.md` §3.
-
 The bare-metal standalone backend below covers everything round 3 needs, and round 1–2's gRPC
-path.
+path. Round 1's toy repos are rebuilt by `sbx-toy-repos.sh` (`HARNESS.md` §4).
 
 ---
 
@@ -119,17 +117,19 @@ curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $LITELLM_KEY"
 
 ## 3. Rounds 1–2 (optional)
 
-- **Round 1:** create the two toy repos from `EXPERIMENTS.md` §3, then run
-  `sbx-grpc-run.sh <cc|oc> <repo> <name> "<prompt>"` for each task and agent.
+- **Round 1:** `bash /tmp/sbx-toy-repos.sh` creates `/tmp/sbx-demo-repo` (`calc`) and `/tmp/sbx-demo2`
+  (`inventory`). Then run `sbx-grpc-run.sh <cc|oc> <repo> <name> "<prompt>"` for each task and
+  agent, with the T1/T2 prompts from `EXPERIMENTS.md` §3.
 - **Round 2:**
   1. `git clone --depth 1 --branch 3.7 https://github.com/Python-Markdown/markdown /tmp/sbx-markdown`.
   2. Commit `importlib_metadata.py` (`HARNESS.md` §4) at the repo root.
-  3. Run `sbx-grpc-run.sh <cc|oc> /tmp/sbx-markdown <name> "$(cat /tmp/sbx-t3-prompt.txt)"`.
+  3. Save the round-2 prompt (`HARNESS.md` §4) as `/tmp/sbx-t3-prompt.txt`, then run
+     `sbx-grpc-run.sh <cc|oc> /tmp/sbx-markdown <name> "$(cat /tmp/sbx-t3-prompt.txt)"`.
   4. Grade with `sbx-grpc-eval.sh <name>`, after `sbx-grpc-eval.sh baseline`, which should print
      `Ran 951 tests … FAILED (failures=8, errors=1, skipped=74)`.
   5. Summarize with `sbx-grpc-compare.py <names…>`.
 - **The MCP path:** run the `packages/sandbox-mcp` server next to a relay (`HARNESS.md` §3) and use
-  `sbx-run.sh` instead. The server needs `SH_RELAY_ADDR`, `MOCA_RELAY_EXEC_TOKEN` (or a client
+  `sbx-run.sh` (`HARNESS.md` §4) instead. The server needs `SH_RELAY_ADDR`, `MOCA_RELAY_EXEC_TOKEN` (or a client
   token), `SBX_SANDBOX_ID` and `SBX_WORKSPACE_KEY`. It listens on `127.0.0.1:8787` only.
 
 ---
@@ -184,8 +184,10 @@ VIRTUAL_ENV=/tmp/swe/venv uv pip install mpmath==1.3.0 asgiref==3.7.2 typing_ext
 A full batch took about 80 minutes of run time with a healthy gateway.
 
 **Notes:**
-- **Stock runs execute agent commands on your machine**, with Claude Code in
-  `bypassPermissions`. They run in scratch checkouts under `/tmp/swe/runs/`, with web tools denied.
+- **Stock runs execute agent commands on your machine, unprompted.** Claude Code runs in
+  `bypassPermissions` and OpenCode with `"*": "allow"`, in scratch checkouts under `/tmp/swe/runs/`,
+  with web tools denied. In remote mode the shell allow-list is the only boundary
+  (`EXPERIMENTS.md` §7).
 - **The grader always runs in the sandbox**, so stock and remote patches are scored in the same
   environment.
 - **Workspace keys** are `sbx-exec-r-<run>` (agent runs) and `sbx-exec-g-<label>-<issue>`

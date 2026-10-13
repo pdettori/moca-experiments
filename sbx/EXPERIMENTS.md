@@ -4,8 +4,9 @@
 command they run goes to a fresh Firecracker microVM, and what does it cost?
 
 - **The idea:** "brain stays local, hands go remote", the wave-0 premise of the SBX1 sandbox-service
-  design (main repo, `aiplatform/docs/moca/2026-10-01-sandbox-service-contract-auth-design.md`
-  §8.2, and its ADR).
+  design: coding agents reach a per-Exec microVM tier through a hosted MCP server or a thin client.
+  SBX1 is an internal draft, not yet published; where this record cites it (§N, D15, O12), those
+  are its section, decision and open-question numbers.
 - **The agents:** unmodified, run from a developer laptop.
 - **The sandbox:** the P4 microVM tier, with an exploratory sandbox-service front door in front of it.
 
@@ -231,7 +232,7 @@ Each agent ran twice per path.
 From SWE-bench Verified (`princeton-nlp/SWE-bench_Verified`):
 - **Filter:** sympy 1.5–1.12 and django 3.2–4.2, all of which run on Python 3.9.
 - **Draw:** shuffled with `random_state=7`. Per project, the first 2 "<15 min fix" and the first 3
-  "15 min – 1 hour" instances whose gold patch verified (§5.2).
+  "15 min – 1 hour" instances whose gold patch verified ([Grading and verification](#grading-and-verification)).
 - **Dropped:**
   - `django-13658`: a test downloads a project template from a URL, and there is no network.
   - `django-16315`: 4 `PASS_TO_PASS` `bulk_create` tests fail even with the gold patch.
@@ -263,6 +264,10 @@ From SWE-bench Verified (`princeton-nlp/SWE-bench_Verified`):
 
 **Resolved** = every `FAIL_TO_PASS` and `PASS_TO_PASS` test passes. Every run, stock or remote, was
 graded the same way, in the sandbox.
+
+After review, the grader was hardened on its failure paths: a failed `sbx` call is now an error,
+not a wrong fix, and errored grades are never cached. All 40 runs were re-graded with it, and every
+outcome was identical, including the counts of failing `FAIL_TO_PASS` and `PASS_TO_PASS` tests.
 
 **Verification before any agent ran:** 16 of the 18 candidates resolved with their gold patch, and
 their untouched base failed every `FAIL_TO_PASS` test. The two that did not were dropped (above).
@@ -319,7 +324,7 @@ How these are measured:
 - **Cost** is Claude Code's own `total_cost_usd`. OpenCode reports none through the gateway.
 
 **Findings:**
-- **The remote sandbox cost nothing in solve rate.**
+- **No measurable difference in solve rate at this sample size.**
   - Claude Code resolved the same 8 issues in both modes.
   - OpenCode resolved one more remotely (`sympy-17318`): the stock run changed only `radsimp.py`,
     while the gold patch also changes `sqrtdenest.py`. At one run per cell that is noise.
@@ -334,8 +339,11 @@ How these are measured:
 
   Restricting them to a sandboxed shell removes little that they rely on.
 - **It is slightly slower, and not because of the VMs.** Median wall clock is 10% higher for Claude
-  Code and 25% higher for OpenCode. The sandbox itself took a median of 2–7 s per run; the rest is
-  model-time variance between runs.
+  Code and 26% higher for OpenCode (113 s against 89.5 s). The sandbox itself took a median of
+  2–7 s per run; the rest is model-time variance between runs. Measured as median sandbox time over
+  median wall clock, the sandbox is 2–6% of a run. Summed over all runs it is higher: 7.3% for
+  OpenCode remote (139 s of 1,915 s), and single runs reach 17% (`oc-sbx` on `sympy-18211`,
+  20.6 s of 124 s).
 - **Remote runs used about 24% fewer input tokens**, and Claude Code cost 11% less. The agents
   batched more per call, as the remote `AGENTS.md` asks, so there are fewer turns re-sending
   context. That instruction, not the sandbox, is the likely cause.
@@ -454,8 +462,16 @@ read coalescing (SBX1 D15).
   installing packages. That needs allowlisted egress (experiment E12, SBX1 sub-project 5a).
 - **Demo-grade access.** SSH tunnels and static, scoped relay tokens, not the SBX1 lifecycle API,
   signed per-sandbox tokens or OAuth.
-- **Stock runs execute agent commands on the laptop.** That is what "stock" means; they ran in
-  scratch checkouts.
+- **The agents ran with deliberately broad permissions.** Know where each boundary sits before
+  reusing the setup:
+  - **Stock mode:** Claude Code ran with `--permission-mode bypassPermissions`, and OpenCode with
+    `"*": "allow"`. Agent commands executed on the laptop unprompted, in scratch checkouts.
+  - **Remote mode:** the agent's shell allow-list (`Bash(sbx run:*)`, OpenCode's `"sbx run*"`) is
+    the only thing keeping commands off the laptop. A matcher that admits a compound command would
+    run its other half locally. No run attempted one (zero permission denials).
+  - **MCP path:** the MCP server's HTTP endpoint has no authentication. It binds `127.0.0.1` and is
+    reached only through an SSH tunnel; anyone who can reach that port can run commands in its
+    workspace.
 - **Wall clock is only comparable within a batch.** Gateway latency varied by more than 10× across
   the four days.
 - **Python patch versions differ.** The stock venv was Python 3.9.21 and the guest 3.9.25. All

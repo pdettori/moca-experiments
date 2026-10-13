@@ -11,7 +11,8 @@ then here.
 ## The headline
 
 **Stock Claude Code and OpenCode, with every command running in a fresh Firecracker microVM, solved
-the same SWE-bench issues as when they ran on the laptop.**
+about as many SWE-bench issues as when they ran on the laptop: no measurable difference at this
+sample size.**
 
 - 10 SWE-bench Verified issues (5 sympy, 5 django), each agent in two modes:
   - **stock:** all its tools, on a laptop;
@@ -38,8 +39,9 @@ the same SWE-bench issues as when they ran on the laptop.**
 | OpenCode, stock | 90 s | 59 s | — |
 | OpenCode, remote | 113 s | 82 s | **6.5 s** |
 
-**The sandbox is 2–6% of a run, and the model sets the pace.** Remote runs are 10–25% slower at the
-median. That gap is model-time variance, not VMs.
+**Median sandbox time is 2–6% of median wall clock, and the model sets the pace.** Summed over all
+runs it is higher: 7.3% for OpenCode remote (139 s of 1,915 s), and single runs reach 17%. Remote
+runs are 10–26% slower at the median. That gap is model-time variance, not VMs.
 
 **Cost of one command:**
 
