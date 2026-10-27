@@ -1,0 +1,16 @@
+# Rewrite AI co-author trailers to Assisted-By: AI assistants (Claude Code,
+# Cursor) sometimes add Co-authored-by trailers, which GitHub parses as
+# co-authorship and inflates contributor stats. The hook rewrites them to
+# Assisted-By; it never rejects the commit. Mirrors rossoctl/moca and
+# rossoctl/rossoctl.
+#
+# Install with:
+#   pre-commit install --hook-type commit-msg
+repos:
+  - repo: local
+    hooks:
+      - id: ai-assisted-by-trailer
+        name: Replace Co-Authored-By with Assisted-By
+        entry: scripts/hooks/commit-msg
+        language: script
+        stages: [commit-msg]
