@@ -825,7 +825,7 @@ echo "== the relay's exec token reaches every relay launch and every Exec (MI1 R
 relay_launches_without_exec_token() {
   grep -v '^[[:space:]]*#' "$1" | awk '
     { w[NR % 4] = $0 }
-    /pnpm --filter @sh\/sandbox-relay start/ {
+    /pnpm --filter @moca\/sandbox-relay start/ {
       hit = 0
       for (k in w) if (w[k] ~ /MOCA_RELAY_EXEC_TOKEN=/) hit = 1
       if (!hit) print
@@ -836,7 +836,7 @@ grpcurl_calls_without_bearer() {
   grep -v '^[[:space:]]*#' "$1" | grep -E '(^|[[:space:];(])grpcurl -' | grep -v 'authorization: Bearer' || true
 }
 tok_fixture="$(mktemp)"
-printf '%s\n' '  SH_RELAY_TOKEN="$T" SH_RELAY_PORT="$P" \' '    pnpm --filter @sh/sandbox-relay start >log 2>&1 &' \
+printf '%s\n' '  SH_RELAY_TOKEN="$T" SH_RELAY_PORT="$P" \' '    pnpm --filter @moca/sandbox-relay start >log 2>&1 &' \
   '  grpcurl -plaintext -max-time 5 x:1 sandbox.v1.SandboxExec/Exec' >"$tok_fixture"
 check "non-vacuousness: the launch detector flags a relay started without the exec token" \
   "$([ -n "$(relay_launches_without_exec_token "$tok_fixture")" ] && echo yes || echo no)" "yes"
@@ -844,7 +844,7 @@ check "non-vacuousness: the grpcurl detector flags an Exec sent without a bearer
   "$([ -n "$(grpcurl_calls_without_bearer "$tok_fixture")" ] && echo yes || echo no)" "yes"
 rm -f "$tok_fixture"
 check "the driver launches the relay at all (the checks below are not vacuous)" \
-  "$(grep -v '^[[:space:]]*#' "$SCRIPT" | grep -c 'pnpm --filter @sh/sandbox-relay start')" "1"
+  "$(grep -v '^[[:space:]]*#' "$SCRIPT" | grep -c 'pnpm --filter @moca/sandbox-relay start')" "1"
 check "rung 1's relay receives MOCA_RELAY_EXEC_TOKEN" \
   "$([ -z "$(relay_launches_without_exec_token "$SCRIPT")" ] && echo yes || echo no)" "yes"
 check "the driver issues Execs through grpcurl at all" \

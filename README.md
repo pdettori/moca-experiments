@@ -26,7 +26,7 @@ those are what CI actually gates on. The drivers themselves (`e10-lifecycle.sh`,
 are bare-metal/root-only regardless of repo, and additionally need: a sibling checkout of the
 main repo's `remote-worker/` Go module and `proto/` (override with `REMOTE_WORKER_DIR`,
 `PROTO_FILE`, `PROTO_IMPORT_PATH` — real overrides now, not just path arithmetic) for the Go
-exec-driver path; and the main repo's own pnpm workspace (`pnpm --filter @sh/sandbox-relay
+exec-driver path; and the main repo's own pnpm workspace (`pnpm --filter @moca/sandbox-relay
 start`) to launch the sandbox-relay both the container and microvm arms need — that part cannot
 be satisfied by an env var at all, since `pnpm --filter` resolves workspace packages from the
 current repo's own `pnpm-workspace.yaml`. In practice: run the drivers from a checkout of the

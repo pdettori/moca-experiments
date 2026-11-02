@@ -61,10 +61,35 @@ against an absent `grpcurl` is a timing of `grpcurl` failing to launch.
 | `docker`      | **E10 rung 1**, **all of E11** (Redis)              | as above, or `SH_E10_START_STACK=0` to reuse an already-running stack |
 | `pnpm`        | **E10 rung 1**, **all of E11**                      | `SH_E10_RUNGS='2 3 4'`; E11 cannot run at all                         |
 
+### A podman-only host
+
+The drivers use `docker` for exactly two things: `docker run --rm -d -p 127.0.0.1:<port>:6379
+--name sh-e1x-redis-<pid> <image> --save ''` and `docker rm -f` on that name. podman accepts both
+verbatim, so on a host with podman and no docker (the bare-metal rig `srv-r16b14s16` is one) a
+shim is enough. The drivers run under `sudo`, which resets `PATH` to `secure_path`, so put it in
+a directory `secure_path` covers, not in your own `~/bin`:
+
+```bash
+command -v docker || printf '#!/bin/sh\nexec podman "$@"\n' | sudo tee /usr/local/bin/docker >/dev/null
+sudo chmod 755 /usr/local/bin/docker
+sudo docker --version   # must print podman's version, as root
+```
+
+podman refuses an unqualified image name unless the host configures short-name resolution, and
+the drivers default to `redis:7`. Pass the fully qualified name instead, which also works with
+real docker:
+
+```bash
+export SH_E11_REDIS_IMAGE=docker.io/library/redis:7   # E11
+export SH_E10_REDIS_IMAGE=docker.io/library/redis:7   # E10 rung 1
+```
+
+Remove the shim when the run is done if the host's owner did not ask for it.
+
 ### The relay stack: a workspace install and a BUILT pi-fork
 
 Any rung that goes through the relay — E10 rung 1 and **both** of E11's arms — starts it with
-`pnpm --filter @sh/sandbox-relay start`. That pulls in `harness/src/run-turn.ts`, which
+`pnpm --filter @moca/sandbox-relay start`. That pulls in `harness/src/run-turn.ts`, which
 imports `@earendil-works/pi-coding-agent` and `@earendil-works/pi-ai`. Both are
 `link:../pi-fork/...` dependencies on the **pi-fork submodule**, so the relay cannot start
 until that submodule is present AND built:
@@ -100,7 +125,7 @@ passes it to the relay it starts and sends it as a bearer on every Exec (grpcurl
 Worth verifying before §4, since it costs nothing:
 
 ```bash
-pnpm --filter @sh/sandbox-relay exec node -e 'console.log("relay deps resolve")'
+pnpm --filter @moca/sandbox-relay exec node -e 'console.log("relay deps resolve")'
 ```
 
 If you skip rung 1 you lose the container baseline, and with it **sealed prediction 2**
