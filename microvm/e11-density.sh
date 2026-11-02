@@ -551,7 +551,7 @@ preflight() {
   require_tool go "the container arm builds ./cmd/worker, the microvm arm builds ./cmd/microvm-worker, and the driver-control arm builds ./cmd/null-responder"
   if arm_in_use container || arm_in_use microvm; then
     require_tool docker "the container and microvm arms both start their own scratch redis in a container; without it the relay has nowhere to publish its presence record"
-    require_tool pnpm "the container and microvm arms both start the real sandbox-relay via pnpm --filter @sh/sandbox-relay; without it neither arm can start at all"
+    require_tool pnpm "the container and microvm arms both start the real sandbox-relay via pnpm --filter @moca/sandbox-relay; without it neither arm can start at all"
     # `ss` is in this branch, not above it, because kill_relay_by_port is called from
     # stop_container_stack and stop_microvm_stack ONLY -- the driver-control arm runs no relay
     # and tears its responder down by pid. Requiring it unconditionally would re-block exactly
@@ -1626,7 +1626,7 @@ start_container_stack() {
     cd "$REPO_ROOT" &&
       SH_RELAY_TOKEN="$E11_RELAY_TOKEN" MOCA_RELAY_EXEC_TOKEN="$E11_EXEC_TOKEN" SH_RELAY_PORT="$E11_RELAY_PORT" \
         REDIS_URL="redis://127.0.0.1:${E11_REDIS_PORT}" \
-        pnpm --filter @sh/sandbox-relay start >"$RESULTS/e11-container-relay.log" 2>&1 &
+        pnpm --filter @moca/sandbox-relay start >"$RESULTS/e11-container-relay.log" 2>&1 &
     echo $! >"$RESULTS/.e11-relay.pid"
   )
   E11_RELAY_PID="$(cat "$RESULTS/.e11-relay.pid" 2>/dev/null || echo "")"
@@ -1775,7 +1775,7 @@ start_microvm_stack() {
     cd "$REPO_ROOT" &&
       SH_RELAY_TOKEN="$E11_RELAY_TOKEN" MOCA_RELAY_EXEC_TOKEN="$E11_EXEC_TOKEN" SH_RELAY_PORT="$E11_RELAY_PORT" \
         REDIS_URL="redis://127.0.0.1:${E11_REDIS_PORT}" \
-        pnpm --filter @sh/sandbox-relay start >"$RESULTS/e11-microvm-relay-d${d}-ram${ram_mb}.log" 2>&1 &
+        pnpm --filter @moca/sandbox-relay start >"$RESULTS/e11-microvm-relay-d${d}-ram${ram_mb}.log" 2>&1 &
     echo $! >"$RESULTS/.e11-relay.pid"
   )
   E11_RELAY_PID="$(cat "$RESULTS/.e11-relay.pid" 2>/dev/null || echo "")"

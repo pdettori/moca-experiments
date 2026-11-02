@@ -442,7 +442,7 @@ start_rung1_stack() {
     cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" &&
       SH_RELAY_TOKEN="$RUNG1_RELAY_TOKEN" SH_RELAY_PORT="$RUNG1_RELAY_PORT" \
         MOCA_RELAY_EXEC_TOKEN="$RUNG1_EXEC_TOKEN" REDIS_URL="redis://127.0.0.1:${RUNG1_REDIS_PORT}" \
-        pnpm --filter @sh/sandbox-relay start >"$RESULTS/e10-rung1-relay.log" 2>&1 &
+        pnpm --filter @moca/sandbox-relay start >"$RESULTS/e10-rung1-relay.log" 2>&1 &
     echo $! >"$RESULTS/.rung1-relay.pid"
   )
   RUNG1_RELAY_PID="$(cat "$RESULTS/.rung1-relay.pid" 2>/dev/null || echo "")"
