@@ -108,6 +108,19 @@ export async function runOne({ case: kase, run, baseUrl, inj, readHistory, delay
   return { case: kase, run, discarded: true, reason };
 }
 
+/** Waits for the stack to serve turns (the sandbox attaches through the relay after the supervisor is ready), then runs 5 good turns in a row. */
+export async function warmUp(baseUrl, { capMs = 120000, intervalMs = 1000 } = {}) {
+  const t0 = performance.now();
+  let good = 0;
+  while (good < 5) {
+    const w = await turn(baseUrl, PROMPT, undefined, { expect: EXPECT });
+    if (w.ok) { good += 1; continue; }
+    good = 0;
+    if (performance.now() - t0 > capMs) throw new Error(`warm-up never succeeded (${w.status ?? ''} ${w.error ?? ''}): the stub or the stack is not working`);
+    await sleep(intervalMs);
+  }
+}
+
 async function main() {
   const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i > 0 ? process.argv[i + 1] : d; };
   const runs = Number(arg('runs', 10));
@@ -120,10 +133,7 @@ async function main() {
   const inj = composeInjector(ctx);
   const readHistory = redisHistory(ctx);
   await inj.waitSteady();
-  for (let i = 0; i < 5; i++) {
-    const w = await turn(baseUrl, PROMPT, undefined, { expect: EXPECT });
-    if (!w.ok) throw new Error(`warm-up turn failed (${w.status ?? ''} ${w.error ?? ''}): the stub or the stack is not working`);
-  }
+  await warmUp(baseUrl);
   for (const kase of cases) {
     for (let run = 1; run <= runs; run++) {
       const rec = await runOne({ case: kase, run, baseUrl, inj, readHistory, delayMs, settleMs: kase.startsWith('W') ? 11000 : 0 });

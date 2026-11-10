@@ -2,8 +2,9 @@
 # Use with: docker compose -f <moca>/deploy/compose/docker-compose.yml -f e18/compose.override.yml up -d
 services:
   stub:
-    image: node:22-alpine
+    image: ${SH_HARNESS_IMAGE:-ghcr.io/rossoctl/moca:latest}
     command: [node, /stub/stub.mjs]
+    working_dir: /tmp
     environment:
       PORT: '8099'
       STUB_DELAY_MS: ${STUB_DELAY_MS:-200}

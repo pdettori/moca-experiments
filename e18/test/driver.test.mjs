@@ -9,14 +9,16 @@ const ok = (r, o = {}) => r.writeHead(200, { 'content-type': 'application/json' 
 // Fake supervisor. After kill(): requests fail for downMs. holdMs delays every reply (a "slow model").
 function fakeWorld({ downMs = 0, holdMs = 0 } = {}) {
   let downUntil = 0;
+  let epoch = 0; // a kill bumps it: requests already in flight fail, as they do when the process is SIGKILLed
   const s = http.createServer(async (q, r) => {
+    const startedIn = epoch;
     if (holdMs) await new Promise((x) => setTimeout(x, holdMs));
-    if (performance.now() < downUntil) return r.writeHead(503).end('down');
+    if (epoch !== startedIn || performance.now() < downUntil) return r.writeHead(503).end('down');
     ok(r);
   });
   return new Promise((res) =>
     s.listen(0, '127.0.0.1', () =>
-      res({ s, url: `http://127.0.0.1:${s.address().port}`, kill: () => { downUntil = performance.now() + downMs; return { killedAt: performance.now(), pid: 7 }; } }),
+      res({ s, url: `http://127.0.0.1:${s.address().port}`, kill: () => { epoch += 1; downUntil = performance.now() + downMs; return { killedAt: performance.now(), pid: 7 }; } }),
     ),
   );
 }
@@ -69,7 +71,7 @@ test('context_ok is false when the history lacks a fact', async () => {
 });
 
 test('W-M: a kill that finds no busy worker is redone, not recorded', async () => {
-  const w = await fakeWorld({ downMs: 100, holdMs: 150 });
+  const w = await fakeWorld({ downMs: 100, holdMs: 300 });
   let calls = 0;
   const inj = base(w, { killWorker: async () => { calls += 1; if (calls === 1) throw new NoBusyWorker('idle'); return w.kill(); } });
   const rec = await runOne({ case: 'W-M', run: 1, baseUrl: w.url, inj, readHistory: hist, delayMs: 0, intervalMs: 50 });
@@ -89,7 +91,7 @@ test('W-M: a kill that lands after the reply (in-flight turn succeeded) is disca
 });
 
 test('W-M: a kill that lands mid-turn is recorded with where it landed and tErr from the in-flight failure', async () => {
-  const w = await fakeWorld({ downMs: 400, holdMs: 200 });
+  const w = await fakeWorld({ downMs: 400, holdMs: 300 });
   const rec = await runOne({ case: 'W-M', run: 1, baseUrl: w.url, inj: base(w), readHistory: hist, delayMs: 0, intervalMs: 50 });
   w.s.close();
   assert.equal(rec.discarded, undefined);
@@ -104,4 +106,30 @@ test('exhausting the redos returns a discarded record instead of throwing', asyn
   const rec = await runOne({ case: 'W-M', run: 1, baseUrl: w.url, inj, readHistory: hist, delayMs: 0, intervalMs: 50 });
   w.s.close();
   assert.equal(rec.discarded, true);
+});
+
+test('warmUp retries a 503 until the sandbox attaches, then needs 5 good turns', async () => {
+  let n = 0;
+  const s = http.createServer((q, r) => { n += 1; if (n <= 3) return r.writeHead(503).end('{"error":"sandbox_unavailable"}'); ok(r); });
+  await new Promise((res) => s.listen(0, '127.0.0.1', res));
+  try {
+    const { warmUp } = await import('../driver.mjs');
+    await warmUp(`http://127.0.0.1:${s.address().port}`, { capMs: 5000, intervalMs: 20 });
+    assert.equal(n, 8);
+  } finally {
+    s.closeAllConnections();
+    s.close();
+  }
+});
+
+test('warmUp gives up with a clear error when the stack never works', async () => {
+  const s = http.createServer((q, r) => r.writeHead(503).end('{"error":"sandbox_unavailable"}'));
+  await new Promise((res) => s.listen(0, '127.0.0.1', res));
+  try {
+    const { warmUp } = await import('../driver.mjs');
+    await assert.rejects(warmUp(`http://127.0.0.1:${s.address().port}`, { capMs: 200, intervalMs: 20 }), /sandbox_unavailable/);
+  } finally {
+    s.closeAllConnections();
+    s.close();
+  }
 });
