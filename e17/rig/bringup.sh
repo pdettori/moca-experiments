@@ -16,11 +16,13 @@
 # What it does, in order, each step logged to the manifest (default ~/e17-manifest.md; E15_MANIFEST
 # overrides) as a note with its undo line (a note: teardown.sh replays nothing from it):
 #   1. guards: fresh-metal only, login user, the staged copy, every path under /srv/e15
-#   2. the pycache corpora: each corpus.jsonl's sha256 against its report's corpus_sha256 (as setup.sh
+#   2. the guest rootfs: the snapshot-rootfs artifact's path and sha256, the file checked against it
+#      (first: a missing state/artifacts is refused by name before anything is recorded there)
+#   3. the pycache corpora: each corpus.jsonl's sha256 against its report's corpus_sha256 (as setup.sh
 #      step 8c), recorded in state/artifacts
-#   3. the wheels: every wheel in wheels.lock is in /srv/e15/wheels-pycache with the locked sha256
-#   4. the guest rootfs: the snapshot-rootfs artifact's path and sha256, the file checked against it
-#   5. the templates (points.sh pycache-d64, pycache, pycache-d768): for D = 64, 256, 768,
+#   4. the wheels: every wheel in wheels.lock is in /srv/e15/wheels-pycache with the locked sha256
+#   5. the templates (points.sh pycache-d64, pycache, pycache-d768): for D = 64, 256, 768, refused
+#      while a rung's worker (e15-worker.service) runs, before any template is removed or rebuilt,
 #      /srv/e15/template-pycache-d<D>/workspace.img by build_pycache_workspace.sh --image-mb 1536
 #      --dataset-mib D --dataset-seed 1 --wheels /srv/e15/wheels-pycache --rootfs-tree <the rootfs,
 #      loop-mounted read-only once, as setup.sh step 7's aws-prelim branch, unmounted by a trap;
@@ -99,7 +101,23 @@ m_init
 m_section "E17 bringup"
 log "bringup: manifest $E15_MANIFEST"
 
-# --- 2. the pycache corpora (staged by sync.sh) -------------------------------------------------
+# --- 2. the guest rootfs (E15's snapshot, from state/artifacts) ----------------------------------
+# Read before step 3 records anything there (e15_artifact creates the file): a host setup.sh never
+# set up has no artifacts file, and that is refused by name before any change.
+[ -f "$E15_STATE/artifacts" ] || die "no $E15_STATE/artifacts (run e15/rig/setup.sh first: it records the snapshot rootfs there)"
+art=$(awk '$1 == "snapshot-rootfs" {print $2, $3}' "$E15_STATE/artifacts" | tail -1)
+[ -n "$art" ] || die "no snapshot-rootfs line in $E15_STATE/artifacts (run e15/rig/setup.sh first)"
+read -r rootfs_want ROOTFS <<<"$art"
+rootfs_want=${rootfs_want#sha256:}
+[ -n "$ROOTFS" ] || die "the snapshot-rootfs artifact names no path"
+refuse_outside_root "$ROOTFS"
+sudo -n test -f "$ROOTFS" || die "no snapshot rootfs $ROOTFS (state/artifacts)"
+rootfs_sha=$(sudo -n sha256sum "$ROOTFS" | cut -d' ' -f1)
+[ "$rootfs_sha" = "$rootfs_want" ] ||
+  die "$ROOTFS sha256 $rootfs_sha is not the recorded snapshot-rootfs $rootfs_want (re-run setup.sh)"
+log "guest rootfs $ROOTFS (sha256 $rootfs_sha)"
+
+# --- 3. the pycache corpora (staged by sync.sh) -------------------------------------------------
 for pc in pycache pycache-low; do
   pd=$E15_CORPORA/$pc
   for f in corpus.jsonl corpus-report.json; do
@@ -114,7 +132,7 @@ for pc in pycache pycache-low; do
     m_note "E17 $pc corpus $pd/corpus.jsonl sha256 $pcsha (staged by sync.sh) -- undo: rm -rf $pd"
 done
 
-# --- 3. the wheels ------------------------------------------------------------------------------
+# --- 4. the wheels ------------------------------------------------------------------------------
 # Every wheel wheels.lock names, with its locked sha256 (build_pycache_workspace.sh checks again).
 nwh=0
 bad=()
@@ -134,38 +152,36 @@ log "wheels: $nwh in $WHEELS match wheels.lock ($lock_sha)"
 m_has "E17 wheels $WHEELS: $nwh match wheels.lock $lock_sha" ||
   m_note "E17 wheels $WHEELS: $nwh match wheels.lock $lock_sha (staged by sync.sh) -- undo: rm -rf $WHEELS"
 
-# --- 4. the guest rootfs (E15's snapshot, from state/artifacts) ----------------------------------
-art=$(awk '$1 == "snapshot-rootfs" {print $2, $3}' "$E15_STATE/artifacts" 2>/dev/null | tail -1)
-[ -n "$art" ] || die "no snapshot-rootfs line in $E15_STATE/artifacts (run e15/rig/setup.sh first)"
-read -r rootfs_want ROOTFS <<<"$art"
-rootfs_want=${rootfs_want#sha256:}
-[ -n "$ROOTFS" ] || die "the snapshot-rootfs artifact names no path"
-refuse_outside_root "$ROOTFS"
-sudo -n test -f "$ROOTFS" || die "no snapshot rootfs $ROOTFS (state/artifacts)"
-rootfs_sha=$(sudo -n sha256sum "$ROOTFS" | cut -d' ' -f1)
-[ "$rootfs_sha" = "$rootfs_want" ] ||
-  die "$ROOTFS sha256 $rootfs_sha is not the recorded snapshot-rootfs $rootfs_want (re-run setup.sh)"
-log "guest rootfs $ROOTFS (sha256 $rootfs_sha)"
-
 # --- 5. the templates ---------------------------------------------------------------------------
+# Never preempt a rung: none may run while a template is removed or rebuilt.
+refuse_running_rung() { if unit_active "$E15_UNIT_WORKER"; then die "a rung's worker ($E15_UNIT_WORKER) is running; refusing to preempt it (no template removed or rebuilt)"; fi; }
 proj_sha=$(cd "$WL/project" && find . -type f ! -path '*/__pycache__/*' ! -path '*/.pytest_cache/*' ! -name '*.pyc' -print0 |
   LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)
 builder_sha=$(sha256_of "$BUILDER")
 
 # The rootfs is mounted read-only once, when the first template needs a build; always unmounted on
 # exit (the builder's own chroot mounts under it first, should a killed build have left any).
+# A mount that survives its umount is loud: a WARNING per path on stderr, return 1, and the mount
+# point is kept (never rmdir'd or forgotten). The trap warns; the explicit call after the loop dies.
 mnt=""
 unmount_rootfs() {
   [ -n "$mnt" ] || return 0
-  local m
+  local m left=0
   for m in proc dev tmp mnt workspace; do
     if mountpoint -q "$mnt/$m"; then sudo -n umount "$mnt/$m" || true; fi
   done
   if mountpoint -q "$mnt"; then sudo -n umount -d "$mnt" || true; fi
+  for m in "$mnt/proc" "$mnt/dev" "$mnt/tmp" "$mnt/mnt" "$mnt/workspace" "$mnt"; do
+    if mountpoint -q "$m"; then
+      printf '%s: WARNING: %s still mounted\n' "$E15_PROG" "$m" >&2
+      left=1
+    fi
+  done
+  [ "$left" = 0 ] || return 1
   rmdir "$mnt" 2>/dev/null || true
   mnt=""
 }
-trap unmount_rootfs EXIT
+trap 'unmount_rootfs || true' EXIT
 mounted=0
 mount_rootfs() {
   [ -z "$mnt" ] || return 0
@@ -218,6 +234,7 @@ for D in "${E17_DS[@]}"; do
     log "template-pycache-d$D: inputs unchanged, $T sha256 $tsha (skipped)"
   else
     state=built
+    refuse_running_rung
     mount_rootfs
     rm -f "$E15_STATE/$STAMP" "$E15_STATE/$STAMP.inputs" "$tdir/BUILD"
     e17_check_target "$T" "$D"
@@ -237,7 +254,7 @@ for D in "${E17_DS[@]}"; do
   e15_artifact "$STAMP" "$tsha" "$T"
   summary+=("d$D $state sha256=$tsha dataset_sha256=$dsha")
 done
-unmount_rootfs
+unmount_rootfs || die "$mnt is still mounted after umount (see the WARNING above); unmount it by hand (sudo -n umount -d $mnt) before anything else"
 # The snapshot's rootfs must be byte-identical after the mount (the worker refuses a drifted one).
 if [ "$mounted" = 1 ] && [ "$(sudo -n sha256sum "$ROOTFS" | cut -d' ' -f1)" != "$rootfs_sha" ]; then
   die "$ROOTFS changed while mounted read-only (sha256 no longer $rootfs_sha): the E15 snapshot is broken, rebuild it with setup.sh"

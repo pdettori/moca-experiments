@@ -2044,7 +2044,10 @@ if [ -f "$E17D/rig/bringup.sh" ]; then
   printf '#!/usr/bin/env bash\n[ "$1" = -n ] && shift\n[ $# -eq 0 ] && exit 0\nexec "$@"\n' >"$BU/sudo"
   # mount -o OPTS SRC MNT: one "MNT SRC OPTS" line in $BU_MOUNTS; umount [-d] MNT drops it
   printf '#!/usr/bin/env bash\necho "mount $*" >>"$BU_LOG"\necho "$4 $3 $2" >>"$BU_MOUNTS"\n' >"$BU/mount"
-  printf '#!/usr/bin/env bash\necho "umount $*" >>"$BU_LOG"\nm=${!#}\ngrep -v "^$m " "$BU_MOUNTS" >"$BU_MOUNTS.n" || true\nmv "$BU_MOUNTS.n" "$BU_MOUNTS"\n' >"$BU/umount"
+  # umount [-d] MNT drops MNT's line, unless BU_UMOUNT_STUCK=1 (the mount survives, umount exits 32)
+  printf '#!/usr/bin/env bash\necho "umount $*" >>"$BU_LOG"\n[ "${BU_UMOUNT_STUCK:-0}" = 1 ] && exit 32\nm=${!#}\ngrep -v "^$m " "$BU_MOUNTS" >"$BU_MOUNTS.n" || true\nmv "$BU_MOUNTS.n" "$BU_MOUNTS"\n' >"$BU/umount"
+  # systemctl is-active e15-worker.service: active when BU_WORKER_UP=1 (a rung is running)
+  printf '#!/usr/bin/env bash\ncase "$1 ${!#}" in "is-active e15-worker.service") [ "${BU_WORKER_UP:-0}" = 1 ] ;; *) exit 1 ;; esac\n' >"$BU/systemctl"
   printf '#!/usr/bin/env bash\ngrep -q "^${!#} " "$BU_MOUNTS"\n' >"$BU/mountpoint"
   printf '#!/usr/bin/env bash\ncat "$3"\n' >"$BU/debugfs"
   printf '#!/usr/bin/env bash\necho 100\n' >"$BU/stat"
@@ -2154,6 +2157,27 @@ SH
   check "E17 bringup: a failing build exits 1, unmounted by the trap, no stamp for it" \
     "$(bu BU_FAIL=1)/$(grep -c . "$TMP/bu.mounts")/$(find "$BR17" -maxdepth 1 -name 'rootfs-ro.mnt.*' | grep -c .)/$([ -e "$BR17/state/template-pycache-d64" ] && echo stamp || echo nostamp)/$([ -e "$BR17/template-pycache-d64/workspace.img" ] && echo img || echo noimg)" \
     "1/0/0/nostamp/noimg"
+  # a running rung is never preempted: no template removed or rebuilt while e15-worker.service runs
+  check "E17 bringup: (rebuild the failed d64 first)" "$(bu)/$(nb)" "0/16"
+  check "E17 bringup: all stamps match, a rung running -> exit 0 (nothing removed or rebuilt)" "$(bu BU_WORKER_UP=1)/$(nb)" "0/16"
+  printf 'tampered\n' >>"$BR17/template-pycache-d256/workspace.img"
+  cp "$BR17/template-pycache-d256/workspace.img" "$TMP/bu-tampered.img"
+  : >"$TMP/bu.log"
+  check "E17 bringup: a template to rebuild while a rung runs -> refused, the old image untouched, nothing mounted" \
+    "$(bu BU_WORKER_UP=1)/$(grep -c "a rung's worker (e15-worker.service) is running; refusing to preempt it" "$TMP/bu.out")/$(nb)/$(cmp -s "$TMP/bu-tampered.img" "$BR17/template-pycache-d256/workspace.img" && echo untouched)/$(grep -c '^mount ' "$TMP/bu.log")" \
+    "1/1/16/untouched/0"
+  # a failed unmount is loud: the trap warns, the explicit unmount after the builds is fatal
+  : >"$TMP/bu.log"
+  check "E17 bringup: an unmount that fails after the builds is fatal, with a WARNING naming the mount" \
+    "$(bu BU_UMOUNT_STUCK=1)/$(grep -c "^bringup.sh: WARNING: $BR17/rootfs-ro.mnt.[A-Za-z0-9]* still mounted\$" "$TMP/bu.out")/$(grep -c "is still mounted after umount .*unmount it by hand" "$TMP/bu.out")/$(grep -c "^$BR17/rootfs-ro.mnt" "$TMP/bu.mounts")/$(find "$BR17" -maxdepth 1 -name 'rootfs-ro.mnt.*' | grep -c .)" \
+    "1/2/1/1/1"
+  : >"$TMP/bu.mounts"
+  find "$BR17" -maxdepth 1 -name 'rootfs-ro.mnt.*' -exec rmdir {} +
+  rm -f "$BR17/state/template-pycache-d64.inputs"
+  check "E17 bringup: a failing build whose unmount also fails -> the trap's WARNING on stderr" \
+    "$(bu BU_FAIL=1 BU_UMOUNT_STUCK=1)/$(grep -c "^bringup.sh: WARNING: $BR17/rootfs-ro.mnt.[A-Za-z0-9]* still mounted\$" "$TMP/bu.out")/$(grep -c 'build_pycache_workspace.sh (D=64) failed' "$TMP/bu.out")" "1/1/1"
+  : >"$TMP/bu.mounts"
+  find "$BR17" -maxdepth 1 -name 'rootfs-ro.mnt.*' -exec rmdir {} +
   # the wheel check (before any mount or build)
   bu_stage
   rm -f "$BR17/wheels-pycache/b-2.0-py3-none-any.whl"
@@ -2177,6 +2201,10 @@ SH
   bu_stage
   printf 'snapshot-rootfs sha256:%s /tmp/elsewhere/rootfs\n' "$(sha256sum "$BR17/snapshots/e15/rootfs" | cut -d' ' -f1)" >"$BR17/state/artifacts"
   check "E17 bringup: a recorded rootfs outside the E15 root is refused" "$(bu)/$(grep -c 'refuse_outside_root: /tmp/elsewhere/rootfs' "$TMP/bu.out")" "3/1"
+  bu_stage
+  rm -f "$BR17/state/artifacts"
+  check "E17 bringup: no state/artifacts -> refused by name (not a silent exit), nothing recorded or built" \
+    "$(bu)/$(grep -c "bringup.sh: no $BR17/state/artifacts (run e15/rig/setup.sh first" "$TMP/bu.out")/$([ -e "$BR17/state/artifacts" ] && echo created || echo absent)/$(nb)" "1/1/absent/0"
   # refusals before anything: profile, staged copy, corpora
   bu_stage
   check "E17 bringup: aws-prelim refused" "$(bu E15_HOST_PROFILE=aws-prelim)/$(grep -c 'E17 runs on fresh-metal only' "$TMP/bu.out")" "1/1"
@@ -2272,7 +2300,7 @@ fi
 # smoke.sh: the rung line per arm, and its refusals (it is never run here: it starts workers)
 if [ -f "$E17D/rig/smoke.sh" ]; then
   check "E17 smoke: one rung.sh ARM 1 pycache per arm, 60 s warm-up, 120 s window, tag smoke" \
-    "$(grep -c '^ARMS=(sbx resident-300 lease-30 lease-120)$' "$E17D/rig/smoke.sh")/$(grep -c 'E15_WARMUP_S=60 E15_WINDOW_S=120 E15_TAG=smoke bash "\$RUNG" "\$arm" 1 "\$POINT"' "$E17D/rig/smoke.sh")/$(grep -c '^POINT=pycache$' "$E17D/rig/smoke.sh")" "1/1/1"
+    "$(grep -c '^ARMS=(sbx resident-300 lease-30 lease-120)$' "$E17D/rig/smoke.sh")/$(grep -c 'E15_WARMUP_S=60 E15_WINDOW_S=120 E15_TAG=smoke E15_START_ZERO=\$START_ZERO bash "\$RUNG" "\$arm" 1 "\$POINT"' "$E17D/rig/smoke.sh")/$(grep -c '^POINT=pycache$' "$E17D/rig/smoke.sh")" "1/1/1"
   check "E17 smoke: the sha256 is checked against the D=256 template's BUILD, warmcold.py on each rung" \
     "$(grep -c '^BUILD=\${E15_P_TEMPLATE%/\*}/BUILD$' "$E17D/rig/smoke.sh")/$(grep -c 'python3 "\$E17_SRC/analysis/warmcold.py" "\$d"' "$E17D/rig/smoke.sh")" "1/1"
   (E15_HOST_PROFILE=aws-prelim E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" E15_MANIFEST="$TMP/m.md" PATH="$SPATH" bash "$E17D/rig/smoke.sh" >"$TMP/sm.out" 2>&1)
@@ -2297,7 +2325,7 @@ if [ -f "$E17D/rig/smoke.sh" ]; then
   SMSHA=$(printf 'smoke-dataset' | sha256sum | cut -d' ' -f1)
   printf 'template: pycache\ndataset_mib: 256\ndataset_seed: 1\ndataset_sha256: %s\nvenv: python 3.9\n' "$SMSHA" >"$SM/template-pycache-d256/BUILD"
   printf '#!/usr/bin/env bash\n[ "$1" = -n ] && shift\n[ $# -eq 0 ] && exit 0\nexec "$@"\n' >"$SS5/sudo"
-  printf '#!/usr/bin/env bash\ncase "$1 ${!#}" in "is-active e15-relay.service") [ -e "$SM_FLAG" ] ;; "stop e15-relay.service") rm -f "$SM_FLAG" ;; is-active*|is-failed*) exit 1 ;; esac\n' >"$SS5/systemctl"
+  printf '#!/usr/bin/env bash\ncase "$1 ${!#}" in "is-active e15-relay.service") [ -e "$SM_FLAG" ] ;; "stop e15-relay.service") rm -f "$SM_FLAG" ;; "is-active e15-worker.service") [ -e "$SM_WFLAG" ] ;; is-active*|is-failed*) exit 1 ;; esac\n' >"$SS5/systemctl"
   printf '#!/usr/bin/env bash\nfor a; do case "$a" in --unit=e15-relay.service) touch "$SM_FLAG" ;; StandardOutput=file:*) echo "microvm-worker: attached, serving execs" >"${a#StandardOutput=file:}" ;; esac; done\n' >"$SS5/systemd-run"
   printf '#!/usr/bin/env bash\n[ -e "$SM_FLAG" ] && printf "LISTEN 0 511 127.0.0.1:9643 0.0.0.0:*\\nLISTEN 0 511 127.0.0.1:9644 0.0.0.0:*\\n"\nexit 0\n' >"$SS5/ss"
   printf '#!/usr/bin/env bash\nargs=(); for a; do [ "$a" = --reflink=always ] || args+=("$a"); done\nexec /bin/cp "${args[@]}"\n' >"$SS5/cp"
@@ -2315,31 +2343,37 @@ SH
   # the rung stub: record.json, a calls.jsonl with the classes in SM_CLASSES (exit SM_EXIT), worker.log
   cat >"$TMP/smoke-rung.sh" <<'SH'
 #!/usr/bin/env bash
-echo "rung $* w=$E15_WARMUP_S win=$E15_WINDOW_S tag=$E15_TAG" >>"$SM_RLOG"
+echo "rung $* w=$E15_WARMUP_S win=$E15_WINDOW_S tag=$E15_TAG zero=${E15_START_ZERO:-unset}" >>"$SM_RLOG"
+# SM_WORKER_AFTER=1: someone else's rung worker comes up after this smoke's last rung
+[ "${SM_WORKER_AFTER:-0}" = 1 ] && [ "$1" = lease-120 ] && touch "$SM_WFLAG"
 d=$E15_ROOT/runs/$3/$1/N$2-$E15_TAG
 mkdir -p "$d"
 echo '{"holds": true}' >"$d/record.json"
 : >"$d/calls.jsonl"
 i=0
-for c in ${SM_CLASSES:-py_analyze py_test py_analyze}; do
-  printf '{"session": "e15-k-0-0", "call": %d, "class": "%s", "status": "ok", "exit": %s, "execs": 1, "in_window": true, "ts": "2026-11-10T00:00:0%dZ", "observed_ms": 10}\n' "$i" "$c" "${SM_EXIT:-0}" "$i" >>"$d/calls.jsonl"
+set -- ${SM_CLASSES:-py_analyze py_test py_analyze}
+for c; do
+  st='"status": "ok", "cause": "ok", "exit": '"${SM_EXIT:-0}"
+  # SM_CUT_LAST=1: the last call was cut at the run's end (the driver: status err, no exit)
+  [ "${SM_CUT_LAST:-0}" = 1 ] && [ "$i" = $(($# - 1)) ] && st='"status": "err", "cause": "cut_at_end", "exit": null'
+  printf '{"session": "e15-k-0-0", "call": %d, "class": "%s", %s, "execs": 1, "in_window": true, "ts": "2026-11-10T00:00:0%dZ", "observed_ms": 10}\n' "$i" "$c" "$st" "$i" >>"$d/calls.jsonl"
   i=$((i + 1))
 done
 : >"$d/worker.log"
 SH
   chmod +x "$SS5"/* "$TMP/smoke-rung.sh"
   smoke() { # VAR=... -> exit code; output in $TMP/sm.out
-    rm -rf "$SM/runs" "$SM/workspaces/e17-smoke-analyze" "$TMP/sm.flag"
+    rm -rf "$SM/runs" "$SM/workspaces/e17-smoke-analyze" "$TMP/sm.flag" "$TMP/sm.wflag"
     : >"$TMP/sm.rlog"
     : >"$TMP/sm.glog"
     env E15_HOST_PROFILE=fresh-metal E15_ROOT="$SM" E15_TEST_ROOT="$SM" E15_MANIFEST="$TMP/sm-m.md" E15_RUNG="$TMP/smoke-rung.sh" \
-      SM_FLAG="$TMP/sm.flag" SM_RLOG="$TMP/sm.rlog" SM_GLOG="$TMP/sm.glog" SM_PRINT_SHA="$SMSHA" PATH="$SS5:$PATH" "$@" \
+      SM_FLAG="$TMP/sm.flag" SM_WFLAG="$TMP/sm.wflag" SM_RLOG="$TMP/sm.rlog" SM_GLOG="$TMP/sm.glog" SM_PRINT_SHA="$SMSHA" PATH="$SS5:$PATH" "$@" \
       bash "$SM/src/e17/rig/smoke.sh" >"$TMP/sm.out" 2>&1
     echo $?
   }
-  check "E17 smoke (stubbed): passes; one rung per arm with the brief's settings" \
+  check "E17 smoke (stubbed): passes; one rung per arm with the brief's settings, starting at zero" \
     "$(smoke)/$(cut -d' ' -f2- "$TMP/sm.rlog" | tr '\n' ';')" \
-    "0/sbx 1 pycache w=60 win=120 tag=smoke;resident-300 1 pycache w=60 win=120 tag=smoke;lease-30 1 pycache w=60 win=120 tag=smoke;lease-120 1 pycache w=60 win=120 tag=smoke;"
+    "0/sbx 1 pycache w=60 win=120 tag=smoke zero=1;resident-300 1 pycache w=60 win=120 tag=smoke zero=1;lease-30 1 pycache w=60 win=120 tag=smoke zero=1;lease-120 1 pycache w=60 win=120 tag=smoke zero=1;"
   grep -q 'FAILED\|smoke.sh:' "$TMP/sm.out" && sed 's/^/    /' "$TMP/sm.out" | tail -5
   check "E17 smoke (stubbed): warmcold counts printed per rung, the pass line names the BUILD sha256" \
     "$(grep -c '^smoke pycache/[a-z0-9-]*/N1-smoke: warm [0-9]* cold [0-9]* unknown [0-9]* (holds=True)$' "$TMP/sm.out")/$(grep -c "analyze sha256 = BUILD dataset_sha256 ($SMSHA)" "$TMP/sm.out")" "4/1"
@@ -2350,9 +2384,21 @@ SH
   check "E17 smoke (stubbed): analyze exiting non-zero through the relay fails" \
     "$(smoke SM_ANALYZE_RC=1)/$(grep -c 'analyze through the relay exited 1' "$TMP/sm.out")" "1/1"
   check "E17 smoke (stubbed): an sbx py_analyze call with exit 1 fails" \
-    "$(smoke SM_EXIT=1)/$(grep -c 'sbx py_analyze: .*status ok cause None exit 1' "$TMP/sm.out")" "1/1"
-  check "E17 smoke (stubbed): no py_analyze call in the sbx rung fails, naming E15_START_ZERO=1" \
-    "$(smoke SM_CLASSES='py_test py_short')/$(grep -c 'no py_analyze call among .*E15_START_ZERO=1' "$TMP/sm.out")" "1/1"
+    "$(smoke SM_EXIT=1)/$(grep -c 'sbx py_analyze: .*status ok cause ok exit 1' "$TMP/sm.out")" "1/1"
+  check "E17 smoke (stubbed): no py_analyze call in the sbx rung fails, naming E15_START_ZERO" \
+    "$(smoke SM_CLASSES='py_test py_short')/$(grep -c 'no completed py_analyze call among the rung.s 2 calls (0 cut at the end; E15_START_ZERO=1)' "$TMP/sm.out")" "1/1"
+  check "E17 smoke (stubbed): E15_START_ZERO=0 from the environment is passed through" \
+    "$(smoke E15_START_ZERO=0)/$(grep -c ' zero=0$' "$TMP/sm.rlog")" "0/4"
+  check "E17 smoke (stubbed): a py_analyze call cut at the run's end (cut_at_end) is not a failure" \
+    "$(smoke SM_CUT_LAST=1)/$(grep -c 'sbx py_analyze: 2 py_analyze call(s), 0 not ok/exit 0, 1 cut at the end' "$TMP/sm.out")" "0/1"
+  check "E17 smoke (stubbed): a cut py_analyze call is not a completed one (the only one, cut -> fails)" \
+    "$(smoke SM_CLASSES='py_test py_analyze' SM_CUT_LAST=1)/$(grep -c 'no completed py_analyze call among the rung.s 2 calls (1 cut at the end' "$TMP/sm.out")" "1/1"
+  touch "$TMP/sm.wflag.pre"
+  check "E17 smoke (stubbed): a rung's worker already running -> refused before any rung" \
+    "$(smoke SM_WFLAG="$TMP/sm.wflag.pre")/$(grep -c "a rung's worker (e15-worker.service) is running; refusing to preempt it" "$TMP/sm.out")/$(grep -c . "$TMP/sm.rlog")" "1/1/0"
+  rm -f "$TMP/sm.wflag.pre"
+  check "E17 smoke (stubbed): a rung's worker up before the analyze check -> refused, no relay restart or Exec" \
+    "$(smoke SM_WORKER_AFTER=1)/$(grep -c "a rung's worker (e15-worker.service) is running; refusing to preempt it" "$TMP/sm.out")/$(grep -c . "$TMP/sm.rlog")/$(grep -c . "$TMP/sm.glog")/$([ -e "$SM/workspaces/e17-smoke-analyze" ] && echo copied || echo none)" "1/1/4/0/none"
   rm -rf "$SM"
 fi
 echo
