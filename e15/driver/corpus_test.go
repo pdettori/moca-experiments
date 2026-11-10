@@ -674,3 +674,25 @@ func TestGuestFrameBytes(t *testing.T) {
 		t.Fatalf("escaped command added %d bytes, want >= 2200 (500 raw, escaped)", got-base)
 	}
 }
+
+// E17's pycache generator (e17/extract/pycache_corpus.py) writes E15's corpus schema; the fixture
+// is its output for --sessions 3 --seed 1 on e17/extract/testdata/gaps-20.jsonl.
+func TestLoadCorpusAcceptsPycache(t *testing.T) {
+	ss, err := LoadCorpus("testdata/pycache-corpus.jsonl")
+	if err != nil || len(ss) != 3 {
+		t.Fatalf("%v %d", err, len(ss))
+	}
+	for _, s := range ss {
+		if s.ID == "" || s.User == "" || s.Provider != "synthetic" || len(s.Calls) < minCalls {
+			t.Fatalf("session %+v", s)
+		}
+		for n, c := range s.Calls {
+			if c.I != n || c.Chain || c.DurMs <= 0 || c.WorkMs != c.DurMs || !strings.HasPrefix(c.Class, "py_") {
+				t.Fatalf("%s call %d: %+v", s.ID, n, c)
+			}
+		}
+	}
+	if _, err := NewSampler(ss, 1, 0.15); err != nil {
+		t.Fatal(err)
+	}
+}
