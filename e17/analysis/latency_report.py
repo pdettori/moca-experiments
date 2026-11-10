@@ -17,7 +17,9 @@ each D, e.g. the gain-against-D runs, in its own invocation).
     included: its wall time is measured even if its tag is not). Median and p95 are E15's
     (e15/analysis/holds.py: median, nearest-rank percentile) over observed_ms.
   - Gain (non-baseline arms) = 1 - (warm median / the baseline arm's all median), same point, N and
-    class; null when either side has no calls.
+    class; null when either side has no calls. The baseline group must have the same dataset_mib and
+    snapshot_guest_ram_mb as the arm's group: otherwise the report exits non-zero naming the field,
+    both values and both rungs (a lease at D=64 is never divided by sbx at D=256).
   - first_after_idle: the calls whose previous Exec on the key was followed by an idle-destroy
     (warmcold cold_reason "idle-destroy"): the cold start a user pays after the lease timed out.
   - warm_share = warm / (warm + cold) over the used calls.
@@ -101,8 +103,9 @@ def build(rung_dirs, baseline_arm="sbx"):
         g["rows"].extend(rows)
         g["rungs"].append({"dir": d, "warmcold": {k: summary[k] for k in (
             "warm", "cold", "unknown", "unknown_keys", "dropped_end_session_execs")}})
-    groups = []
+    groups, first_dir = [], {}
     for (point, n, arm), g in pooled.items():
+        first_dir[(point, n, arm)] = g["dir"]
         s = summarize(g["rows"])
         groups.append(dict(point=point, n=n, arm=arm, rungs=g["rungs"],
                            **{f: g["params"].get(f) for f in MUST_MATCH}, **s))
@@ -111,6 +114,13 @@ def build(rung_dirs, baseline_arm="sbx"):
         if g["arm"] == baseline_arm:
             continue
         b = base.get((g["point"], g["n"]))
+        for f in MUST_MATCH if b else ():
+            if g[f] != b[f]:
+                raise SystemExit("latency_report.py: will not take the gain of point %s N %s arm %s against %s: "
+                                 "%s %r in %s, %r in %s" % (
+                                     g["point"], g["n"], g["arm"], baseline_arm, f, g[f],
+                                     first_dir[(g["point"], g["n"], g["arm"])], b[f],
+                                     first_dir[(b["point"], b["n"], b["arm"])]))
         for cls, c in g["classes"].items():
             bm = b["classes"].get(cls, {}).get("all", {}).get("median_ms") if b else None
             wm = c["warm"]["median_ms"]

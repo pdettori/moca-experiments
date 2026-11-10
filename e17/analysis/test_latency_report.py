@@ -28,14 +28,14 @@ def lease_rung(tmp_path, name="lease", arm="lease-120", n=1, point="pycache", **
     return d
 
 
-def sbx_rung(tmp_path, name="sbx", n=1, point="pycache"):
+def sbx_rung(tmp_path, name="sbx", n=1, point="pycache", **params):
     # Every call on a VM of its own: analyzes 9, 10, 11 s (median 10 s), one py_short.
     log = [exec_line("S", "vm-%d" % i) for i in range(1, 5)]
     calls = [call("S", 1, ms=9000), call("S", 2, ms=10000), call("S", 3, ms=11000),
              call("S", 4, cls="py_short", ms=400)]
     d = rung(tmp_path, calls, log, name=name)
     with open(os.path.join(d, "params.json"), "w") as f:
-        json.dump({"arm": "sbx", "n": n, "point": point, "seed": 1}, f)
+        json.dump(dict({"arm": "sbx", "n": n, "point": point, "seed": 1}, **params), f)
     return d
 
 
@@ -101,6 +101,24 @@ def test_refuses_to_pool_different_dataset_or_guest_ram(tmp_path, field):
     # The same values pool.
     c = lease_rung(tmp_path, name="d256b", **{field: 256})
     assert group(L.build([b, c]), "lease-120")["counts"]["used"] == 12
+
+
+@pytest.mark.parametrize("field", ["dataset_mib", "snapshot_guest_ram_mb"])
+def test_refuses_gain_against_baseline_with_other_dataset_or_guest_ram(tmp_path, field):
+    # The gain-against-D runs: lease at D=64 must not be divided by sbx at D=256.
+    lease = lease_rung(tmp_path, name="lease-d64", **{field: 64})
+    sbx = sbx_rung(tmp_path, name="sbx-d256", **{field: 256})
+    with pytest.raises(SystemExit) as e:
+        L.build([lease, sbx], baseline_arm="sbx")
+    msg = str(e.value)
+    assert field in msg and "64" in msg and "256" in msg and lease in msg and sbx in msg
+    with pytest.raises(SystemExit) as e:
+        L.main([lease, sbx, "--baseline-arm", "sbx", "--out", str(tmp_path / "out")])
+    assert e.value.code not in (0, None)
+    # Matching values still give the gain.
+    sbx64 = sbx_rung(tmp_path, name="sbx-d64", **{field: 64})
+    rep = L.build([lease, sbx64], baseline_arm="sbx")
+    assert group(rep, "lease-120")["classes"]["py_analyze"]["gain"] == pytest.approx(0.4)
 
 
 def test_cli_writes_json_and_md(tmp_path):
