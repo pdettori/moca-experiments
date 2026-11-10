@@ -696,3 +696,47 @@ func TestLoadCorpusAcceptsPycache(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// E17's pycache library (e17/workload/library.json) must plan every py_analyze and py_test call of
+// the pycache corpus as ONE invocation: a chained second analyze or test run would double the
+// call's work. fill picks a second copy of an invocation of Ms() m only while the remainder
+// work_ms - m is >= 50 and >= m, so one invocation per call holds while Ms() > work_ms/2; the
+// boundary cases pin that for Task 5's measured run_ms.
+func TestPlanPycacheOneInvocationPerHeavyCall(t *testing.T) {
+	l, err := LoadLibrary("../../e17/workload/library.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ss, err := LoadCorpus("testdata/pycache-corpus.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	heavy := 0
+	for _, s := range ss {
+		for _, c := range s.Calls {
+			if c.Class != "py_analyze" && c.Class != "py_test" {
+				continue
+			}
+			heavy++
+			p := plan(t, l, c, 1, s.ID)
+			if len(p) != 1 || p[0].Cmd != l.Classes[c.Class][0].Cmd || p[0].Exit != 0 || p[0].SleepAfterMs != 0 {
+				t.Fatalf("%s call %d (%s, work %d ms): plan %+v, want the one library invocation", s.ID, c.I, c.Class, c.WorkMs, p)
+			}
+		}
+	}
+	if heavy == 0 {
+		t.Fatal("fixture has no py_analyze/py_test calls")
+	}
+	if err := validatePlans(ss, l, 1, Scan{}); err != nil {
+		t.Fatal(err)
+	}
+	// One invocation iff its Ms() > work_ms/2 (or it is longer than work_ms: the fallback runs once).
+	c := Call{Class: "py_test", WorkMs: 60000, DurMs: 60000}
+	for _, tc := range []struct{ runMs, want int64 }{{30001, 1}, {30000, 2}, {90000, 1}} {
+		ml := &Library{Classes: map[string][]Invocation{"py_test": {l.Classes["py_test"][0]}}}
+		ml.Classes["py_test"][0].RunMs = &tc.runMs
+		if p := plan(t, ml, c, 1, "s"); int64(len(p)) != tc.want {
+			t.Fatalf("run_ms %d, work_ms 60000: %d invocations, want %d", tc.runMs, len(p), tc.want)
+		}
+	}
+}
