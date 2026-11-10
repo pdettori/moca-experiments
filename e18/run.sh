@@ -7,6 +7,8 @@
 # Environment:
 #   E18_COMPOSE_DIR   moca's deploy/compose (default ~/gh/moca/deploy/compose)
 #   SH_PORT           host port for the supervisor (default 18080)
+#   SH_WORKERS        worker pool size (default: the container's CPU count)
+#   E18_KEY_FILE      file holding the real ANTHROPIC_API_KEY (real mode)
 set -euo pipefail
 
 MODE="${1:-}"
@@ -34,8 +36,11 @@ trap teardown EXIT
   echo "MOCA_RELAY_EXEC_TOKEN=$(head -c 32 /dev/urandom | base64 | tr -d '/+=')"
   echo "SH_TURNS_PER_WORKER=4"
   echo "SH_PORT=$SH_PORT"
+  [[ -n "${SH_WORKERS:-}" ]] && echo "SH_WORKERS=$SH_WORKERS"
   if [[ "$MODE" == real ]]; then
-    : "${ANTHROPIC_API_KEY:?real mode needs ANTHROPIC_API_KEY}"
+    # E18_KEY_FILE keeps the key out of the environment and the command line.
+    if [[ -n "${E18_KEY_FILE:-}" ]]; then ANTHROPIC_API_KEY="$(tr -d '[:space:]' <"$E18_KEY_FILE")"; fi
+    : "${ANTHROPIC_API_KEY:?real mode needs ANTHROPIC_API_KEY or E18_KEY_FILE}"
     echo "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY"
     [[ -n "${ANTHROPIC_BASE_URL:-}" ]] && echo "ANTHROPIC_BASE_URL=$ANTHROPIC_BASE_URL"
   fi
