@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import shutil
+import statistics
 import subprocess
 import sys
 
@@ -18,10 +19,10 @@ DRIVER_FIXTURE = os.path.join(DRIVER, "testdata", "pycache-corpus.jsonl")
 TURN_HEAD = ["py_analyze", "py_test"]
 
 
-def gen(tmp_path, duty=0.095, sessions=40, seed=1, name="out"):
+def gen(tmp_path, duty=0.095, sessions=40, seed=1, name="out", extra=()):
     out = tmp_path / name
     pycache_corpus.main(["--gaps-from", GAPS, "--duty", str(duty), "--sessions", str(sessions),
-                         "--seed", str(seed), "--out", str(out)])
+                         "--seed", str(seed), "--out", str(out), *extra])
     corpus = [json.loads(l) for l in (out / "corpus.jsonl").read_text().splitlines()]
     report = json.loads((out / "corpus-report.json").read_text())
     return out, corpus, report
@@ -69,6 +70,28 @@ def test_duty_is_met(tmp_path, duty):
         busy = sum(c["dur_ms"] for c in s["calls"])
         span = busy + sum(c["gap_ms"] for c in s["calls"])
         assert busy / span <= 1.2 * duty, s["session"]
+
+
+@pytest.mark.parametrize("duty", [0.095, 0.015])
+def test_min_turns(tmp_path, duty):
+    # Spec §4.2: a session is a loop of turns, so warmth across turns is exercised. Default floor 4.
+    _, corpus, report = gen(tmp_path, duty=duty)
+    counts = []
+    for s in corpus:
+        ks = turns([c["class"] for c in s["calls"]])
+        assert ks and len(ks) >= 4, (s["session"], ks)
+        counts.append(len(ks))
+    tps = report["turns_per_session"]
+    assert (tps["min"], tps["max"]) == (min(counts), max(counts)) and tps["min"] >= 4
+    assert tps["median"] == statistics.median(counts)
+    spans = report["span_min"]
+    assert 0 < spans["min"] <= spans["median"] <= spans["max"]
+
+
+def test_min_turns_is_a_parameter(tmp_path):
+    _, corpus, report = gen(tmp_path, extra=("--min-turns", "6"))
+    assert all(len(turns([c["class"] for c in s["calls"]])) >= 6 for s in corpus)
+    assert report["min_turns"] == 6
 
 
 def test_schema_and_timeline(tmp_path):

@@ -3,6 +3,8 @@
 
 E17 SPEC §4.2. A session is a loop of turns, each a fixed sequence of calls:
   py_analyze, py_test, py_short x k (2 <= k <= 5, drawn per turn), py_analyze.
+Every session has at least --min-turns turns (default 4), so a lease is tested across turns and not
+only inside one; the duty fit below adds turns only above that floor.
 dur_ms = work_ms are the N = 1 planned durations (py_analyze 15 s, py_test 60 s, py_short 300 ms);
 the library's real commands decide the actual time. Users pyc-u00 .. pyc-u39 round-robin (so the
 driver's 15% per-user cap never binds); provider "synthetic"; out_bytes 0 (the driver never reads it).
@@ -10,15 +12,15 @@ driver's 15% per-user cap never binds); provider "synthetic"; out_bytes 0 (the d
 Gaps are drawn (seeded) from the gap source's gap_ms values. Each source session's last call is
 left out: E15 writes 0 there as a terminator, not as a gap. The draws are then scaled to the
 session's duty target, as in PLAN Task 1 step 3:
-  1. draw one gap per call boundary;
+  1. start from --min-turns turns; draw one gap per call boundary;
   2. B = sum of dur_ms;
   3. scale the draws by s = (B (1 - duty) / duty) / sum(draws);
   4. clip each gap to H = 1 800 000 ms;
   5. re-measure the duty. If it is more than 20% above target, add a whole turn (at most 50 extra)
      and go back to 1 for the new boundaries. If it still misses, fail.
 Steps 3-4 are repeated on the gaps no scaling has clipped yet, until none newly clips, so the
-time a clip removes moves to the unclipped gaps (fit()). That makes no difference when nothing clips. Without it,
-scaling once loses the clipped excess for good: at 1.5% a session stays near 4.5% duty whatever
+time a clip removes moves to the unclipped gaps (fit()). That makes no difference when nothing
+clips. Without it, scaling once loses the clipped excess for good: at 1.5% a session stays near 4.5% duty whatever
 its length, and adding turns cannot fix that. A drawn 0 stays 0, because it is a back-to-back call.
 
 Duty (corpus-report.json duty_achieved) is E15's: occupied time / span on the replay timeline
@@ -28,7 +30,7 @@ call's emit (the previous call's dur_ms + gap_ms), 0 on the first call; the driv
 add the offsets up.
 
 Usage: python3 pycache_corpus.py --gaps-from CORPUS.jsonl --duty 0.095 --sessions 400 --seed 1
-                                 --out DIR
+                                 --out DIR [--min-turns 4]
 """
 
 import argparse
@@ -52,6 +54,7 @@ from extract import timeline  # noqa: E402
 H_MS = 1_800_000
 DUTY_TOL = 0.2          # relative: a session more than 20% above its target is extended
 MAX_EXTRA_TURNS = 50
+MIN_TURNS = 4
 USERS = 40
 PROVIDER = "synthetic"
 DUR_MS = {"py_analyze": 15_000, "py_test": 60_000, "py_short": 300}
@@ -114,9 +117,11 @@ def duty_of(calls):
     return busy / span
 
 
-def session(rng, pool, duty):
+def session(rng, pool, duty, min_turns):
     """(calls, achieved duty, extra turns) for one session, or None when the target is missed."""
-    steps, draws = turn(rng), []
+    steps, draws = [], []
+    for _ in range(min_turns):
+        steps += turn(rng)
     for extra in range(MAX_EXTRA_TURNS + 1):
         if extra:
             steps += turn(rng)
@@ -136,11 +141,15 @@ def main(argv=None):
     p.add_argument("--sessions", type=int, required=True)
     p.add_argument("--seed", type=int, required=True)
     p.add_argument("--out", required=True)
+    p.add_argument("--min-turns", type=int, default=MIN_TURNS,
+                   help="turns per session before the duty fit adds any (default %d)" % MIN_TURNS)
     args = p.parse_args(argv)
     if not 0 < args.duty < 1:
         p.error("--duty must be in (0, 1)")
     if args.sessions < 1:
         p.error("--sessions must be at least 1")
+    if args.min_turns < 1:
+        p.error("--min-turns must be at least 1")
     pool, gap_sha = load_gaps(args.gaps_from)
     if not any(pool):
         sys.stderr.write("pycache_corpus.py: %s has no non-zero gap_ms\n" % args.gaps_from)
@@ -150,12 +159,12 @@ def main(argv=None):
     lines, duties, per_class = [], [], collections.Counter()
     extended, turns, spans, busy = 0, [], [], 0
     for n in range(args.sessions):
-        got = session(rng, pool, args.duty)
+        got = session(rng, pool, args.duty, args.min_turns)
         if got is None:
             sys.stderr.write(
                 "pycache_corpus.py: session %d cannot meet duty %g (within %d%% above) even with %d "
-                "extra turns: the gap source's gaps, clipped at %d s, are too short\n"
-                % (n, args.duty, DUTY_TOL * 100, MAX_EXTRA_TURNS, H_MS // 1000))
+                "extra turns over %d: the gap source's gaps, clipped at %d s, are too short\n"
+                % (n, args.duty, DUTY_TOL * 100, MAX_EXTRA_TURNS, args.min_turns, H_MS // 1000))
             sys.exit(1)
         calls, d, extra = got
         s = dict(session="pycache:%d:%04d" % (args.seed, n), user="pyc-u%02d" % (n % USERS),
@@ -176,7 +185,11 @@ def main(argv=None):
                            min=min(duties), max=max(duties)),
         duty_definition="occupied / span on the replay timeline (e15/extract/extract.py:timeline)",
         calls_per_class=dict(sorted(per_class.items())),
+        min_turns=args.min_turns,
         turns=dict(mean=statistics.fmean(turns), max=max(turns), sessions_extended=extended),
+        turns_per_session=dict(min=min(turns), median=statistics.median(turns), max=max(turns)),
+        span_min=dict(min=min(spans) / 60_000, median=statistics.median(spans) / 60_000,
+                      max=max(spans) / 60_000),
         gap_source=os.path.abspath(args.gaps_from), gap_source_sha256=gap_sha, gap_pool=len(pool),
         # The fields the E15 rig reads from a point's corpus-report.json (rung.sh: K from
         # table.mean_span_min, H_s and exclude into params.json; setup.sh: corpus_sha256).
