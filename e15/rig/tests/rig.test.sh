@@ -16,7 +16,7 @@
 set -uo pipefail
 
 RIG="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCRIPTS=(lib.sh points.sh setup.sh teardown.sh rung.sh ladder.sh sample.sh baseline.sh classprobe.sh tests/rig.test.sh)
+SCRIPTS=(lib.sh points.sh setup.sh teardown.sh rung.sh ladder.sh sample.sh baseline.sh classprobe.sh tests/rig.test.sh tests/golden/dump.sh)
 fails=0
 check() {
   if [ "$2" = "$3" ]; then
@@ -1872,6 +1872,149 @@ check "setup.sh: fresh-metal keeps e15-driver, builds a changed driver source as
 check "rung.sh: E15_END_SESSION_DEFER runs e15-driver-defer, the baseline is matched on the stock driver" \
   "$(grep -c 'DRIVER=\$E15_BIN/e15-driver-defer' "$RIG/rung.sh")/$(grep -c 'drv_sha=\$(sha_of "\$BASE_DRIVER")' "$RIG/rung.sh")" "1/1"
 check "rung.sh: params.json records end_session_defer only when on" "$(grep -c 'if "\$END_DEFER" == "1" else {}' "$RIG/rung.sh")" "1"
+
+# --- E17 Task 3: points pycache*, arms lease-30/lease-120 (fresh-metal only) -----------------
+# The pre-existing points and arms are compared byte for byte against golden dumps written from
+# the tree before E17 (tests/golden/, dump.sh); the new ones are checked for their exact values.
+GOLD="$RIG/tests/golden"
+gdump() { # PROFILE BODY: lib.sh, points.sh and golden/dump.sh sourced under the test root
+  E15_HOST_PROFILE="$1" E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; source "$2"; source "$3"; eval "$4"' \
+    _ "$RIG/lib.sh" "$RIG/points.sh" "$GOLD/dump.sh" "$2" 2>&1
+}
+gsame() { # GOLDEN: "same" when $TMP/gold.out equals it, else the first diff lines and "differs"
+  if cmp -s "$TMP/gold.out" "$1"; then echo same; else
+    diff "$1" "$TMP/gold.out" | head -5
+    echo differs
+  fi
+}
+rm -rf "$TROOT/state"
+for prof in aws-prelim fresh-metal; do
+  for p in default lowduty mem512; do
+    gdump "$prof" "e15_golden_point $p" >"$TMP/gold.out"
+    check "E17 golden: e15_point $p on $prof is byte-identical to before" "$(gsame "$GOLD/point-$p.txt")" "same"
+  done
+  gdump "$prof" "e15_golden_arms '$TMP/gold.env'" >"$TMP/gold.out"
+  check "E17 golden: warm-up, binary and worker env of sbx resident-inf resident-300 control on $prof unchanged" \
+    "$(gsame "$GOLD/arms.$prof.txt")" "same"
+done
+check "E17: E15_ARMS on aws-prelim unchanged (no lease arms)" "$(gdump aws-prelim 'echo ${E15_ARMS[*]}')" "sbx resident-inf resident-300 control"
+check "E17: E15_ARMS on fresh-metal: the E15 arms in order, then lease-30 lease-120" "$(gdump fresh-metal 'echo ${E15_ARMS[*]}')" \
+  "sbx resident-inf resident-300 control lease-30 lease-120"
+check "E17: aws-prelim refuses the lease arms" "$(gdump aws-prelim 'e15_is_arm lease-30 || echo no30; e15_is_arm lease-120 || echo no120' | tr '\n' ' ')" "no30 no120 "
+
+# the pycache points: fresh-metal only, the brief's exact values
+fpt() { # PROFILE POINT
+  E15_HOST_PROFILE="$1" E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; source "$2"; e15_point "$3" || { echo refused; exit 0; }
+    echo "$E15_P_ARMS|$E15_P_CORPUS|${E15_P_LIBRARY#"$E15_ROOT"/}|${E15_P_TEMPLATE#"$E15_ROOT"/}|$E15_P_TEMPLATE_STAMP|$E15_P_IMAGE_MB|$E15_P_DATASET_MIB|$E15_P_DATASET_SEED|$E15_P_SCAN_CLASSES|$E15_P_SCAN_CMD|$E15_P_FALLBACK"' \
+    _ "$RIG/lib.sh" "$RIG/points.sh" "$2" 2>&1
+}
+parms="sbx resident-300 lease-30 lease-120"
+check "E17 points: pycache" "$(fpt fresh-metal pycache)" "$parms|pycache|src/e17/workload/library.json|template-pycache-d256/workspace.img|template-pycache-d256|1536|256|1|||0"
+check "E17 points: pycache-low (its own corpus, the D=256 template)" "$(fpt fresh-metal pycache-low)" "$parms|pycache-low|src/e17/workload/library.json|template-pycache-d256/workspace.img|template-pycache-d256|1536|256|1|||0"
+check "E17 points: pycache-d64 (pycache corpus, D=64 template)" "$(fpt fresh-metal pycache-d64)" "$parms|pycache|src/e17/workload/library.json|template-pycache-d64/workspace.img|template-pycache-d64|1536|64|1|||0"
+check "E17 points: pycache-d768 (pycache corpus, D=768 template)" "$(fpt fresh-metal pycache-d768)" "$parms|pycache|src/e17/workload/library.json|template-pycache-d768/workspace.img|template-pycache-d768|1536|768|1|||0"
+check "E17 points: the library is /srv/e15/src/e17/workload/library.json on the rig root" \
+  "$(E15_HOST_PROFILE=fresh-metal E15_ROOT=/srv/e15 bash -c 'source "$1"; source "$2"; e15_point pycache; echo "$E15_P_LIBRARY $E15_P_TEMPLATE"' _ "$RIG/lib.sh" "$RIG/points.sh" 2>&1)" \
+  "/srv/e15/src/e17/workload/library.json /srv/e15/template-pycache-d256/workspace.img"
+for p in pycache pycache-low pycache-d64 pycache-d768; do
+  check "E17 points: $p refused on aws-prelim" "$(fpt aws-prelim "$p")" "refused"
+done
+check "E17 points: e15_point_arms pycache (fresh-metal)" "$(gdump fresh-metal 'e15_point_arms pycache')" "$parms"
+fsig() { E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; source "$2"; e15_point_sig "$3"' _ "$RIG/lib.sh" "$RIG/points.sh" "$1"; }
+check "E17 point_sig: the four pycache points and default, lowduty, mem512 all apart" \
+  "$(for p in pycache pycache-low pycache-d64 pycache-d768 default lowduty mem512; do fsig "$p"; echo; done | sort -u | grep -cE '^[0-9a-f]{64}$')" "7"
+check "E17 points: setup.sh's template list unchanged (pycache templates are bringup.sh's)" "$(gdump fresh-metal 'e15_templates' | tr '\n' ' ')" "default mem512 "
+
+# the lease arms: the resident binary, standby depth 0, E15_RESIDENT=1 with their idle, warm-up 1200
+lenv() { E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; worker_env "$3" "$2"; grep -E "^(E15_RESIDENT|E15_RESIDENT_IDLE_S|SH_STANDBY_DEPTH)=" "$2" | tr "\n" " "' _ "$RIG/lib.sh" "$TMP/wenv" "$1" 2>&1; }
+check "E17 worker_env lease-30" "$(lenv lease-30)" "SH_STANDBY_DEPTH=0 E15_RESIDENT=1 E15_RESIDENT_IDLE_S=30 "
+check "E17 worker_env lease-120" "$(lenv lease-120)" "SH_STANDBY_DEPTH=0 E15_RESIDENT=1 E15_RESIDENT_IDLE_S=120 "
+check "E17 worker_env: lease-30 equals resident-300 but for the idle line" \
+  "$(diff <(E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; worker_env resident-300 "$2"; cat "$2"' _ "$RIG/lib.sh" "$TMP/wa") \
+    <(E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; worker_env lease-30 "$2"; cat "$2"' _ "$RIG/lib.sh" "$TMP/wb") | grep -c '^[<>]')" "2"
+check "E17 worker_bin: lease-30, lease-120 run the resident binary" \
+  "$(gdump fresh-metal 'worker_bin lease-30; worker_bin lease-120' | sed "s#^$TROOT/##" | tr '\n' ' ')" "bin/microvm-worker-resident bin/microvm-worker-resident "
+check "E17 warm-up: lease-30, lease-120 1200 s on fresh-metal" "$(gdump fresh-metal 'e15_default_warmup lease-30; e15_default_warmup lease-120' | tr '\n' ' ')" "1200 1200 "
+
+# rung.sh: end-session Exec for the lease arms, the record's binary, patch sha and end_session_exec
+for spec in "fresh-metal lease-30 0:--end-session-exec" "fresh-metal lease-120 0:--end-session-exec" \
+  "fresh-metal lease-30 1:--end-session-exec --end-session-defer --end-session-rate 50"; do
+  read -r p_ a_ d_ <<<"${spec%%:*}"
+  got=$(E15_HOST_PROFILE=$p_ ARM=$a_ E15_END_SESSION_DEFER=$d_ bash -c "$endflag_snip"$'\n''echo "${end_flag[*]}"')
+  check "E17 rung.sh end flag: arm=$a_ E15_END_SESSION_DEFER=$d_" "$got" "${spec#*:}"
+done
+check "E17 rung.sh: the record maps lease-30, lease-120 to the resident binary" \
+  "$(grep -c '"lease-30": "\$E15_BIN/microvm-worker-resident", "lease-120": "\$E15_BIN/microvm-worker-resident"' "$RIG/rung.sh")" "1"
+check "E17 rung.sh: end_session_exec true for the lease arms" \
+  "$(grep -c '"end_session_exec": arm in ("resident-inf", "resident-300", "lease-30", "lease-120"),' "$RIG/rung.sh")" "1"
+check "E17 rung.sh: resident_patch_sha256 recorded for the lease arms" \
+  "$(grep -c 'if arm.startswith(("resident", "lease-")) else None' "$RIG/rung.sh")" "1"
+check "E17 rung.sh: usage names the lease arms and pycache points" \
+  "$(grep -c '^#   ARM    sbx | resident-inf | resident-300 | control | lease-30 | lease-120' "$RIG/rung.sh")/$(grep -c 'pycache | pycache-low | pycache-d64 | pycache-d768' "$RIG/rung.sh")" "1/1"
+: >"$CALLS"
+E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" PATH="$SPATH" E15_MANIFEST="$TMP/m.md" bash "$RIG/rung.sh" lease-30 8 default >"$TMP/r.out" 2>&1
+check "E17 rung.sh: default does not run lease-30 (exit 2)" "$?/$(grep -c 'does not run ARM lease-30' "$TMP/r.out")" "2/1"
+E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" PATH="$SPATH" E15_MANIFEST="$TMP/m.md" bash "$RIG/rung.sh" resident-inf 8 pycache >"$TMP/r.out" 2>&1
+check "E17 rung.sh: pycache does not run resident-inf (exit 2)" "$?/$(grep -c 'does not run ARM resident-inf' "$TMP/r.out")" "2/1"
+E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" PATH="$SPATH" E15_MANIFEST="$TMP/m.md" bash "$RIG/rung.sh" lease-30 8 pycache >"$TMP/r.out" 2>&1
+check "E17 rung.sh: aws-prelim refuses lease-30 (unknown ARM, exit 2)" "$?/$(grep -c "unknown ARM 'lease-30'" "$TMP/r.out")" "2/1"
+check "E17 rung.sh: none of these touched systemctl, sudo or podman" "$(wc -l <"$CALLS" | tr -d ' ')" "0"
+
+# setup.sh: the template loop and the lowduty block are byte-identical to before (sha256 of the
+# sed ranges at 6364d0f); the pycache corpora block is fresh-metal only, checked and recorded
+check "E17 setup.sh: template loop (step 8) byte-identical" \
+  "$(sed -n '/^# --- 8. workspace templates/,/^done < <(e15_templates)$/p' "$RIG/setup.sh" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')" \
+  "cef55bb0313966edadff8bd0d8f8c54ad9d9be8b56738e4a60326f4547982563"
+check "E17 setup.sh: lowduty block (step 8a) byte-identical" \
+  "$(sed -n '/^# --- 8a. the lowduty corpus/,/^fi$/p' "$RIG/setup.sh" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')" \
+  "cd7034e7629fd3a102a72d458ec6b08bc870a7b0d41610a4e691f840b31347d0"
+pcsnip=$(sed -n '/^# --- 8c. the pycache corpora/,/^# end pycache corpora$/p' "$RIG/setup.sh")
+check "E17 setup.sh: the pycache corpora block exists" "$([ -n "$pcsnip" ] && echo present || echo missing)" "present"
+pcrun() { # METAL: run the block under the test root; prints rc, then state/artifacts
+  rm -rf "$TROOT/state/artifacts"
+  E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" E15_MANIFEST="$TMP/pcm.md" METAL=$1 bash -c 'source "$1"; set -e; eval "$2"' \
+    _ "$RIG/lib.sh" "$pcsnip" >"$TMP/pc.out" 2>&1
+  echo "rc=$?"
+  sed "s#$TROOT/##g" "$TROOT/state/artifacts" 2>/dev/null | cut -d' ' -f1,3
+}
+mkpc() { # POINT [WRONG]: stage a corpus and a report whose corpus_sha256 matches (or not)
+  mkdir -p "$TROOT/corpora/$1"
+  printf '{"session": "%s"}\n' "$1" >"$TROOT/corpora/$1/corpus.jsonl"
+  python3 -c 'import hashlib,json,sys; d=open(sys.argv[1],"rb").read(); json.dump({"corpus_sha256": sys.argv[2] or hashlib.sha256(d).hexdigest()}, open(sys.argv[3],"w"))' \
+    "$TROOT/corpora/$1/corpus.jsonl" "${2:-}" "$TROOT/corpora/$1/corpus-report.json"
+}
+rm -rf "$TROOT/corpora/pycache" "$TROOT/corpora/pycache-low"
+check "E17 setup.sh pycache corpora: none staged -> notes only, no artifact" "$(pcrun 1 | tr '\n' ' ')/$(grep -c 'note: no .*pycache.*/corpus.jsonl staged' "$TMP/pc.out")" "rc=0 /2"
+mkpc pycache
+mkpc pycache-low
+check "E17 setup.sh pycache corpora: both staged -> both recorded" "$(pcrun 1 | tr '\n' ' ')" \
+  "rc=0 corpus-pycache corpora/pycache/corpus.jsonl corpus-pycache-low corpora/pycache-low/corpus.jsonl "
+check "E17 setup.sh pycache corpora: aws-prelim (METAL=0) does nothing" "$(pcrun 0 | tr '\n' ' ')/$(wc -c <"$TMP/pc.out" | tr -d ' ')" "rc=0 /0"
+mkpc pycache-low 0000000000000000000000000000000000000000000000000000000000000000
+check "E17 setup.sh pycache corpora: a sha256 mismatch dies" "$(pcrun 1 | head -1)/$(grep -c 'is not its report.s corpus_sha256' "$TMP/pc.out")" "rc=1/1"
+rm -f "$TROOT/corpora/pycache-low/corpus-report.json"
+check "E17 setup.sh pycache corpora: corpus without a report dies" "$(pcrun 1 | head -1)/$(grep -c 'has corpus.jsonl but no corpus-report.json' "$TMP/pc.out")" "rc=1/1"
+rm -rf "$TROOT/corpora/pycache" "$TROOT/corpora/pycache-low" "$TROOT/state/artifacts"
+
+# e17/rig/sync.sh: the laptop sync (never run by the tests: it reaches the rig)
+SYNC17="$RIG/../../e17/rig/sync.sh"
+if [ -f "$SYNC17" ]; then
+  bash -n "$SYNC17" 2>"$TMP/n.out"
+  check "bash -n e17/rig/sync.sh" "$([ -s "$TMP/n.out" ] && echo FAIL || echo clean)" "clean"
+  if [ -n "$SC" ]; then
+    "$SC" -x "$SYNC17" >"$TMP/sc.out" 2>&1
+    check "shellcheck e17/rig/sync.sh" "$([ -s "$TMP/sc.out" ] && echo FAIL || echo clean)" "clean"
+    [ -s "$TMP/sc.out" ] && sed 's/^/    /' "$TMP/sc.out" | head -20
+  fi
+  check "e17 sync.sh: rsyncs e15/, e16/, e17/ with e16's excludes" \
+    "$(grep -c '^X=(--exclude results/ --exclude predictions.json --exclude predictions-metal.json --exclude __pycache__ --exclude .pytest_cache)$' "$SYNC17")/$(grep -cE 'rsync -a --delete "\$\{X\[@\]\}" -e "\$S" (e15|e16|e17)/ "\$H:/srv/e15/src/(e15|e16|e17)/"' "$SYNC17")" "1/3"
+  check "e17 sync.sh: corpora to /srv/e15/corpora/<point>/, wheels to /srv/e15/wheels-pycache/ (not E15's wheels)" \
+    "$(grep -c '"\$H:/srv/e15/corpora/\$p/"' "$SYNC17")/$(grep -c '"\$H:/srv/e15/wheels-pycache/"' "$SYNC17")/$(grep -c '/srv/e15/wheels/' "$SYNC17")" "1/1/0"
+  check "e17 sync.sh: defaults E17_CORPORA, E17_WHEELS" \
+    "$(grep -c 'E17_CORPORA:-/tmp/kagenti/e17-corpora' "$SYNC17")/$(grep -c 'E17_WHEELS:-/tmp/kagenti/e17-wheels-probe' "$SYNC17")" "1/1"
+else
+  check "e17/rig/sync.sh exists" "missing" "present"
+fi
 
 echo
 if [ "$fails" -eq 0 ]; then

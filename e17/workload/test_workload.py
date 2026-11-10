@@ -289,3 +289,14 @@ def test_library_plans_one_invocation_per_heavy_call():
                        cwd=DRIVER, capture_output=True, text=True, env=env)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "no tests to run" not in r.stdout, r.stdout
+
+
+def test_preflight_runs_python_like_in_guest():
+    # Image mode needs root, so this is a check of the script's text: the venv/ensurepip preflight
+    # runs the guest's python3.9 with a clean environment (env -i, as in_guest) and -B (no bytecode
+    # written into the read-only rootfs tree), so the host's PYTHON* variables cannot change it.
+    text = SCRIPT.read_text()
+    pre = [l for l in text.splitlines() if "import venv, ensurepip" in l and not l.lstrip().startswith("#")]
+    assert len(pre) == 1, pre
+    assert re.search(r'chroot "\$ROOTFS" /usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp TMPDIR=/tmp '
+                     r"/usr/bin/python3\.9 -B -c 'import venv, ensurepip'", pre[0]), pre[0]

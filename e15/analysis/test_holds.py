@@ -140,6 +140,10 @@ def test_footprint_drift(tmp_path):
     assert abs(r["footprint_drift_pct"] - 12.5) < 1e-9 and r["repeat_required"]
     r = _rung(tmp_path, s, arm="sbx")
     assert "footprint_drift_pct" not in r
+    # E17: the lease arms run the resident worker (lib.sh), so their footprint is judged too
+    for arm in ("resident-300", "lease-30", "lease-120"):
+        r = _rung(tmp_path, s, arm=arm)
+        assert abs(r["footprint_drift_pct"] - 12.5) < 1e-9 and r["repeat_required"], arm
 
 
 import pytest

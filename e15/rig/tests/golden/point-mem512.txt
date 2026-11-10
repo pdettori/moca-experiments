@@ -1,0 +1,13 @@
+E15_P_ARMS=sbx resident-inf
+E15_P_CORPUS=default
+E15_P_LIBRARY=<ROOT>/src/e15/commands/library.json
+E15_P_TEMPLATE=<ROOT>/template-mem512/workspace.img
+E15_P_TEMPLATE_STAMP=template-mem512
+E15_P_IMAGE_MB=1024
+E15_P_DATASET_MIB=512
+E15_P_DATASET_SEED=1
+E15_P_SCAN_CLASSES=read,shell_read,search,test,interpreter,lint_check
+E15_P_SCAN_CMD=cat /workspace/data.bin >/dev/null
+E15_P_FALLBACK=0
+E15_P_SETTINGS=point=mem512 corpus=default library=src/e15/commands/library.json template=template-mem512/workspace.img image_mb=1024 dataset_mib=512 dataset_seed=1 scan_classes=read,shell_read,search,test,interpreter,lint_check scan_cmd=cat /workspace/data.bin >/dev/null
+point_sig=f268309d12e6d2d506e8a4a18cff51a1e03d646bb6ad1f1ecda867fa9c1d0392

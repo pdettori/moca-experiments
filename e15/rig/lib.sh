@@ -117,6 +117,9 @@ else
 fi
 
 E15_ARMS=(sbx resident-inf resident-300 control)
+# E17 (e17/SPEC.md, fresh-metal only): the lease arms, the resident worker with a 30 s or 120 s idle
+# lease (worker_env); otherwise as resident-300. aws-prelim: the sealed arm list above.
+[ "$E15_HOST_PROFILE" != fresh-metal ] || E15_ARMS+=(lease-30 lease-120)
 E15_LADDER=(1 8 16 24 32 40 48 56 64 80 96 128)
 # fresh-metal (SPEC §13, user decision 2026-11-04): the ladder extends past 128 until one arm fails,
 # resident arms warm up 1200 s (their VMs are still growing at 600 s), and footprint drift is judged
@@ -134,6 +137,7 @@ fi
 e15_default_warmup() {
   case "$E15_HOST_PROFILE:$1" in
   fresh-metal:sbx | fresh-metal:resident-inf | fresh-metal:resident-300) echo 1200 ;;
+  fresh-metal:lease-30 | fresh-metal:lease-120) echo 1200 ;; # E17: as resident-300
   *) echo 600 ;;
   esac
 }
@@ -760,6 +764,7 @@ worker_env() {
   case "$arm" in
   sbx) depth=2 ;;
   resident-inf | resident-300) depth=0 ;;
+  lease-30 | lease-120) depth=0 ;; # E17 (fresh-metal only; E15_ARMS)
   *) die "worker_env: no worker for arm $arm" ;;
   esac
   {
@@ -788,6 +793,8 @@ worker_env() {
     case "$arm" in
     resident-inf) printf 'E15_RESIDENT=1\nE15_RESIDENT_IDLE_S=0\n' ;;
     resident-300) printf 'E15_RESIDENT=1\nE15_RESIDENT_IDLE_S=300\n' ;;
+    lease-30) printf 'E15_RESIDENT=1\nE15_RESIDENT_IDLE_S=30\n' ;;
+    lease-120) printf 'E15_RESIDENT=1\nE15_RESIDENT_IDLE_S=120\n' ;;
     esac
   } >"$out"
 }
@@ -796,6 +803,7 @@ worker_bin() {
   case "$1" in
   sbx) echo "$E15_BIN/microvm-worker" ;;
   resident-inf | resident-300) echo "$E15_BIN/microvm-worker-resident" ;;
+  lease-30 | lease-120) echo "$E15_BIN/microvm-worker-resident" ;; # E17
   *) die "worker_bin: no worker for arm $1" ;;
   esac
 }

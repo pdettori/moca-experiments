@@ -30,6 +30,14 @@
 # lint_check reads it once first (the driver's scan step). A resident VM's page cache keeps it
 # after the first read; each SBX call reads it afresh. Its library and corpus hashes equal the
 # default point's, so the point signature is what keeps the two points' baselines apart.
+#
+# pycache, pycache-low, pycache-d64, pycache-d768 (E17, e17/SPEC.md; fresh-metal only, any other
+# profile returns 1): E17's generated corpora and library (e17/extract/pycache_corpus.py,
+# e17/workload/library.json), 1536 MiB workspaces with a D MiB dataset and the venv. pycache replays
+# the 9.5% duty corpus, pycache-low the 1.5% one, both on the D=256 template; pycache-d64 and
+# pycache-d768 replay the pycache corpus on the D=64 and D=768 templates. The templates
+# (template-pycache-d<D>, stamp template-pycache-d<D>) are built by e17/rig/bringup.sh, not
+# setup.sh, so e15_templates is E15's. No fallback: each point needs its own baselines.
 
 E15_MEM512_SCAN_CLASSES=read,shell_read,search,test,interpreter,lint_check
 E15_MEM512_SCAN_CMD='cat /workspace/data.bin >/dev/null'
@@ -70,6 +78,23 @@ e15_point() {
     E15_P_DATASET_SEED=1
     E15_P_SCAN_CLASSES=$E15_MEM512_SCAN_CLASSES
     E15_P_SCAN_CMD=$E15_MEM512_SCAN_CMD
+    E15_P_FALLBACK=0
+    ;;
+  pycache | pycache-low | pycache-d64 | pycache-d768)
+    [ "$E15_HOST_PROFILE" = fresh-metal ] || return 1
+    E15_P_ARMS="sbx resident-300 lease-30 lease-120"
+    E15_P_CORPUS=pycache
+    [ "$1" != pycache-low ] || E15_P_CORPUS=pycache-low
+    E15_P_LIBRARY=$E15_ROOT/src/e17/workload/library.json
+    case "$1" in
+    pycache-d64) E15_P_DATASET_MIB=64 ;;
+    pycache-d768) E15_P_DATASET_MIB=768 ;;
+    *) E15_P_DATASET_MIB=256 ;;
+    esac
+    E15_P_DATASET_SEED=1
+    E15_P_TEMPLATE_STAMP=template-pycache-d$E15_P_DATASET_MIB
+    E15_P_TEMPLATE=$E15_ROOT/$E15_P_TEMPLATE_STAMP/workspace.img
+    E15_P_IMAGE_MB=1536
     E15_P_FALLBACK=0
     ;;
   *) return 1 ;;

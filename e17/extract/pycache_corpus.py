@@ -190,7 +190,7 @@ def main(argv=None):
         turns_per_session=dict(min=min(turns), median=statistics.median(turns), max=max(turns)),
         span_min=dict(min=min(spans) / 60_000, median=statistics.median(spans) / 60_000,
                       max=max(spans) / 60_000),
-        gap_source=os.path.abspath(args.gaps_from), gap_source_sha256=gap_sha, gap_pool=len(pool),
+        gap_source=os.path.basename(args.gaps_from), gap_source_sha256=gap_sha, gap_pool=len(pool),
         # The fields the E15 rig reads from a point's corpus-report.json (rung.sh: K from
         # table.mean_span_min, H_s and exclude into params.json; setup.sh: corpus_sha256).
         H_s=H_MS // 1000, exclude=None, corpus_sha256=hashlib.sha256(data).hexdigest(),

@@ -1,0 +1,13 @@
+E15_P_ARMS=sbx resident-inf control
+E15_P_CORPUS=lowduty
+E15_P_LIBRARY=<ROOT>/src/e15/commands/library.json
+E15_P_TEMPLATE=<ROOT>/template/workspace.img
+E15_P_TEMPLATE_STAMP=template
+E15_P_IMAGE_MB=256
+E15_P_DATASET_MIB=0
+E15_P_DATASET_SEED=1
+E15_P_SCAN_CLASSES=
+E15_P_SCAN_CMD=
+E15_P_FALLBACK=0
+E15_P_SETTINGS=point=lowduty corpus=lowduty library=src/e15/commands/library.json template=template/workspace.img image_mb=256 dataset_mib=0 dataset_seed=1 scan_classes= scan_cmd=
+point_sig=ee5a62a28550e9a6d77f97a6475da1313689dc3ceec18fd4efb10dd505c6ab90

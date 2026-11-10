@@ -225,7 +225,8 @@ for p in usr/bin/python3.9 workspace mnt tmp dev proc; do
   [ -e "$ROOTFS/$p" ] || die "--rootfs-tree $ROOTFS has no /$p"
 done
 # The guest's python3.9 must be able to make a venv with pip in it; check before any image work.
-chroot "$ROOTFS" /usr/bin/python3.9 -c 'import venv, ensurepip' ||
+# A clean environment as in_guest below, and -B: no bytecode written into the rootfs tree.
+chroot "$ROOTFS" /usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp TMPDIR=/tmp /usr/bin/python3.9 -B -c 'import venv, ensurepip' ||
   die "--rootfs-tree $ROOTFS: /usr/bin/python3.9 cannot import venv and ensurepip (chroot); it cannot build the venv"
 WHEEL_COUNT="$(check_wheels)"
 

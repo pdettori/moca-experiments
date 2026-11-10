@@ -115,6 +115,21 @@ def test_schema_and_timeline(tmp_path):
     assert sum(report["calls_per_class"].values()) == sum(len(s["calls"]) for s in corpus)
     with open(GAPS, "rb") as f:
         assert report["gap_source_sha256"] == hashlib.sha256(f.read()).hexdigest()
+    # the basename, so the report is byte-identical on the laptop and the rig
+    assert report["gap_source"] == "gaps-20.jsonl"
+
+
+def test_report_is_independent_of_the_gap_source_dir(tmp_path):
+    for d in ("x", "y/z"):
+        os.makedirs(tmp_path / d)
+        shutil.copy(GAPS, tmp_path / d / "gaps-20.jsonl")
+    reports = []
+    for d in ("x", "y/z"):
+        out = tmp_path / ("out-" + d.replace("/", "-"))
+        pycache_corpus.main(["--gaps-from", str(tmp_path / d / "gaps-20.jsonl"), "--duty", "0.095",
+                             "--sessions", "10", "--seed", "1", "--out", str(out)])
+        reports.append((out / "corpus-report.json").read_bytes())
+    assert reports[0] == reports[1]
 
 
 def test_gaps_are_capped(tmp_path):
