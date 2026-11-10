@@ -16,6 +16,18 @@ node report.mjs --runs results/runs.jsonl --baseline results/baseline.json --out
 
 Unit tests (no Docker): `node --test test/`.
 
+## How the supervisor kill works
+
+`docker kill` counts as a manual stop, so Docker does not apply `restart: unless-stopped` and the container would
+sit down until someone starts it. The S cases therefore stand in for an orchestrator that restarts at once: the
+driver runs `docker compose up -d supervisor` right after the kill. `tRecover` includes the restart (it is the
+recovery work); the `up -d` command time is reported separately as `restartCmdMs`. There is no detection wait.
+
+## Worker restart backoff
+
+The pool doubles a slot's restart backoff on each crash and resets it only after the worker ran 10 s. W cases
+wait 11 s after the pool is steady before each kill, so a run does not inherit the previous run's backoff.
+
 ## First thing to check
 
 The stub is unverified against the harness (spec §3.2). Before the full run, `./run.sh stub --runs 1 --cases W-I`

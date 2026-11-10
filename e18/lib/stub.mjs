@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { pathToFileURL } from 'node:url';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -6,9 +7,18 @@ function sse(res, event, data) {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
-export function createStub({ delayMs = 200, reply = 'OK' } = {}) {
+export function createStub({ delayMs: initialDelayMs = 200, reply = 'OK' } = {}) {
+  let delayMs = initialDelayMs;
   return http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/healthz') {
+      res.writeHead(200).end('ok');
+      return;
+    }
+    if (req.method === 'POST' && req.url === '/__config') {
+      let raw = '';
+      for await (const chunk of req) raw += chunk;
+      const c = JSON.parse(raw || '{}');
+      if (typeof c.delayMs === 'number') delayMs = c.delayMs;
       res.writeHead(200).end('ok');
       return;
     }
@@ -54,7 +64,7 @@ export function createStub({ delayMs = 200, reply = 'OK' } = {}) {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const port = Number(process.env.PORT ?? 8099);
   const delayMs = Number(process.env.STUB_DELAY_MS ?? 200);
   createStub({ delayMs }).listen(port, '0.0.0.0', () => console.log(`stub listening on ${port} delay ${delayMs}ms`));

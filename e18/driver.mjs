@@ -1,6 +1,8 @@
 // E18 driver: plays a user, injects a crash, times the recovery. See docs/specs/E18-crash-recovery-latency-design.md.
+// Every time is measured from killedAt, the instant the kill returned.
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { turn, retryUntilOk } from './lib/client.mjs';
 import { userRetryTime, percentile } from './lib/stats.mjs';
 import * as injector from './lib/injector.mjs';
@@ -8,16 +10,21 @@ import * as injector from './lib/injector.mjs';
 export const CASES = ['W-I', 'W-M', 'S-I', 'S-M'];
 const FACTS = ['APPLE', 'BANANA'];
 const PROMPT = 'Reply only with OK.';
+const EXPECT = /OK/;
 const MAX_REDOS = 3;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Default injector bound to a real compose project. */
 export function composeInjector(ctx = injector.makeCtx()) {
+  const stubUrl = `http://127.0.0.1:${process.env.E18_STUB_PORT ?? 18099}/__config`;
   return {
     waitSteady: () => injector.waitSteady(ctx),
     killWorker: (o) => injector.killWorker(ctx, o),
     killSupervisor: () => injector.killSupervisor(ctx),
-    ensureSupervisorUp: () => injector.ensureSupervisorUp(ctx),
+    restartSupervisor: () => injector.restartSupervisor(ctx),
     restarts: async () => (await injector.readMetrics(ctx)).counters.restarts,
+    workerCount: async () => (await injector.readMetrics(ctx)).workers.length,
+    configureStub: (delayMs) => fetch(stubUrl, { method: 'POST', body: JSON.stringify({ delayMs }) }),
   };
 }
 
@@ -26,42 +33,59 @@ export function redisHistory(ctx = injector.makeCtx()) {
   return async (sid) => (await ctx.run(['exec', '-T', 'redis', 'valkey-cli', 'XRANGE', `session:${sid}`, '-', '+'])).stdout;
 }
 
-/** One recorded run. Retries internally (up to MAX_REDOS) when a mid-turn kill finds no busy worker. */
-export async function runOne({ case: kase, run, baseUrl, inj, readHistory, delayMs = 200, intervalMs = 200 }) {
+/**
+ * One recorded run. Redoes itself (up to MAX_REDOS) when setup fails or a mid-turn kill landed late or found no
+ * busy worker; returns { discarded: true } when the redos run out, so one bad run never kills the whole sweep.
+ * midDelayMs: the stub delay for -M cases, long enough that the kill lands inside the turn.
+ */
+export async function runOne({ case: kase, run, baseUrl, inj, readHistory, delayMs = 200, midDelayMs = 2000, intervalMs = 200, settleMs = 0 }) {
   const midTurn = kase.endsWith('-M');
   const worker = kase.startsWith('W');
+  let reason = 'none';
   for (let attempt = 0; attempt <= MAX_REDOS; attempt++) {
     await inj.waitSteady();
+    if (settleMs) await sleep(settleMs); // the pool's restart backoff only resets after a worker ran 10 s
+    await inj.configureStub?.(midTurn ? midDelayMs : delayMs);
     const restartsBefore = await inj.restarts();
-    const first = await turn(baseUrl, `Fact 1 is ${FACTS[0]}. ${PROMPT}`);
-    const sid = first.sessionId;
-    await turn(baseUrl, `Fact 2 is ${FACTS[1]}. ${PROMPT}`, sid);
+    const workers = (await inj.workerCount?.()) ?? null;
+
+    const setup = [
+      await turn(baseUrl, `Fact 1 is ${FACTS[0]}. ${PROMPT}`, undefined, { expect: EXPECT }),
+    ];
+    const sid = setup[0].sessionId;
+    if (setup[0].ok) setup.push(await turn(baseUrl, `Fact 2 is ${FACTS[1]}. ${PROMPT}`, sid, { expect: EXPECT }));
     const base = [];
-    for (let i = 0; i < 3; i++) base.push((await turn(baseUrl, PROMPT, sid)).ms);
-    const tBase = percentile(base, 50);
+    for (let i = 0; setup.every((r) => r.ok) && i < 3; i++) base.push(await turn(baseUrl, PROMPT, sid, { expect: EXPECT }));
+    if (!setup.every((r) => r.ok) || !base.every((r) => r.ok) || !sid) { reason = 'setup turn failed'; continue; }
+    const tBase = percentile(base.map((r) => r.ms), 50);
 
     let killedAt;
-    let fraction = null;
-    let manualStartMs = null;
+    let inflightStart = null;
     let inflight = null;
+    let fraction = null;
     try {
       if (midTurn) {
         fraction = 0.1 + Math.random() * 0.8;
-        inflight = turn(baseUrl, PROMPT, sid);
-        await new Promise((r) => setTimeout(r, fraction * (delayMs + tBase)));
+        inflightStart = performance.now();
+        inflight = turn(baseUrl, PROMPT, sid, { expect: EXPECT });
+        await sleep(fraction * tBase); // tBase already includes the stub delay
       }
       ({ killedAt } = worker ? await inj.killWorker({ busy: midTurn }) : await inj.killSupervisor());
     } catch (e) {
-      if (e instanceof injector.NoBusyWorker && attempt < MAX_REDOS) continue;
+      if (inflight) await inflight;
+      if (e instanceof injector.NoBusyWorker) { reason = 'no busy worker'; continue; }
       throw e;
     }
     const inflightResult = inflight ? await inflight : null;
-    if (!worker) ({ manualStartMs } = await inj.ensureSupervisorUp());
-    const r = await retryUntilOk(baseUrl, PROMPT, sid, { intervalMs });
-    const tRecover = performance.now() - killedAt - (manualStartMs ?? 0);
-    const tErr = r.firstErrorMs === null ? null : r.firstErrorMs;
+    if (midTurn && inflightResult.ok) { reason = 'kill landed after the reply'; continue; }
+
+    let restartCmdMs = null;
+    if (!worker) ({ restartCmdMs } = await inj.restartSupervisor());
+    const r = await retryUntilOk(baseUrl, PROMPT, sid, { intervalMs, t0: killedAt, expect: EXPECT });
+    // The in-flight turn's failure is the first thing a mid-turn user sees.
+    const tErr = midTurn ? Math.max(0, inflightResult.endedAt - killedAt) : r.firstErrorMs;
+    const tRecover = r.recoverMs;
     const hist = await readHistory(sid);
-    const restartsAfter = await inj.restarts().catch(() => null);
     return {
       case: kase,
       run,
@@ -71,14 +95,17 @@ export async function runOne({ case: kase, run, baseUrl, inj, readHistory, delay
       tRecoverUser: userRetryTime(tErr, tRecover),
       censored: r.censored,
       contextOk: FACTS.every((f) => hist.includes(f)),
-      resendNeeded: midTurn ? !(inflightResult && inflightResult.ok) : false,
+      sameSession: r.sameSession,
+      resendNeeded: midTurn,
       fraction,
-      manualStartMs,
+      landing: midTurn ? (killedAt - inflightStart) / tBase : null,
+      restartCmdMs,
+      workers,
       restartsBefore,
-      restartsAfter,
+      restartsAfter: await inj.restarts().catch(() => null),
     };
   }
-  throw new Error(`no usable run for ${kase}`);
+  return { case: kase, run, discarded: true, reason };
 }
 
 async function main() {
@@ -92,14 +119,18 @@ async function main() {
   const ctx = injector.makeCtx();
   const inj = composeInjector(ctx);
   const readHistory = redisHistory(ctx);
-  for (let i = 0; i < 5; i++) await turn(baseUrl, PROMPT); // warm-up
+  await inj.waitSteady();
+  for (let i = 0; i < 5; i++) {
+    const w = await turn(baseUrl, PROMPT, undefined, { expect: EXPECT });
+    if (!w.ok) throw new Error(`warm-up turn failed (${w.status ?? ''} ${w.error ?? ''}): the stub or the stack is not working`);
+  }
   for (const kase of cases) {
     for (let run = 1; run <= runs; run++) {
-      const rec = await runOne({ case: kase, run, baseUrl, inj, readHistory, delayMs });
+      const rec = await runOne({ case: kase, run, baseUrl, inj, readHistory, delayMs, settleMs: kase.startsWith('W') ? 11000 : 0 });
       appendFileSync(out, JSON.stringify(rec) + '\n');
-      console.log(`${kase} #${run}: recover ${Math.round(rec.tRecover)} ms${rec.censored ? ' CENSORED' : ''} ctx=${rec.contextOk}`);
+      console.log(rec.discarded ? `${kase} #${run}: DISCARDED (${rec.reason})` : `${kase} #${run}: recover ${Math.round(rec.tRecover)} ms${rec.censored ? ' CENSORED' : ''} ctx=${rec.contextOk}`);
     }
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) main();

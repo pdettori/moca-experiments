@@ -2,13 +2,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { runOne } from '../driver.mjs';
+import { NoBusyWorker } from '../lib/injector.mjs';
 
-// A fake supervisor: fails for `downMs` after `kill()`, then serves turns.
-function fakeWorld(downMs) {
+const ok = (r, o = {}) => r.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ sessionId: 'sid-1', response: 'OK', stopReason: 'end_turn', ...o }));
+
+// Fake supervisor. After kill(): requests fail for downMs. holdMs delays every reply (a "slow model").
+function fakeWorld({ downMs = 0, holdMs = 0 } = {}) {
   let downUntil = 0;
-  const s = http.createServer((q, r) => {
+  const s = http.createServer(async (q, r) => {
+    if (holdMs) await new Promise((x) => setTimeout(x, holdMs));
     if (performance.now() < downUntil) return r.writeHead(503).end('down');
-    r.writeHead(200, { 'content-type': 'application/json' }).end('{"sessionId":"sid-1"}');
+    ok(r);
   });
   return new Promise((res) =>
     s.listen(0, '127.0.0.1', () =>
@@ -17,53 +21,87 @@ function fakeWorld(downMs) {
   );
 }
 
-const noRedis = async () => 'APPLE BANANA';
+const hist = async () => 'APPLE BANANA';
+const base = (w, over = {}) => ({
+  waitSteady: async () => {}, killWorker: async () => w.kill(), killSupervisor: async () => w.kill(),
+  restartSupervisor: async () => ({ restartCmdMs: 5 }), restarts: async () => 0, configureStub: async () => {}, ...over,
+});
 
-test('W-I: records tRecover near the outage and context_ok', async () => {
-  const w = await fakeWorld(500);
-  const inj = { waitSteady: async () => {}, killWorker: async () => w.kill(), killSupervisor: async () => w.kill(), ensureSupervisorUp: async () => ({ manualStartMs: null }), restarts: async () => 0 };
-  const rec = await runOne({ case: 'W-I', run: 1, baseUrl: w.url, inj, readHistory: noRedis, delayMs: 0, intervalMs: 50 });
+test('W-I: tRecover and tErr are both measured from the kill', async () => {
+  const w = await fakeWorld({ downMs: 500 });
+  const rec = await runOne({ case: 'W-I', run: 1, baseUrl: w.url, inj: base(w), readHistory: hist, delayMs: 0, intervalMs: 50 });
   w.s.close();
-  assert.equal(rec.case, 'W-I');
   assert.equal(rec.censored, false);
   assert.ok(rec.tRecover >= 450 && rec.tRecover < 2000, `tRecover ${rec.tRecover}`);
+  assert.ok(rec.tErr !== null && rec.tErr < 200, `tErr ${rec.tErr}`);
   assert.equal(rec.contextOk, true);
-  assert.equal(rec.resendNeeded, false);
+  assert.equal(rec.sameSession, true);
   assert.ok(rec.tRecoverUser >= rec.tRecover);
 });
 
+test('S-I: tErr is measured from the kill, not from the end of the restart', async () => {
+  const w = await fakeWorld({ downMs: 600 });
+  const inj = base(w, { restartSupervisor: async () => { await new Promise((r) => setTimeout(r, 300)); return { restartCmdMs: 300 }; } });
+  const rec = await runOne({ case: 'S-I', run: 1, baseUrl: w.url, inj, readHistory: hist, delayMs: 0, intervalMs: 50 });
+  w.s.close();
+  assert.ok(rec.tErr >= 300, `tErr ${rec.tErr} must include the restart time`);
+  assert.ok(rec.tRecover >= 550, `tRecover ${rec.tRecover}`);
+  assert.equal(rec.restartCmdMs, 300);
+});
+
+test('a setup turn that fails redoes the run instead of recording a fresh-session recovery', async () => {
+  let n = 0;
+  const s = http.createServer((q, r) => { n += 1; if (n === 1) return r.writeHead(503).end('x'); ok(r); });
+  await new Promise((res) => s.listen(0, '127.0.0.1', res));
+  const url = `http://127.0.0.1:${s.address().port}`;
+  const inj = base({ kill: () => ({ killedAt: performance.now(), pid: 1 }) });
+  const rec = await runOne({ case: 'W-I', run: 1, baseUrl: url, inj, readHistory: hist, delayMs: 0, intervalMs: 20 });
+  s.close();
+  assert.equal(rec.sameSession, true);
+  assert.ok(n > 6, 'the failed setup must have been retried');
+});
+
 test('context_ok is false when the history lacks a fact', async () => {
-  const w = await fakeWorld(0);
-  const inj = { waitSteady: async () => {}, killWorker: async () => w.kill(), killSupervisor: async () => w.kill(), ensureSupervisorUp: async () => ({ manualStartMs: null }), restarts: async () => 0 };
-  const rec = await runOne({ case: 'W-I', run: 1, baseUrl: w.url, inj, readHistory: async () => 'APPLE only', delayMs: 0, intervalMs: 50 });
+  const w = await fakeWorld();
+  const rec = await runOne({ case: 'W-I', run: 1, baseUrl: w.url, inj: base(w), readHistory: async () => 'APPLE only', delayMs: 0, intervalMs: 50 });
   w.s.close();
   assert.equal(rec.contextOk, false);
 });
 
-test('a mid-turn run whose kill finds no busy worker is retried, not recorded as an idle run', async () => {
-  const w = await fakeWorld(100);
+test('W-M: a kill that finds no busy worker is redone, not recorded', async () => {
+  const w = await fakeWorld({ downMs: 100, holdMs: 150 });
   let calls = 0;
-  const { NoBusyWorker } = await import('../lib/injector.mjs');
-  const inj = {
-    waitSteady: async () => {},
-    killWorker: async () => { calls += 1; if (calls === 1) throw new NoBusyWorker('idle'); return w.kill(); },
-    killSupervisor: async () => w.kill(), ensureSupervisorUp: async () => ({ manualStartMs: null }), restarts: async () => 0,
-  };
-  const rec = await runOne({ case: 'W-M', run: 1, baseUrl: w.url, inj, readHistory: noRedis, delayMs: 0, intervalMs: 50 });
+  const inj = base(w, { killWorker: async () => { calls += 1; if (calls === 1) throw new NoBusyWorker('idle'); return w.kill(); } });
+  const rec = await runOne({ case: 'W-M', run: 1, baseUrl: w.url, inj, readHistory: hist, delayMs: 0, intervalMs: 50 });
   w.s.close();
   assert.equal(calls, 2);
   assert.equal(rec.case, 'W-M');
 });
 
-test('S-I: a manual supervisor start is excluded from tRecover and reported separately', async () => {
-  const w = await fakeWorld(0);
-  const inj = {
-    waitSteady: async () => {}, killWorker: async () => w.kill(), killSupervisor: async () => w.kill(),
-    ensureSupervisorUp: async () => { await new Promise((r) => setTimeout(r, 400)); return { manualStartMs: 400 }; },
-    restarts: async () => 0,
-  };
-  const rec = await runOne({ case: 'S-I', run: 1, baseUrl: w.url, inj, readHistory: noRedis, delayMs: 0, intervalMs: 50 });
+test('W-M: a kill that lands after the reply (in-flight turn succeeded) is discarded, never recorded', async () => {
+  const w = await fakeWorld({ downMs: 0, holdMs: 20 }); // turn always completes before the kill
+  let kills = 0;
+  const inj = base(w, { killWorker: async () => { kills += 1; await new Promise((r) => setTimeout(r, 100)); return w.kill(); } });
+  const rec = await runOne({ case: 'W-M', run: 1, baseUrl: w.url, inj, readHistory: hist, delayMs: 0, intervalMs: 50 });
   w.s.close();
-  assert.equal(rec.manualStartMs, 400);
-  assert.ok(rec.tRecover < 300, `tRecover ${rec.tRecover}`);
+  assert.equal(rec.discarded, true);
+  assert.ok(kills >= 2, `expected redos, got ${kills}`);
+});
+
+test('W-M: a kill that lands mid-turn is recorded with where it landed and tErr from the in-flight failure', async () => {
+  const w = await fakeWorld({ downMs: 400, holdMs: 200 });
+  const rec = await runOne({ case: 'W-M', run: 1, baseUrl: w.url, inj: base(w), readHistory: hist, delayMs: 0, intervalMs: 50 });
+  w.s.close();
+  assert.equal(rec.discarded, undefined);
+  assert.ok(rec.landing > 0 && rec.landing < 1, `landing ${rec.landing}`);
+  assert.equal(rec.resendNeeded, true);
+  assert.ok(rec.tErr >= 0 && rec.tErr < 400, `tErr ${rec.tErr}`);
+});
+
+test('exhausting the redos returns a discarded record instead of throwing', async () => {
+  const w = await fakeWorld({ holdMs: 20 });
+  const inj = base(w, { killWorker: async () => { throw new NoBusyWorker('idle'); } });
+  const rec = await runOne({ case: 'W-M', run: 1, baseUrl: w.url, inj, readHistory: hist, delayMs: 0, intervalMs: 50 });
+  w.s.close();
+  assert.equal(rec.discarded, true);
 });

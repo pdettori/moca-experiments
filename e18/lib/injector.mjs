@@ -43,31 +43,43 @@ export async function waitSteady(ctx, { timeoutMs = 60000 } = {}) {
   }
 }
 
+// One exec does find-and-kill: the metrics fetch and the SIGKILL happen inside the container, so the signal is
+// not delayed by a second `docker compose exec`. killedAt is stamped after the exec returns (the signal was sent
+// just before), so it undercounts by the exec's return latency, tens of ms.
+const KILL_SCRIPT = (busy) => `
+const m = await (await fetch('http://127.0.0.1:8081/metrics')).json();
+const w = m.workers.find((x) => ${busy ? 'x.inFlight > 0' : 'x.healthy'});
+if (w) process.kill(w.pid, 'SIGKILL');
+process.stdout.write(JSON.stringify({ pid: w ? w.pid : null }));
+`;
+
 export async function killWorker(ctx, { busy }) {
-  const m = await readMetrics(ctx);
-  const w = busy ? m.workers.find((x) => x.inFlight > 0) : m.workers.find((x) => x.healthy);
-  if (!w) throw busy ? new NoBusyWorker('no worker has a turn in flight') : new Error('no healthy worker');
+  const r = await ctx.run(['exec', '-T', 'supervisor', 'node', '--input-type=module', '-e', KILL_SCRIPT(busy)]);
   const killedAt = performance.now();
-  await ctx.run(['exec', '-T', 'supervisor', 'kill', '-9', String(w.pid)]);
-  return { pid: w.pid, killedAt };
+  if (r.code !== 0) throw new Error(`kill exec failed (exit ${r.code})`);
+  const { pid } = JSON.parse(r.stdout);
+  if (pid == null) throw busy ? new NoBusyWorker('no worker has a turn in flight') : new Error('no healthy worker to kill');
+  return { pid, killedAt };
 }
 
 export async function killSupervisor(ctx) {
-  const killedAt = performance.now();
   await ctx.run(['kill', 'supervisor']);
-  return { killedAt };
+  return { killedAt: performance.now() };
 }
 
-/** Waits for Compose's restart policy; if the container is still down after waitMs, starts it. */
-export async function ensureSupervisorUp(ctx, { waitMs = 30000 } = {}) {
-  const deadline = performance.now() + waitMs;
-  const up = async () => /running|supervisor/.test((await ctx.run(['ps', '--status', 'running', '--services', 'supervisor'])).stdout);
-  while (performance.now() < deadline) {
-    if (await up()) return { manualStartMs: null };
-    await ctx.sleep(250);
-  }
+/**
+ * `docker kill` counts as a manual stop, so Docker does not apply the restart policy. This stands in for an
+ * orchestrator that restarts at once: start immediately, no detection wait. restartCmdMs is the `up -d` time,
+ * reported separately; it stays inside tRecover because it is the recovery work.
+ */
+export async function restartSupervisor(ctx, { timeoutMs = 60000 } = {}) {
   const t0 = performance.now();
   await ctx.run(['up', '-d', 'supervisor']);
-  while (!(await up())) await ctx.sleep(250);
-  return { manualStartMs: performance.now() - t0 };
+  const restartCmdMs = performance.now() - t0;
+  const deadline = t0 + timeoutMs;
+  while (performance.now() < deadline) {
+    if ((await ctx.run(['ps', '--status', 'running', '--services', 'supervisor'])).stdout.includes('supervisor')) return { restartCmdMs };
+    await ctx.sleep(100);
+  }
+  throw new Error('supervisor never came back up');
 }

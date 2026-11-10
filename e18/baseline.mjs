@@ -1,4 +1,5 @@
 // E18 real-model baseline: N uncrashed turns against the real model. Run with no stub override.
+import { pathToFileURL } from 'node:url';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { turn } from './lib/client.mjs';
@@ -25,4 +26,4 @@ async function main() {
   console.log(rec);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) main();

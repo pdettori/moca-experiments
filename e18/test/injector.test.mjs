@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readMetrics, waitSteady, killWorker, killSupervisor, ensureSupervisorUp, NoBusyWorker } from '../lib/injector.mjs';
+import { readMetrics, waitSteady, killWorker, killSupervisor, restartSupervisor, NoBusyWorker } from '../lib/injector.mjs';
 
 const metrics = (workers, restarts = 0) => JSON.stringify({ workers, counters: { restarts } });
 
@@ -30,18 +30,29 @@ test('waitSteady resolves when all workers are healthy and idle', async () => {
   await waitSteady(ctx, { timeoutMs: 1000 });
 });
 
-test('killWorker busy throws NoBusyWorker when every worker is idle', async () => {
-  const { ctx } = fakeRun(() => ({ code: 0, stdout: metrics([{ id: 0, pid: 1, inFlight: 0, healthy: true }]) }));
+test('killWorker finds and kills in ONE exec, and stamps killedAt after it returns', async () => {
+  let returnedAt = 0;
+  const { ctx, calls } = fakeRun(async () => {
+    await new Promise((r) => setTimeout(r, 60));
+    returnedAt = performance.now();
+    return { code: 0, stdout: '{"pid":22}' };
+  });
+  const before = performance.now();
+  const r = await killWorker(ctx, { busy: true });
+  assert.equal(calls.length, 1);
+  assert.equal(r.pid, 22);
+  assert.ok(r.killedAt >= returnedAt - 1, 'killedAt must be taken after the exec returns');
+  assert.ok(r.killedAt - before >= 60);
+});
+
+test('killWorker busy throws NoBusyWorker when no worker has a turn in flight', async () => {
+  const { ctx } = fakeRun(() => ({ code: 0, stdout: '{"pid":null}' }));
   await assert.rejects(killWorker(ctx, { busy: true }), NoBusyWorker);
 });
 
-test('killWorker busy kills the pid that has inFlight > 0', async () => {
-  const { ctx, calls } = fakeRun((c) =>
-    c.includes('kill -9') ? { code: 0, stdout: '' } : { code: 0, stdout: metrics([{ id: 0, pid: 1, inFlight: 0, healthy: true }, { id: 1, pid: 22, inFlight: 1, healthy: true }]) },
-  );
-  const r = await killWorker(ctx, { busy: true });
-  assert.equal(r.pid, 22);
-  assert.ok(calls.some((c) => c.includes('kill -9 22')));
+test('killWorker throws when the exec fails, so a no-op kill is never recorded', async () => {
+  const { ctx } = fakeRun(() => ({ code: 1, stdout: '' }));
+  await assert.rejects(killWorker(ctx, { busy: false }), /kill/);
 });
 
 test('killSupervisor issues docker kill on the supervisor service', async () => {
@@ -50,19 +61,14 @@ test('killSupervisor issues docker kill on the supervisor service', async () => 
   assert.ok(calls.some((c) => /kill .*supervisor/.test(c)));
 });
 
-test('ensureSupervisorUp returns null when Compose restarts it by itself', async () => {
-  const { ctx } = fakeRun((c) => (c.includes('ps') ? { code: 0, stdout: 'running' } : { code: 0, stdout: '' }));
-  const r = await ensureSupervisorUp(ctx, { waitMs: 50 });
-  assert.equal(r.manualStartMs, null);
+test('restartSupervisor starts the container at once, with no detection wait, and reports the command time', async () => {
+  const { ctx, calls } = fakeRun((c) => (c.includes('ps') ? { code: 0, stdout: 'supervisor' } : { code: 0, stdout: '' }));
+  const r = await restartSupervisor(ctx, { timeoutMs: 1000 });
+  assert.match(calls[0], /up -d supervisor/);
+  assert.equal(typeof r.restartCmdMs, 'number');
 });
 
-test('ensureSupervisorUp starts it and reports the delay when it stays down', async () => {
-  let started = false;
-  const { ctx } = fakeRun((c) => {
-    if (c.includes('up -d')) { started = true; return { code: 0, stdout: '' }; }
-    if (c.includes('ps')) return { code: 0, stdout: started ? 'running' : 'exited' };
-    return { code: 0, stdout: '' };
-  });
-  const r = await ensureSupervisorUp(ctx, { waitMs: 20 });
-  assert.equal(typeof r.manualStartMs, 'number');
+test('restartSupervisor rejects instead of hanging when the container never comes up', async () => {
+  const { ctx } = fakeRun((c) => (c.includes('ps') ? { code: 0, stdout: '' } : { code: 0, stdout: '' }));
+  await assert.rejects(restartSupervisor(ctx, { timeoutMs: 30 }), /never/);
 });

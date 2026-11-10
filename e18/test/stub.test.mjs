@@ -44,3 +44,13 @@ test('healthz answers 200', async () => {
   s.close();
   assert.equal(r.status, 200);
 });
+
+test('POST /__config changes the reply delay at runtime', async () => {
+  const s = createStub({ delayMs: 0 });
+  const port = await listen(s);
+  await fetch(`http://127.0.0.1:${port}/__config`, { method: 'POST', body: JSON.stringify({ delayMs: 120 }) });
+  const t0 = performance.now();
+  await fetch(`http://127.0.0.1:${port}/v1/messages`, { method: 'POST', body: JSON.stringify({ model: 'x', messages: [] }) });
+  s.close();
+  assert.ok(performance.now() - t0 >= 120);
+});

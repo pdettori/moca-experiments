@@ -9,6 +9,8 @@ services:
       STUB_DELAY_MS: ${STUB_DELAY_MS:-200}
     volumes:
       - ${E18_DIR:?set E18_DIR to the absolute path of e18/}/lib/stub.mjs:/stub/stub.mjs:ro
+    ports:
+      - 127.0.0.1:${E18_STUB_PORT:-18099}:8099
     networks: [moca-brain]
     restart: unless-stopped
   supervisor:

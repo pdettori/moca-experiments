@@ -18,6 +18,7 @@ COMPOSE_DIR="${E18_COMPOSE_DIR:-$HOME/gh/moca/deploy/compose}"
 SH_PORT="${SH_PORT:-18080}"
 PROJ="$(mktemp -d)"
 export E18_DIR="$HERE"
+export E18_STUB_PORT="${E18_STUB_PORT:-18099}"
 
 export E18_PROJECT_DIR="$PROJ"
 teardown() {
@@ -49,11 +50,13 @@ for f in $FILES; do ARGS+=(-f "$f"); E18_FILE_ARGS="$E18_FILE_ARGS -f $f"; done
 
 docker compose -p e18 --project-directory "$PROJ" --env-file "$PROJ/.env" "${ARGS[@]}" up -d
 # The admin listener is unpublished; poll it from inside the supervisor container.
-for _ in $(seq 1 60); do
+READY=0
+for _ in $(seq 1 90); do
   docker compose -p e18 --project-directory "$PROJ" --env-file "$PROJ/.env" "${ARGS[@]}" exec -T supervisor \
-    node -e "fetch('http://127.0.0.1:8081/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" >/dev/null 2>&1 && break
+    node -e "fetch('http://127.0.0.1:8081/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" >/dev/null 2>&1 && { READY=1; break; }
   sleep 1
 done
+[[ "$READY" == 1 ]] || { echo "supervisor never became ready" >&2; exit 1; }
 
 cd "$HERE"
 if [[ "$MODE" == stub ]]; then
