@@ -14,7 +14,7 @@
     "py_test": [
       {
         "id": "pytest",
-        "cmd": "cd project && ../venv/bin/python -m pytest -x -q tests",
+        "cmd": "cd project && ../venv/bin/python -m pytest -p no:cacheprovider -x -q tests",
         "exit": 0,
         "nominal_ms": 60000,
         "run_ms": null,
@@ -80,7 +80,7 @@
       },
       {
         "id": "edit_config",
-        "cmd": "cd project && python3 -c \"import pathlib; p = pathlib.Path('src/pyc/config.py'); s = p.read_text(); t = s.replace('MAX_ITER = 300', 'MAX_ITER = 301'); assert t != s, 'MAX_ITER = 300 not found'; p.write_text(t); compile(p.read_text(), str(p), 'exec'); p.write_text(s); print('edited', p)\"",
+        "cmd": "cd project && python3 -c \"import os, pathlib, re; p = pathlib.Path('src/pyc/config.py'); s = re.sub(r'(?m)^MAX_ITER = \\\\d+$', 'MAX_ITER = 300', p.read_text(), count=1); t = s.replace('MAX_ITER = 300', 'MAX_ITER = 301', 1); assert 'MAX_ITER = 300' in s and t != s, 'no MAX_ITER line'\ndef put(text): q = p.with_name('.config.py.tmp'); q.write_text(text); os.replace(q, p)\nput(t); compile(p.read_text(), str(p), 'exec'); put(s); print('edited', p)\"",
         "exit": 0,
         "nominal_ms": 300,
         "run_ms": null,

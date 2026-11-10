@@ -6,7 +6,8 @@ Prints one line,
     rows=<n> sha256=<hex of all shard bytes in order> clusters=<inertia rounded to 3 dp>
 
 where the sha256 covers the raw shard bytes exactly as on disk, so a check can compare it with the
-generator's own hash (BUILD's dataset_sha256) and know every byte was read.
+generator's own hash (BUILD's dataset_sha256) and know every byte was read. The fit is repeated
+config.ANALYZE_WORK_SCALE times (the CPU knob); the printed inertia is the first fit's.
 """
 
 import hashlib
@@ -29,7 +30,7 @@ def main():
     means = agg.means()
     if len(means) == 0 or means.isna().to_numpy().any():
         raise SystemExit("analyze.py: empty group aggregate")
-    km = model.fit(sampler.sample())
+    km = model.fit_repeated(sampler.sample(), config.ANALYZE_WORK_SCALE)
     print(f"rows={agg.rows()} sha256={digest.hexdigest()} clusters={model.inertia(km):.3f}")
 
 

@@ -115,21 +115,55 @@ def test_dataset_is_deterministic(tmp_path):
     assert shard_sha256(tmp_path / "c") != shard_sha256(tmp_path / "a")
 
 
+def set_analyze_scale(ws, n):
+    """The one-line edit Task 5 makes: ANALYZE_WORK_SCALE in the staged project's config.py."""
+    cfg = ws / "project" / "src" / "pyc" / "config.py"
+    s, k = re.subn(r"(?m)^ANALYZE_WORK_SCALE = \d+$", f"ANALYZE_WORK_SCALE = {n}", cfg.read_text())
+    assert k == 1, "config.py has no ANALYZE_WORK_SCALE = <int> line"
+    cfg.write_text(s)
+
+
+def analyze_line(r):
+    assert r.returncode == 0, r.stderr
+    m = re.fullmatch(r"rows=(\d+) sha256=([0-9a-f]{64}) clusters=(-?\d+\.\d{3})\n", r.stdout)
+    assert m, r.stdout
+    return m.groups()
+
+
 def test_analyze_reads_every_byte(tmp_path):
     need_stack()
     ws = tmp_path / "ws"
     stage(ws, "--dataset-mib", "8", "--dataset-seed", "1")
     shim_venv(ws)
+    set_analyze_scale(ws, 1)
     cmd = library()["classes"]["py_analyze"][0]["cmd"]
     r = run_cmd(ws, cmd)
-    assert r.returncode == 0, r.stderr
-    m = re.fullmatch(r"rows=(\d+) sha256=([0-9a-f]{64}) clusters=(-?\d+\.\d{3})\n", r.stdout)
-    assert m, r.stdout
-    assert m.group(2) == build_field(ws, "dataset_sha256") == shard_sha256(ws)
-    rows = sum(p.read_bytes().count(b"\n") - 1 for p in shards(ws))
-    assert int(m.group(1)) == rows
+    rows, sha, _ = analyze_line(r)
+    assert sha == build_field(ws, "dataset_sha256") == shard_sha256(ws)
+    assert int(rows) == sum(p.read_bytes().count(b"\n") - 1 for p in shards(ws))
     # the same staging and the same seed give the same line
     assert run_cmd(ws, cmd).stdout == r.stdout
+
+
+def test_analyze_work_scale_changes_cpu_only(tmp_path):
+    need_stack()
+    ws = tmp_path / "ws"
+    stage(ws, "--dataset-mib", "8", "--dataset-seed", "1")
+    shim_venv(ws)
+    cfg = (HERE / "project" / "src" / "pyc" / "config.py").read_text()
+    assert re.search(r"(?m)^ANALYZE_WORK_SCALE = [1-9]\d*$", cfg), "the default is a positive int in config.py"
+    cmd = library()["classes"]["py_analyze"][0]["cmd"]
+    lines = {}
+    for n in (1, 2):
+        set_analyze_scale(ws, n)
+        lines[n] = analyze_line(run_cmd(ws, cmd))
+    # rows, sha256 and the printed inertia (the random_state 0 fit's) do not depend on the scale
+    assert lines[1] == lines[2]
+    assert lines[1][1] == build_field(ws, "dataset_sha256")
+    # the scale is read from config.py: 0 is refused by fit_repeated
+    set_analyze_scale(ws, 0)
+    r = run_cmd(ws, cmd)
+    assert r.returncode != 0 and "repeats must be >= 1" in r.stderr, r.stderr
 
 
 def test_library_matches_classes():
@@ -146,7 +180,7 @@ def test_library_matches_classes():
             assert inv["nominal_ms"] == pycache_corpus.DUR_MS[cls], inv
             assert inv["run_ms"] is None and inv["cpu_ms"] is None, inv
     assert [i["cmd"] for i in lib["classes"]["py_analyze"]] == ["cd project && ../venv/bin/python analyze.py"]
-    assert [i["cmd"] for i in lib["classes"]["py_test"]] == ["cd project && ../venv/bin/python -m pytest -x -q tests"]
+    assert [i["cmd"] for i in lib["classes"]["py_test"]] == ["cd project && ../venv/bin/python -m pytest -p no:cacheprovider -x -q tests"]
     assert 6 <= len(lib["classes"]["py_short"]) <= 10
     assert sum("python3 -c" in i["cmd"] for i in lib["classes"]["py_short"]) == 1
 
@@ -227,6 +261,22 @@ def test_edit_is_idempotent(tmp_path):
         assert r.returncode == 0, r.stderr
         assert "edited" in r.stdout, r.stdout  # it did rewrite the constant before reverting
         assert cfg.read_bytes() == before
+
+
+def test_edit_recovers_from_an_interrupted_edit(tmp_path):
+    ws = tmp_path / "ws"
+    stage(ws, "--dataset-mib", "1")
+    cfg = ws / "project" / "src" / "pyc" / "config.py"
+    before = cfg.read_bytes()
+    # a run killed between its two writes leaves the edited constant behind
+    cfg.write_bytes(before.replace(b"MAX_ITER = 300", b"MAX_ITER = 301"))
+    (edit,) = [i for i in library()["classes"]["py_short"] if "python3 -c" in i["cmd"]]
+    for _ in range(2):
+        r = run_cmd(ws, edit["cmd"])
+        assert r.returncode == 0, r.stderr
+        assert cfg.read_bytes() == before
+    assert sorted(p.name for p in cfg.parent.iterdir()) == sorted(
+        p.name for p in (HERE / "project" / "src" / "pyc").glob("*.py"))
 
 
 def test_library_plans_one_invocation_per_heavy_call():

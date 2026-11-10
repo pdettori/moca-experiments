@@ -32,8 +32,10 @@
 #                        lock before anything is built (also in --dir mode, which then only checks)
 #   --rootfs-tree PATH   the guest's root filesystem tree, e.g. the E15 snapshot's rootfs mounted
 #                        read-only; it must hold /usr/bin/python3.9, /workspace, /mnt, /tmp, /dev
-#                        and /proc. Nothing is written to it: the chroot's /workspace, /mnt (the
-#                        wheels, read-only), /tmp (a tmpfs), /dev and /proc are mounts over it.
+#                        and /proc, and its python3.9 must import venv and ensurepip (checked
+#                        in a chroot before any image work). Nothing is written to it: the
+#                        chroot's /workspace, /mnt (the wheels, read-only), /tmp (a tmpfs), /dev
+#                        and /proc are mounts over it.
 #
 # Environment:
 #   E17_WS_UID/GID    owner of the tree inside the image (default 0:0, the guest agent's uid, as
@@ -222,6 +224,9 @@ OUT_IMG="$1"
 for p in usr/bin/python3.9 workspace mnt tmp dev proc; do
   [ -e "$ROOTFS/$p" ] || die "--rootfs-tree $ROOTFS has no /$p"
 done
+# The guest's python3.9 must be able to make a venv with pip in it; check before any image work.
+chroot "$ROOTFS" /usr/bin/python3.9 -c 'import venv, ensurepip' ||
+  die "--rootfs-tree $ROOTFS: /usr/bin/python3.9 cannot import venv and ensurepip (chroot); it cannot build the venv"
 WHEEL_COUNT="$(check_wheels)"
 
 # The chroot's mounts, innermost last; cleanup unmounts them in reverse, then the image. Checked

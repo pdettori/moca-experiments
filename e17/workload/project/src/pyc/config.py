@@ -19,3 +19,10 @@ N_INIT = 1
 RANDOM_STATE = 0
 MAX_ITER = 300
 TOLERANCE = 1e-4
+
+# analyze.py's CPU knob: the number of single-start KMeans fits on the sample, with random_state
+# 0, 1, .., ANALYZE_WORK_SCALE - 1. Only the random_state 0 fit's inertia is printed, so
+# `clusters=` is the same at every scale, and the read of every shard byte does not depend on it.
+# 32 puts analyze.py at about 15 s on the laptop at D = 256 (spec §4.2: about 10-20 s of CPU);
+# Task 5's calibration tunes it here, in this one line.
+ANALYZE_WORK_SCALE = 32
