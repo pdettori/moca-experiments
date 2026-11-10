@@ -50,3 +50,10 @@ test('worst case for a mid-turn user uses a kill just before the reply (f = 1)',
   assert.match(md, /6\.50/);
   assert.match(md, /8\.50/);
 });
+
+test('mid-turn computed wait uses the recovery overhead, not tRecover (which already holds one stub turn)', () => {
+  // tBase 2000, tRecover 2000 (a resend costs one normal turn => overhead 0); landing 0.5; real T = 4000
+  // wait = 0.5*4000 + overhead 0 + 4000 = 6000 ms
+  const md = buildReport([run('W-M', 1, 2000, { tBase: 2000, landing: 0.5, fraction: 0.5 })], { medianMs: 4000, p95Ms: 6000 });
+  assert.match(md, /\| W-M \| 6\.00 \| 8\.00 \|/);
+});

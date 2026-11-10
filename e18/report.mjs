@@ -32,8 +32,8 @@ export function buildReport(allRuns, baseline) {
     rows.push(`| ${c} | ${sm.n} | ${sm.censored} | ${s(sm.median)} | ${s(sm.p95)} | ${s(sm.max)} | ${mix.seconds.toFixed(2)} s, ${(mix.share * 100).toFixed(1)}% (p95 ${p95mix.seconds.toFixed(2)} s, max ${maxmix.seconds.toFixed(2)} s) | ${tErr} | ${resends}/${sm.n} | ${rc} | ${nDisc} | ${s(user)} | ${ctx}/${sm.n} |`);
     if (c.endsWith('-M')) {
       const f = percentile(rs.map((r) => r.landing ?? r.fraction ?? 0.5), 50);
-      const typical = midTurnWait(f * T, sm.median, T);
-      const worst = midTurnWait(1.0 * T, sm.median, T);
+      const typical = midTurnWait(f * T, Math.max(0, overhead), T);
+      const worst = midTurnWait(1.0 * T, Math.max(0, overhead), T);
       computed.push(`| ${c} | ${s(typical)} | ${s(worst)} |`);
     }
   }
@@ -50,7 +50,7 @@ export function buildReport(allRuns, baseline) {
   if (computed.length) {
     out.push(
       '',
-      'Mid-turn wait for a real-model user who must resend: `elapsed_at_kill + t_recover + T` (computed, not measured). Typical uses the median landing point of the recorded kills; worst case is a kill just before the reply (f = 1).',
+      'Mid-turn wait for a real-model user who must resend: `elapsed_at_kill + recovery overhead + T` (computed, not measured; the overhead is t_recover minus one normal turn, floored at 0). Typical uses the median landing point of the recorded kills; worst case is a kill just before the reply (f = 1).',
       '',
       '| case | typical (s) | worst (s) |',
       '| ---- | ----------- | --------- |',
