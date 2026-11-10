@@ -167,3 +167,56 @@ def test_gaps_already_at_cap_are_scaled_down():
     # session's idle time at H.
     gaps = pycache_corpus.fit([1_800_000, 1_000], 10_000)
     assert sum(gaps) == 10_000 and max(gaps) < 1_800_000
+
+
+def cal_file(tmp_path, durations, name="cal.json"):
+    path = tmp_path / name
+    path.write_text(json.dumps(durations))
+    return str(path)
+
+
+def test_durations_from_overrides_dur_and_work(tmp_path):
+    # After calibration the corpora carry the measured N=1 medians, never the placeholders.
+    cal = {"py_analyze": 21000.4, "py_test": 55000, "py_short": 450}
+    path = cal_file(tmp_path, cal)
+    _, base, base_report = gen(tmp_path, name="base")
+    _, corpus, report = gen(tmp_path, name="cal", extra=("--durations-from", path))
+    want = {"py_analyze": 21000, "py_test": 55000, "py_short": 450}
+    for s in corpus:
+        for c in s["calls"]:
+            assert c["dur_ms"] == c["work_ms"] == want[c["class"]]
+        busy = sum(c["dur_ms"] for c in s["calls"])
+        assert busy / (busy + sum(c["gap_ms"] for c in s["calls"])) <= 1.2 * 0.095
+    # The same seed gives the same sessions and turns; only the durations and the scaled gaps move.
+    assert [[c["class"] for c in s["calls"]] for s in corpus] == \
+        [[c["class"] for c in s["calls"]] for s in base]
+    assert report["durations_ms"] == want
+    with open(path, "rb") as f:
+        assert report["durations_from"] == {"file": "cal.json",
+                                            "sha256": hashlib.sha256(f.read()).hexdigest()}
+    assert base_report["durations_ms"] == {"py_analyze": 15000, "py_test": 60000, "py_short": 300}
+    assert base_report["durations_from"] is None
+
+
+def test_durations_from_is_deterministic(tmp_path):
+    path = cal_file(tmp_path, {"py_analyze": 18000, "py_test": 52000, "py_short": 410})
+    a, _, _ = gen(tmp_path, name="a", extra=("--durations-from", path))
+    b, _, _ = gen(tmp_path, name="b", extra=("--durations-from", path))
+    assert (a / "corpus.jsonl").read_bytes() == (b / "corpus.jsonl").read_bytes()
+    assert (a / "corpus-report.json").read_bytes() == (b / "corpus-report.json").read_bytes()
+
+
+@pytest.mark.parametrize("durations", [
+    {"py_analyze": 18000, "py_test": 52000},                                   # a class missing
+    {"py_analyze": 18000, "py_test": 52000, "py_short": 410, "py_lint": 1},    # an unknown class
+    {"py_analyze": 18000, "py_test": 0, "py_short": 410},                      # not positive
+    {"py_analyze": 18000, "py_test": "52000", "py_short": 410},                # not a number
+    {"py_analyze": True, "py_test": 52000, "py_short": 410},                   # a bool is not a number
+    [18000, 52000, 410],                                                        # not an object
+])
+def test_durations_from_refuses_a_bad_file(tmp_path, capsys, durations):
+    path = cal_file(tmp_path, durations)
+    with pytest.raises(SystemExit) as e:
+        gen(tmp_path, extra=("--durations-from", path))
+    assert e.value.code == 1
+    assert "pycache_corpus.py: --durations-from" in capsys.readouterr().err

@@ -6,8 +6,13 @@ E17 SPEC §4.2. A session is a loop of turns, each a fixed sequence of calls:
 Every session has at least --min-turns turns (default 4), so a lease is tested across turns and not
 only inside one; the duty fit below adds turns only above that floor.
 dur_ms = work_ms are the N = 1 planned durations (py_analyze 15 s, py_test 60 s, py_short 300 ms);
-the library's real commands decide the actual time. Users pyc-u00 .. pyc-u39 round-robin (so the
-driver's 15% per-user cap never binds); provider "synthetic"; out_bytes 0 (the driver never reads it).
+the library's real commands decide the actual time. Those three are placeholders until calibration:
+--durations-from CAL.json (a JSON object, each class to its measured N = 1 median run_ms, e.g.
+{"py_analyze": 17250, "py_test": 58100, "py_short": 410}; every class, nothing else, each > 0)
+replaces them, rounded to whole ms, so the busy time, the duty fit and the offsets use the measured
+durations. The report records the durations used (durations_ms) and the file's name and sha256
+(durations_from, null without one). Users pyc-u00 .. pyc-u39 round-robin (so the driver's 15%
+per-user cap never binds); provider "synthetic"; out_bytes 0 (the driver never reads it).
 
 Gaps are drawn (seeded) from the gap source's gap_ms values. Each source session's last call is
 left out: E15 writes 0 there as a terminator, not as a gap. The draws are then scaled to the
@@ -30,13 +35,14 @@ call's emit (the previous call's dur_ms + gap_ms), 0 on the first call; the driv
 add the offsets up.
 
 Usage: python3 pycache_corpus.py --gaps-from CORPUS.jsonl --duty 0.095 --sessions 400 --seed 1
-                                 --out DIR [--min-turns 4]
+                                 --out DIR [--min-turns 4] [--durations-from CAL.json]
 """
 
 import argparse
 import collections
 import hashlib
 import json
+import math
 import os
 import random
 import statistics
@@ -102,13 +108,38 @@ def fit(draws, target_ms):
     return [min(H_MS, int(round(g))) for g in gaps]
 
 
-def build_calls(steps, gaps):
+def load_durations(path):
+    """--durations-from: {class: measured N = 1 median run_ms} for exactly DUR_MS's classes, each a
+    positive number, rounded to whole ms. Returns (durations, file sha256); exits 1 on a bad file."""
+    def bad(why):
+        sys.stderr.write("pycache_corpus.py: --durations-from %s: %s\n" % (path, why))
+        sys.exit(1)
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+        cal = json.loads(raw)
+    except (OSError, ValueError) as e:
+        bad("cannot read it as JSON (%s)" % e)
+    if not isinstance(cal, dict):
+        bad("not a JSON object of class -> run_ms")
+    if set(cal) != set(DUR_MS):
+        bad("its classes %s are not exactly %s" % (sorted(cal), sorted(DUR_MS)))
+    out = {}
+    for cls in DUR_MS:
+        v = cal[cls]
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v <= 0:
+            bad("%s is %r, not a positive number of ms" % (cls, v))
+        out[cls] = max(1, int(round(v)))
+    return out, hashlib.sha256(raw).hexdigest()
+
+
+def build_calls(steps, gaps, dur=DUR_MS):
     calls, offset = [], 0
     for i, ((cls, skel), gap) in enumerate(zip(steps, gaps + [0])):
-        calls.append(dict(i=i, **{"class": cls}, skeleton=skel, dur_ms=DUR_MS[cls],
-                          work_ms=DUR_MS[cls], gap_ms=gap, offset_ms=offset, out_bytes=0,
+        calls.append(dict(i=i, **{"class": cls}, skeleton=skel, dur_ms=dur[cls],
+                          work_ms=dur[cls], gap_ms=gap, offset_ms=offset, out_bytes=0,
                           chain=False))
-        offset = DUR_MS[cls] + gap
+        offset = dur[cls] + gap
     return calls
 
 
@@ -117,7 +148,7 @@ def duty_of(calls):
     return busy / span
 
 
-def session(rng, pool, duty, min_turns):
+def session(rng, pool, duty, min_turns, dur=DUR_MS):
     """(calls, achieved duty, extra turns) for one session, or None when the target is missed."""
     steps, draws = [], []
     for _ in range(min_turns):
@@ -126,8 +157,8 @@ def session(rng, pool, duty, min_turns):
         if extra:
             steps += turn(rng)
         draws += [rng.choice(pool) for _ in range(len(steps) - 1 - len(draws))]
-        busy = sum(DUR_MS[c] for c, _ in steps)
-        calls = build_calls(steps, fit(draws, busy * (1 - duty) / duty))
+        busy = sum(dur[c] for c, _ in steps)
+        calls = build_calls(steps, fit(draws, busy * (1 - duty) / duty), dur)
         d = duty_of(calls)
         if d <= duty * (1 + DUTY_TOL):
             return calls, d, extra
@@ -143,6 +174,9 @@ def main(argv=None):
     p.add_argument("--out", required=True)
     p.add_argument("--min-turns", type=int, default=MIN_TURNS,
                    help="turns per session before the duty fit adds any (default %d)" % MIN_TURNS)
+    p.add_argument("--durations-from", metavar="CAL.json",
+                   help="JSON object: each class's measured N=1 median run_ms, replacing the "
+                        "placeholder dur_ms/work_ms")
     args = p.parse_args(argv)
     if not 0 < args.duty < 1:
         p.error("--duty must be in (0, 1)")
@@ -150,6 +184,10 @@ def main(argv=None):
         p.error("--sessions must be at least 1")
     if args.min_turns < 1:
         p.error("--min-turns must be at least 1")
+    dur, dur_src = dict(DUR_MS), None
+    if args.durations_from:
+        dur, dur_sha = load_durations(args.durations_from)
+        dur_src = dict(file=os.path.basename(args.durations_from), sha256=dur_sha)
     pool, gap_sha = load_gaps(args.gaps_from)
     if not any(pool):
         sys.stderr.write("pycache_corpus.py: %s has no non-zero gap_ms\n" % args.gaps_from)
@@ -159,7 +197,7 @@ def main(argv=None):
     lines, duties, per_class = [], [], collections.Counter()
     extended, turns, spans, busy = 0, [], [], 0
     for n in range(args.sessions):
-        got = session(rng, pool, args.duty, args.min_turns)
+        got = session(rng, pool, args.duty, args.min_turns, dur)
         if got is None:
             sys.stderr.write(
                 "pycache_corpus.py: session %d cannot meet duty %g (within %d%% above) even with %d "
@@ -186,6 +224,7 @@ def main(argv=None):
         duty_definition="occupied / span on the replay timeline (e15/extract/extract.py:timeline)",
         calls_per_class=dict(sorted(per_class.items())),
         min_turns=args.min_turns,
+        durations_ms=dur, durations_from=dur_src,
         turns=dict(mean=statistics.fmean(turns), max=max(turns), sessions_extended=extended),
         turns_per_session=dict(min=min(turns), median=statistics.median(turns), max=max(turns)),
         span_min=dict(min=min(spans) / 60_000, median=statistics.median(spans) / 60_000,

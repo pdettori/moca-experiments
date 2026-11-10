@@ -24,11 +24,14 @@ E17 runs on the E15 metal host (`/srv/e15`, profile `fresh-metal`) with E15's ri
 
 The pycache templates (`/srv/e15/template-pycache-d<D>/workspace.img`) are built by `bringup.sh`
 (Task 5) with `e17/workload/build_pycache_workspace.sh`, not by `setup.sh`. `setup.sh`'s template
-loop is E15's, unchanged.
+loop is E15's, unchanged. Where each script's output lands: `e17/results/README.md`.
 
 | file | what |
 |---|---|
+| `gen_corpora.sh [--durations-from CAL.json]` | laptop: `pycache_corpus.py` into `$E17_CORPORA/pycache/` (duty 0.095) and `pycache-low/` (0.015), 400 sessions, seed 1, min-turns 4, gaps from the E15 default corpus. `--durations-from`: each class's measured N=1 median `run_ms` replaces the placeholder `dur_ms`/`work_ms` |
 | `sync.sh` | laptop: rsync `e15/`, `e16/` and `e17/` to `/srv/e15/src/`, and install the metal library. Stage the corpora `$E17_CORPORA/{pycache,pycache-low}/` to `/srv/e15/corpora/<point>/`, and the wheels `$E17_WHEELS/` to `/srv/e15/wheels-pycache/` |
+| `bringup.sh` | host, idempotent, after `setup.sh`: check the corpora and the wheels against `wheels.lock`; loop-mount the snapshot rootfs that `state/artifacts` records, read-only; build `template-pycache-d{64,256,768}`; stamp each image's sha256 in `state/template-pycache-d<D>`. Each template is skipped while its inputs stamp matches. Manifest `~/e17-manifest.md` |
+| `smoke.sh` | host: `rung.sh ARM 1 pycache` per arm (60 s warm-up, 120 s window, tag `smoke`). On `sbx`: the `py_analyze` calls exit 0, and one `py_analyze` Exec through the relay prints the D=256 `BUILD`'s `dataset_sha256`. Then `warmcold.py` on each rung |
 
 Then, on the host: `rung.sh {sbx|resident-300|lease-30|lease-120} N {pycache|pycache-low|pycache-d64|pycache-d768}`.
 Rig runs are started by the controller only.
