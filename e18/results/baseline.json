@@ -1,0 +1,8 @@
+{
+  "n": 20,
+  "discarded": 1,
+  "medianMs": 3668.982500000001,
+  "p95Ms": 6026.394999400001,
+  "prompt": "Run uname -a and tell me the kernel.",
+  "model": "default"
+}
