@@ -7,7 +7,9 @@ the gain against the per-Exec arm, the first call after an idle teardown, and th
 
 Each RUNG_DIR holds params.json (arm, n, point), calls.jsonl[.gz] and worker.log[.gz]. Every rung is
 tagged by warmcold.join (the same join warmcold.py writes out); rungs of one (point, N, arm), e.g.
-two seeds, are pooled.
+two seeds, are pooled. Rungs whose params.json dataset_mib or snapshot_guest_ram_mb differ within one
+(point, N, arm) are never pooled: the report exits non-zero naming the field and both rungs (report
+each D, e.g. the gain-against-D runs, in its own invocation).
   - Calls used: in_window and status "ok". The rest is counted, never dropped silently:
     counts = {calls, used (tagged warm or cold), unknown (in-window ok, untagged), not_in_window,
     not_ok (in-window, status not ok)}; calls = used + unknown + not_in_window + not_ok.
@@ -37,13 +39,17 @@ def stats(ms):
     return {"n": len(ms), "median_ms": H.median(ms), "p95_ms": H.percentile(ms, 95)}
 
 
+# Rungs of one (point, N, arm) pool only if these agree: the gain-against-D runs (SPEC §10) share a
+# point, N and arm with the default D = 256 MiB runs and differ only in the dataset size.
+MUST_MATCH = ("dataset_mib", "snapshot_guest_ram_mb")
+
+
 def read_params(d):
     p = os.path.join(d, "params.json")
     if not os.path.exists(p):
         raise SystemExit("latency_report.py: no params.json in %s" % d)
     with open(p) as f:
-        params = json.load(f)
-    return params.get("point"), params.get("n"), params.get("arm")
+        return json.load(f)
 
 
 def summarize(rows):
@@ -84,15 +90,22 @@ def summarize(rows):
 def build(rung_dirs, baseline_arm="sbx"):
     pooled = {}
     for d in rung_dirs:
+        p = read_params(d)
+        gk = (p.get("point"), p.get("n"), p.get("arm"))
+        g = pooled.setdefault(gk, {"rows": [], "rungs": [], "params": p, "dir": d})
+        for f in MUST_MATCH:
+            if p.get(f) != g["params"].get(f):
+                raise SystemExit("latency_report.py: will not pool point %s N %s arm %s: %s %r in %s, %r in %s"
+                                 % (gk + (f, g["params"].get(f), g["dir"], p.get(f), d)))
         rows, summary = W.join(d)
-        g = pooled.setdefault(read_params(d), {"rows": [], "rungs": []})
         g["rows"].extend(rows)
         g["rungs"].append({"dir": d, "warmcold": {k: summary[k] for k in (
             "warm", "cold", "unknown", "unknown_keys", "dropped_end_session_execs")}})
     groups = []
     for (point, n, arm), g in pooled.items():
         s = summarize(g["rows"])
-        groups.append(dict(point=point, n=n, arm=arm, rungs=g["rungs"], **s))
+        groups.append(dict(point=point, n=n, arm=arm, rungs=g["rungs"],
+                           **{f: g["params"].get(f) for f in MUST_MATCH}, **s))
     base = {(g["point"], g["n"]): g for g in groups if g["arm"] == baseline_arm}
     for g in groups:
         if g["arm"] == baseline_arm:

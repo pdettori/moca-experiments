@@ -11,7 +11,7 @@ import latency_report as L  # noqa: E402
 from test_warmcold import call, exec_line, resident_line, rung  # noqa: E402
 
 
-def lease_rung(tmp_path, name="lease", arm="lease-120", n=1, point="pycache"):
+def lease_rung(tmp_path, name="lease", arm="lease-120", n=1, point="pycache", **params):
     # Key A on vm-1: a cold first analyze (30 s), then warm analyzes of 5, 6 and 7 s (median 6 s);
     # an idle-destroy, then a cold analyze of 20 s on vm-2 (the first call after idle) and a warm
     # py_short. One unknown call (key B: no exec line), one out-of-window and one failed call.
@@ -24,7 +24,7 @@ def lease_rung(tmp_path, name="lease", arm="lease-120", n=1, point="pycache"):
              call("B", 1, ms=9000)]
     d = rung(tmp_path, calls, log, name=name)
     with open(os.path.join(d, "params.json"), "w") as f:
-        json.dump({"arm": arm, "n": n, "point": point, "seed": 1}, f)
+        json.dump(dict({"arm": arm, "n": n, "point": point, "seed": 1}, **params), f)
     return d
 
 
@@ -86,6 +86,21 @@ def test_seeds_of_one_group_are_pooled(tmp_path):
     rep = L.build([a, b], baseline_arm="sbx")
     g = group(rep, "lease-120")
     assert g["counts"]["used"] == 12 and len(g["rungs"]) == 2
+
+
+@pytest.mark.parametrize("field", ["dataset_mib", "snapshot_guest_ram_mb"])
+def test_refuses_to_pool_different_dataset_or_guest_ram(tmp_path, field):
+    a = lease_rung(tmp_path, name="d64", **{field: 64})
+    b = lease_rung(tmp_path, name="d256", **{field: 256})
+    with pytest.raises(SystemExit) as e:
+        L.build([a, b], baseline_arm="sbx")
+    assert field in str(e.value) and "pycache" in str(e.value) and "lease-120" in str(e.value)
+    with pytest.raises(SystemExit) as e:
+        L.main([a, b, "--out", str(tmp_path / "out")])
+    assert e.value.code not in (0, None)
+    # The same values pool.
+    c = lease_rung(tmp_path, name="d256b", **{field: 256})
+    assert group(L.build([b, c]), "lease-120")["counts"]["used"] == 12
 
 
 def test_cli_writes_json_and_md(tmp_path):

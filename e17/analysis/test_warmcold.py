@@ -1,3 +1,5 @@
+import calendar
+import datetime
 import gzip
 import json
 import os
@@ -24,10 +26,16 @@ def resident_line(kind, key, vm, ts="2026-11-05T11:00:00Z"):
     return '%s vmpool: e15 resident %s workspace_key="%s" vm=%s%s\n' % (ts, kind, key, vm, tail)
 
 
-def call(key, i, cls="py_analyze", ms=1000.0, execs=1, status="ok", in_window=True,
-         ts="2026-11-05T11:00:00.5Z"):
-    return {"ts": ts, "session": key, "call": i, "class": cls, "execs": execs,
-            "observed_ms": ms, "status": status, "in_window": in_window}
+T_LOG = calendar.timegm((2026, 11, 5, 11, 0, 0, 0, 0, 0))  # exec_line's default stamp
+
+
+def call(key, i, cls="py_analyze", ms=1000.0, execs=1, status="ok", in_window=True, end=T_LOG + 0.4,
+         **extra):
+    """A calls.jsonl record whose send time is `end` - observed_ms: its Exec ends at `end`, within the
+    join's 2 s timestamp guard of an exec line stamped at T_LOG (the default)."""
+    ts = datetime.datetime.fromtimestamp(end - ms / 1000.0, datetime.timezone.utc)
+    return dict({"ts": ts.strftime("%Y-%m-%dT%H:%M:%S.%fZ"), "session": key, "call": i, "class": cls,
+                 "execs": execs, "observed_ms": ms, "status": status, "in_window": in_window}, **extra)
 
 
 def rung(tmp_path, calls, log, name="rung", gz=False):
@@ -145,7 +153,8 @@ def test_end_session_exec_dropped_only_after_end_session_line(tmp_path):
     rows, summary = W.join(rung(tmp_path, [call("A", 1), call("A", 2), call("B", 1)], log))
     r = by_call(rows)
     assert r[("A", 2)]["warm"] is True
-    assert summary["dropped_end_session_execs"] == [{"session": "A", "req": 3, "vm": "vm-1"}]
+    assert summary["dropped_end_session_execs"] == [
+        {"session": "A", "req": 3, "vm": "vm-1", "reason": "after-end-session-line"}]
     assert r[("B", 1)]["warm"] == "unknown"
     assert summary["unknown_keys"] == {"B": "calls want 1 exec lines, the log has 2"}
 
@@ -159,9 +168,84 @@ def test_end_session_exec_without_vm_dropped(tmp_path):
            '2026-11-05T11:00:00Z vmpool: exec req=11 workspace_key="B" vm= cold="" exit=0 err=memory-budget: x\n']
     rows, summary = W.join(rung(tmp_path, [call("A", 1), call("B", 1), call("B", 2)], log))
     r = by_call(rows)
-    assert summary["dropped_end_session_execs"] == [{"session": "A", "req": 9, "vm": None}]
+    assert summary["dropped_end_session_execs"] == [
+        {"session": "A", "req": 9, "vm": None, "reason": "no-vm-no-error"}]
     assert r[("A", 1)]["warm"] is False and summary["unknown_keys"] == {}
     assert r[("B", 2)]["warm"] == "unknown" and r[("B", 2)]["cold_reason"] == "no-vm"
+
+
+ABORTED = os.path.join(HERE, "testdata", "resident-inf-n1024-aborted")
+K1005 = "e15-lowduty-resident-inf-n1024-1794182088-1005-1"
+QF = "rpc error: code = Internal desc = busy: queue full"
+
+
+def test_aborted_end_session_exec_dropped():
+    # Real key from E16 resident-inf N1024 (2026-11-09, lowduty): 8 calls (1500..1507) on vm-1292,
+    # then the driver's end-session Exec aborted at the run's teardown before endResidentSession ran:
+    #   2026-11-09T00:33:29Z vmpool: exec req=8145070469489191 workspace_key="...-1005-1" vm= cold=""
+    #   exit=0 err=vmpool: aborted
+    # (no end-session line). By hand: 9 exec lines, 8 calls; 1 cold (1500, first), 7 warm.
+    rows, summary = W.join(ABORTED)
+    assert summary["unknown"] == 0 and summary["unknown_keys"] == {}
+    assert summary["warm"] == 7 and summary["cold"] == 1
+    assert summary["dropped_aborted_end_session"] == [
+        {"session": K1005, "req": 8145070469489191, "err": "vmpool: aborted"}]
+    assert summary["dropped_end_session_execs"] == []
+
+
+def test_aborted_last_line_dropped_only_when_one_extra(tmp_path):
+    # Two extra lines (one aborted at the end): not the end-session case alone, so unknown. An
+    # aborted no-vm line that is not the key's last is never dropped either.
+    ab = '2026-11-05T11:00:00Z vmpool: exec req=99 workspace_key="%s" vm= cold="" exit=0 err=vmpool: aborted\n'
+    log = [exec_line("A", "vm-1"), exec_line("A", "vm-1"), ab % "A",
+           exec_line("B", "vm-2"), ab % "B", exec_line("B", "vm-2")]
+    rows, summary = W.join(rung(tmp_path, [call("A", 1), call("B", 1)], log))
+    assert set(summary["unknown_keys"]) == {"A", "B"}
+    assert summary["dropped_aborted_end_session"] == []
+
+
+def test_queue_full_call_does_not_misalign_key(tmp_path):
+    # A call the session loop refused (busy: queue full) is recorded with execs 1 but logs no exec
+    # line: it counts 0, comes out unknown, and the calls around it keep their own lines.
+    log = [exec_line("A", "vm-1", cold="first-exec"), exec_line("A", "vm-1")]
+    calls = [call("A", 1), call("A", 2, status="err", cause="rpc_error", msg=QF), call("A", 3)]
+    rows, summary = W.join(rung(tmp_path, calls, log))
+    r = by_call(rows)
+    assert summary["unknown_keys"] == {}
+    assert r[("A", 2)]["warm"] == "unknown" and r[("A", 2)]["cold_reason"] == "queue-full"
+    assert r[("A", 1)]["warm"] is False and r[("A", 3)]["warm"] is True
+
+
+def test_missing_line_plus_extra_line_is_caught_by_timestamp_guard(tmp_path):
+    # The cancel-out: call 1 left no exec line, and the key has one stray line at its end (an
+    # aborted Exec WITH a vm, not dropped). Before the queue-full rule, a queue-full call was that
+    # missing line: 3 calls want 3 lines, the log has 3, and every call takes the next call's line.
+    stray = '2026-11-05T11:02:00Z vmpool: exec req=9 workspace_key="A" vm=vm-1 cold="" exit=0 err=vmpool: aborted\n'
+    log = [exec_line("A", "vm-1", req=2, ts="2026-11-05T11:00:30Z"),
+           exec_line("A", "vm-1", req=3, ts="2026-11-05T11:01:00Z"), stray]
+    # (1) queue-full: counts 0, so 2 calls want 2 lines and the log has 3. Unknown, by count.
+    calls = [call("A", 1, status="err", cause="rpc_error", msg=QF), call("A", 2, end=W_T(30)),
+             call("A", 3, end=W_T(60))]
+    rows, summary = W.join(rung(tmp_path, calls, log, name="qf"))
+    assert summary["unknown_keys"] == {"A": "calls want 2 exec lines, the log has 3"}
+    # (2) a refusal the join does not know (another msg): the counts match, 3 = 3. Unknown, by the
+    # timestamp guard (call 1, sent at 11:00:00, would take the line stamped 11:00:30), not shifted.
+    calls[0] = call("A", 1, status="err", cause="rpc_error", msg="rpc error: code = Unavailable")
+    rows, summary = W.join(rung(tmp_path, calls, log, name="other"))
+    assert summary["unknown_keys"]["A"].startswith("timestamp_mismatch: call 1 ")
+    assert {x["warm"] for x in rows} == {"unknown"}
+    assert {x["cold_reason"] for x in rows} == {"timestamp_mismatch"}
+
+
+def test_timestamp_guard_passes_within_two_seconds(tmp_path):
+    # Exec lines carry whole seconds and are written when the Exec ends: 1.9 s off is accepted.
+    log = [exec_line("A", "vm-1"), exec_line("A", "vm-1", ts="2026-11-05T11:00:10Z")]
+    rows, summary = W.join(rung(tmp_path, [call("A", 1, end=T_LOG + 1.9), call("A", 2, end=W_T(8.1))], log))
+    assert summary["unknown_keys"] == {} and by_call(rows)[("A", 2)]["warm"] is True
+
+
+def W_T(s):
+    return T_LOG + s
 
 
 def test_real_slice_resident_300(tmp_path):

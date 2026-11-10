@@ -21,35 +21,50 @@ line on key _e15-attach-probe, is ignored):
           vmpool: e15 resident end-session workspace_key="<k>" vm=<vm-N>
 
 The join, per key (calls.jsonl `session` is the workspace key):
-  1. the key's exec lines in log order (never by timestamp: the log has 1 s resolution);
+  1. the key's exec lines in log order (never re-ordered by timestamp: the log has 1 s resolution);
   2. drop the driver's end-session Exec (`: e15-end-session`, e15/driver/replay.go), which is never a
      recorded call but is logged as an ordinary exec line:
        a. the first exec line of the key after its `e15 resident end-session` line;
        b. an exec line with an empty vm and err=<nil>: the patch's answer to an end-session Exec when
           the key holds no VM (endResidentSession / execResident return Result{}, nil without a VM
-          and without the end-session line). Every other Exec without a VM fails (err set).
+          and without the end-session line). Every other Exec without a VM fails (err set);
+       c. the key's LAST exec line when its vm is empty, its err is set, and the calls want exactly
+          one Exec fewer than the log has: the end-session Exec (always a key's last) aborted at the
+          run's teardown before endResidentSession ran (E16 resident-inf N1024: `err=vmpool:
+          aborted`, no end-session line). Recorded as dropped_aborted_end_session.
      Each drop is recorded in the report;
-  3. the key's calls in `call` order, each taking `execs` exec lines (a call never started has
-     execs 0 and no line: it is unknown, and the next call compares with the last call that ran);
+  3. the key's calls in `call` order, each taking its Execs' lines: `execs`, except a call refused
+     with `busy: queue full` (cause rpc_error) by the worker's session loop before the pool, which
+     logs none and counts 0. A call with no line (never started, or refused) is unknown, and the
+     next call compares with the last call that ran;
   4. a `retire` naming the vm of the exec line after it was logged inside that Exec (runResident
      retires the VM a command left unusable before the runner logs the command's exec line): it
      counts as lying after that Exec, so that call keeps its tag and the next call is cold;
-  5. if the remaining lines and the calls' total execs differ, every call of the key is unknown.
-     A call whose first Exec has no vm (acquire failed) is unknown too. Unknown is never guessed;
-     the report counts it.
+  5. if the remaining lines and the calls' Exec count differ, every call of the key is unknown
+     (exec-count). If they match but a paired line's stamp is more than 2 s from its call's
+     ts + observed_ms, every call of the key is unknown too (timestamp_mismatch): two errors that
+     cancel out in the count would otherwise shift every later call by one, silently. The guard
+     only checks; it never re-places a line. A call whose first Exec has no vm (acquire failed) is
+     unknown. Unknown is never guessed; the report counts it.
 Reads plain or .gz calls.jsonl / worker.log.
 """
+import calendar
 import gzip
 import json
 import os
 import re
 import sys
+import time
 
 EXEC_RE = re.compile(r'vmpool: exec req=(?P<req>\d+) workspace_key="(?P<key>(?:[^"\\]|\\.)*)" '
                      r'vm=(?P<vm>\S*) cold="(?P<cold>(?:[^"\\]|\\.)*)" exit=(?P<exit>-?\d+) err=(?P<err>.*)$')
 RESIDENT_RE = re.compile(r'vmpool: e15 resident (?P<kind>idle-destroy|retire|end-session) '
                          r'workspace_key="(?P<key>(?:[^"\\]|\\.)*)" vm=(?P<vm>\S*)')
 PROBE_KEY = "_e15-attach-probe"  # e15/rig/rung.sh's relay attach check: never a session key
+LOG_TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})Z ")
+CALL_TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(\.\d+)?Z$")
+QUEUE_FULL = "busy: queue full"
+TS_TOL_S = 2.0
 
 
 def open_rung_file(d, name):
@@ -72,7 +87,8 @@ def read_calls(d):
 
 
 def read_events(d):
-    """Per key, its exec and teardown events in log order: ("exec", req, vm, err) / (kind, vm)."""
+    """Per key, its exec and teardown events in log order:
+    {"kind": "exec", "req", "vm", "err", "ts"} / {"kind": <teardown>, "vm"}."""
     events = {}
     with open_rung_file(d, "worker.log") as f:
         for line in f:
@@ -80,56 +96,111 @@ def read_events(d):
             if m and m.group("key") == PROBE_KEY:
                 continue
             if m:
+                t = LOG_TS_RE.match(line)
                 events.setdefault(m.group("key"), []).append(
-                    ("exec", int(m.group("req")), m.group("vm"), m.group("err").strip()))
+                    {"kind": "exec", "req": int(m.group("req")), "vm": m.group("vm"),
+                     "err": m.group("err").strip(),
+                     "ts": calendar.timegm(time.strptime(t.group(1), "%Y-%m-%dT%H:%M:%S")) if t else None})
                 continue
             m = RESIDENT_RE.search(line)
             if m:
-                events.setdefault(m.group("key"), []).append((m.group("kind"), m.group("vm")))
+                events.setdefault(m.group("key"), []).append({"kind": m.group("kind"), "vm": m.group("vm")})
     return events
 
 
+def call_epoch(ts):
+    """calls.jsonl `ts` (RFC 3339, up to nanoseconds, Z) -> epoch seconds; None if unparseable."""
+    m = CALL_TS_RE.match(ts or "")
+    if not m:
+        return None
+    return calendar.timegm(time.strptime(m.group(1), "%Y-%m-%dT%H:%M:%S")) + float("0" + (m.group(2) or ""))
+
+
+def call_execs(c):
+    """The exec lines a call left in the log: its `execs`, except a call the worker's session loop
+    refused with `busy: queue full` before it reached the pool (moca remote-worker/internal/session/
+    loop.go), which the driver records with execs 1 but which logs no exec line."""
+    if c.get("cause") == "rpc_error" and QUEUE_FULL in (c.get("msg") or ""):
+        return 0
+    return int(c.get("execs") or 0)
+
+
 def exec_sequence(key, evs, dropped):
-    """The key's call Execs in log order: [(vm, teardowns since the previous kept Exec)], dropping
-    the end-session Execs (appended to `dropped`)."""
+    """The key's call Execs in log order, each the exec event plus "teardowns" (kinds since the
+    previous kept Exec), dropping the end-session Execs logged after an end-session line or with
+    no vm and no error (appended to `dropped`)."""
     seq, since, after_end = [], [], False
     for ev in evs:
-        if ev[0] != "exec":
+        if ev["kind"] != "exec":
             since.append(ev)
-            after_end = after_end or ev[0] == "end-session"
+            after_end = after_end or ev["kind"] == "end-session"
             continue
-        _, req, vm, err = ev
-        if after_end or (vm == "" and err == "<nil>"):
-            dropped.append({"session": key, "req": req, "vm": vm or None})
+        vm = ev["vm"]
+        if after_end or (vm == "" and ev["err"] == "<nil>"):
+            dropped.append({"session": key, "req": ev["req"], "vm": vm or None,
+                            "reason": "after-end-session-line" if after_end else "no-vm-no-error"})
             after_end = False
             continue
         # runResident retires a VM the command left unusable inside that command's Exec, so the
         # retire line precedes the Exec's own exec line. vm ids are never reused: a retire naming
         # this Exec's vm came after this Exec ran on it, and lies before the NEXT Exec.
-        own = [t for t in since if t[0] == "retire" and vm and t[1] == vm]
-        seq.append((vm, [t[0] for t in since if t not in own]))
+        own = [t for t in since if t["kind"] == "retire" and vm and t["vm"] == vm]
+        seq.append(dict(ev, teardowns=[t["kind"] for t in since if t not in own]))
         since = own
     return seq
 
 
-def tag_key(key, calls, seq):
+def timestamp_mismatch(calls, seq):
+    """The paired exec lines against the calls' times (a check only; it never re-places a line).
+    The runner logs an Exec's line when the Exec ends; the log's stamp is whole seconds. A call's
+    last line must lie within TS_TOL_S of ts + observed_ms, any earlier line (a chain call) within
+    [ts - TS_TOL_S, ts + observed_ms + TS_TOL_S]. Returns a reason string, or None."""
+    i = 0
+    for c in calls:
+        n = call_execs(c)
+        mine = seq[i:i + n]
+        i += n
+        if not mine:
+            continue
+        start = call_epoch(c.get("ts"))
+        if start is None or any(e["ts"] is None for e in mine):
+            return "call %s: no timestamp to check its exec line against" % c.get("call")
+        end = start + float(c.get("observed_ms") or 0) / 1000.0
+        if abs(mine[-1]["ts"] - end) > TS_TOL_S or any(
+                not (start - TS_TOL_S <= e["ts"] <= end + TS_TOL_S) for e in mine[:-1]):
+            return "call %s ends %.1f s from its exec line (req %d), more than %.0f s" % (
+                c.get("call"), mine[-1]["ts"] - end, mine[-1]["req"], TS_TOL_S)
+    return None
+
+
+def tag_key(key, calls, seq, dropped_aborted):
     """Rows for one key's calls (in call order) against its Exec sequence."""
-    want = sum(int(c.get("execs") or 0) for c in calls)
+    want = sum(call_execs(c) for c in calls)
     rows = []
+    # The end-session Exec is always the key's last (e15/driver/replay.go runSlot). Aborted at the
+    # run's teardown before endResidentSession ran, it has no vm, an error and no end-session line.
+    if len(seq) == want + 1 and seq[-1]["vm"] == "" and seq[-1]["err"] != "<nil>":
+        dropped_aborted.append({"session": key, "req": seq[-1]["req"], "err": seq[-1]["err"]})
+        seq = seq[:-1]
     if want != len(seq):
         for c in calls:
             rows.append(row(c, "unknown", None, None, "exec-count"))
         return rows, "calls want %d exec lines, the log has %d" % (want, len(seq))
+    why = timestamp_mismatch(calls, seq)
+    if why:
+        for c in calls:
+            rows.append(row(c, "unknown", None, None, "timestamp_mismatch"))
+        return rows, "timestamp_mismatch: " + why
     i, prev_vm, between = 0, None, []
     for c in calls:
-        n = int(c.get("execs") or 0)
+        n = call_execs(c)
         mine = seq[i:i + n]
         i += n
         if not mine:
-            rows.append(row(c, "unknown", None, prev_vm, "not-started"))
+            rows.append(row(c, "unknown", None, prev_vm, "queue-full" if int(c.get("execs") or 0) else "not-started"))
             continue
-        between = between + mine[0][1]
-        vm = mine[0][0]
+        between = between + mine[0]["teardowns"]
+        vm = mine[0]["vm"]
         if not vm:
             rows.append(row(c, "unknown", None, prev_vm, "no-vm"))
         elif prev_vm is None:
@@ -142,8 +213,8 @@ def tag_key(key, calls, seq):
             rows.append(row(c, True, vm, prev_vm, None))
         # Teardowns inside a chain call's later Execs still lie before the next call's first Exec;
         # with no vm to compare against (no-vm), the ones before it carry over as well.
-        between = (between if not vm else []) + [t for _, ts in mine[1:] for t in ts]
-        last_vm = next((v for v, _ in reversed(mine) if v), None)
+        between = (between if not vm else []) + [t for e in mine[1:] for t in e["teardowns"]]
+        last_vm = next((e["vm"] for e in reversed(mine) if e["vm"]), None)
         if last_vm:
             prev_vm = last_vm
     return rows, None
@@ -163,11 +234,11 @@ def join(rung_dir):
     by_key = {}
     for c in calls:
         by_key.setdefault(c.get("session"), []).append(c)
-    rows, dropped, unknown_keys = [], [], {}
+    rows, dropped, aborted, unknown_keys = [], [], [], {}
     for key in sorted(by_key):
         kc = sorted(by_key[key], key=lambda c: c.get("call"))
         seq = exec_sequence(key, events.get(key, []), dropped)
-        kr, why = tag_key(key, kc, seq)
+        kr, why = tag_key(key, kc, seq, aborted)
         rows.extend(kr)
         if why:
             unknown_keys[key] = why
@@ -180,6 +251,7 @@ def join(rung_dir):
         "cold_by_reason": count_by(r["cold_reason"] for r in rows if r["warm"] is False),
         "unknown_keys": unknown_keys,
         "dropped_end_session_execs": dropped,
+        "dropped_aborted_end_session": aborted,
         "log_keys_without_calls": sorted(k for k in events if k not in by_key),
     }
     return rows, summary
