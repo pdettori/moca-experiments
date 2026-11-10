@@ -5,11 +5,12 @@ export class NoBusyWorker extends Error {}
 const sleepReal = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Default runner: `docker compose` for the e18 project; E18_COMPOSE_FILES is a space-separated -f list. */
-export function dockerRunner({ project = 'e18', files = process.env.E18_COMPOSE_FILES ?? '' } = {}) {
+export function dockerRunner({ project = 'e18', files = process.env.E18_COMPOSE_FILES ?? '', dir = process.env.E18_PROJECT_DIR } = {}) {
   const f = files.split(/\s+/).filter(Boolean).flatMap((x) => ['-f', x]);
+  const d = dir ? ['--project-directory', dir, '--env-file', `${dir}/.env`] : [];
   return (cmd) =>
     new Promise((resolve) => {
-      const p = spawn('docker', ['compose', '-p', project, ...f, ...cmd]);
+      const p = spawn('docker', ['compose', '-p', project, ...d, ...f, ...cmd]);
       let stdout = '';
       p.stdout.on('data', (d) => (stdout += d));
       p.on('close', (code) => resolve({ code, stdout }));
