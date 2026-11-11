@@ -26,14 +26,21 @@
 #      - every rename below is a leaf of the arm directory, not a symlink, onto a free name
 #   2. moves aside (leaf renames, nothing removed): N1-probe-* -> _cap30k-N1-probe-*,
 #      probe-corpora -> _cap30k-probe-corpora, N1/baseline.json -> N1/baseline.cap30k.json
-#   3. classprobe.sh pycache ARM (E15_CLASSPROBE overrides it); its probe run directories
+#   3. classprobe.sh pycache ARM (E15_CLASSPROBE overrides it); its probe run directories. Then
+#      the environment check: baseline.sh runs its seeded runs and its probe back to back, but
+#      here the seeded runs are from earlier, so a template re-stamp or a worker rebuild since
+#      would mix two environments. Every new probe's record.json must agree with every counted
+#      seeded one on template_sha256, worker_bin_sha256, resident_patch_sha256, snapshot_hash and
+#      snapshot_guest_ram_mb (a field absent from both is equal; absent from one is a mismatch).
 #   4. analysis/baseline.py exactly as baseline.sh calls it: N1/baseline.json, the evaluable
 #      seeded dirs, --probe the new probe dirs, with E15_BASELINE_CORPUS/ARM/SEEDS/SKIPPED
 #   5. baseline.py copies point_sig from the seeded records, which may predate the cap: the new
 #      baseline.json gets pycache's current point_sig (a cap30k baseline keeps the old one, and
 #      rung.sh refuses it), and "reprobe" records the seeded sig, the cap and the cap30k file.
 # A failure in steps 3-5 dies with no N1/baseline.json (the old one stays aside). A second run
-# is refused (the aside names exist): moving those is the controller's call.
+# is refused (the aside names exist). After a failed run (baseline.cap30k.json but no
+# baseline.json) the refusal prints this arm's restore commands: the partial new N1-probe-* and
+# probe-corpora moved to _failed-<UTC>-*, then each _cap30k-* back to its old name.
 set -euo pipefail
 E15_PROG=reprobe.sh
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -69,6 +76,22 @@ RUNDIR=$E15_RUNS/$POINT/$ARM
 refuse_outside_root "$RUNDIR"
 OUT=$RUNDIR/N1/baseline.json
 OLD=$RUNDIR/N1/baseline.cap30k.json
+if [ -f "$OLD" ] && [ ! -e "$OUT" ] && [ ! -L "$OUT" ]; then
+  # A previous reprobe moved the cap30k probe aside and then failed: say how to put it back.
+  ts=$(date -u +%Y%m%dT%H%M%SZ)
+  steps=()
+  for p in "$RUNDIR"/N1-probe-* "$RUNDIR/probe-corpora"; do
+    [ -e "$p" ] || [ -L "$p" ] || continue
+    steps+=("mv -- $p $RUNDIR/_failed-$ts-${p##*/}")
+  done
+  for p in "$RUNDIR"/_cap30k-*; do
+    [ -e "$p" ] || [ -L "$p" ] || continue
+    steps+=("mv -- $p $RUNDIR/${p##*/_cap30k-}")
+  done
+  steps+=("mv -- $OLD $OUT")
+  die "a previous reprobe failed after the moves: $OLD exists, $OUT does not. To restore $ARM's cap30k baseline, run in order:$(printf '\n  %s' "${steps[@]}")
+then re-run reprobe.sh $ARM"
+fi
 [ -f "$OUT" ] || die "no $OUT (run baseline.sh $POINT $ARM: there is nothing to re-probe)"
 # The only removal: the new baseline.json (and its re-sign temp file) when a later step fails.
 drop_out() { rm -f -- "$OUT" "$OUT.tmp"; }
@@ -178,6 +201,35 @@ while IFS= read -r line; do
   [ -z "$line" ] || probes+=("$line")
 done <<<"$probe_out"
 [ "${#probes[@]}" -gt 0 ] || die "classprobe.sh $POINT $ARM produced no probe runs"
+python3 - "${#dirs[@]}" "${dirs[@]}" "${probes[@]}" <<'PY' ||
+import json, os, sys
+n = int(sys.argv[1])
+seeded, probes = sys.argv[2:2 + n], sys.argv[2 + n:]
+FIELDS = ("template_sha256", "worker_bin_sha256", "resident_patch_sha256", "snapshot_hash", "snapshot_guest_ram_mb")
+missing = object()
+
+
+def rec(d):
+    p = os.path.join(d, "record.json")
+    try:
+        with open(p) as f:
+            return json.load(f)
+    except (OSError, ValueError) as e:
+        sys.exit("reprobe.sh: cannot read %s: %s" % (p, e))
+
+
+seen = [(d, rec(d)) for d in seeded]
+for p in probes:
+    r = rec(p)
+    for d, s in seen:
+        for k in FIELDS:
+            a, b = r.get(k, missing), s.get(k, missing)
+            if a != b:
+                show = lambda v: "(absent)" if v is missing else json.dumps(v)  # noqa: E731
+                sys.exit("reprobe.sh: %s differs: the new probe %s has %s, the seeded run %s has %s: "
+                         "the environment changed since the seeded runs" % (k, p, show(a), d, show(b)))
+PY
+  die "environment check failed: no baseline (the cap30k one is $OLD)"
 
 # --- 4. baseline.py, as baseline.sh calls it ---------------------------------------------------
 p95=$(E15_BASELINE_CORPUS="$E15_CORPORA/$E15_P_CORPUS/corpus.jsonl" E15_BASELINE_ARM="$ARM" E15_BASELINE_SEEDS="${seeds[*]}" E15_BASELINE_SKIPPED="${skipped[*]}" \

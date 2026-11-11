@@ -2514,10 +2514,17 @@ for c in py_analyze py_short py_test; do
   mkdir -p "$d"
   echo new >"$d/marker"
   echo '{"in_window": true, "status": "ok"}' >"$d/calls.jsonl"
+  python3 -c 'import json,sys; e=json.loads(sys.argv[2]); e.update(json.loads(sys.argv[3] or "{}")); json.dump(e, open(sys.argv[1], "w"))' \
+    "$d/record.json" "$RP_ENV" "${RP_PENV:-}"
+  # RP_CPPARTIAL=1: a rig error after the first probe (its dir and probe-corpora are left)
+  [ "${RP_CPPARTIAL:-0}" = 1 ] && exit 1
   echo "$d"
 done
 SH
   chmod +x "$RPS/classprobe.sh"
+  # the rung environment every seeded record and (by default) every new probe record carries; an
+  # sbx-like record: no resident_patch_sha256 key at all
+  RP_ENV='{"template_sha256": "t1", "worker_bin_sha256": "w1", "snapshot_hash": "h1", "snapshot_guest_ram_mb": 1024}'
   rp_cur=$(E15_HOST_PROFILE=fresh-metal E15_ROOT="$RP" E15_TEST_ROOT="$RP" bash -c 'source "$1"; source "$2"; e15_point pycache; echo "$E15_P_SETTINGS"' _ "$RIG/lib.sh" "$RIG/points.sh")
   rp_old=${rp_cur% probe_cap_ms=120000}
   rp_oldsig=$(sha_s "$rp_old")
@@ -2532,9 +2539,9 @@ SH
       echo old >"$R/N1-probe-$c/marker"
     done
     python3 - "$R" "$st" "$(sha_s "$st")" "$(sha_f "$RP/src/e17/workload/library.json")" "$(sha_f "$RP/bin/e15-driver")" \
-      "$(sha_f "$RP/corpora/pycache/corpus.jsonl")" "${RP_S3:-ok}" <<'PY'
+      "$(sha_f "$RP/corpora/pycache/corpus.jsonl")" "${RP_S3:-ok}" "$RP_ENV" <<'PY'
 import json, os, sys
-R, st, sig, lib, drv, corpus, s3 = sys.argv[1:8]
+R, st, sig, lib, drv, corpus, s3, env = sys.argv[1:9]
 ok = {"holds": True, "reason": None}
 kinds = {1: ok, 2: {"holds": False, "reason": "empty_window"}, 3: ok if s3 == "ok" else {"holds": False, "reason": "p95"},
          4: ok, 5: ok}
@@ -2542,6 +2549,7 @@ for s, v in kinds.items():
     d = os.path.join(R, "N1-s%d" % s)
     os.makedirs(d)
     rec = dict(v, library_sha256=lib, driver_bin_sha256=drv, corpus_sha256=corpus, point_sig=sig, point_settings=st)
+    rec.update(json.loads(env))
     json.dump(rec, open(os.path.join(d, "record.json"), "w"))
     n = 0 if s == 2 else 12
     with open(os.path.join(d, "calls.jsonl"), "w") as f:
@@ -2562,7 +2570,7 @@ PY
     : >"$TMP/rp.clog"
     : >"$TMP/rp.blog"
     env E15_HOST_PROFILE=fresh-metal E15_ROOT="$RP" E15_TEST_ROOT="$RP" E15_MANIFEST="$TMP/rp-m.md" E15_CLASSPROBE="$RPS/classprobe.sh" \
-      RP_CLOG="$TMP/rp.clog" RP_BLOG="$TMP/rp.blog" RP_WFLAG="$TMP/rp.wflag" PATH="$RPS:$PATH" "$@" \
+      RP_ENV="$RP_ENV" RP_CLOG="$TMP/rp.clog" RP_BLOG="$TMP/rp.blog" RP_WFLAG="$TMP/rp.wflag" PATH="$RPS:$PATH" "$@" \
       bash "$RP/src/e17/rig/reprobe.sh" "$a" >"$TMP/rp.out" 2>&1
     echo $?
   }
@@ -2670,6 +2678,36 @@ PY
   rp_stage sbx
   check "E17 5b reprobe: a baseline.py failure dies, no baseline.json" \
     "$(rp sbx RP_BFAIL=1)/$(grep -c 'baseline.py failed' "$TMP/rp.out")/$([ -e "$RPR/N1/baseline.json" ] && echo left || echo none)" "1/1/none"
+  # fix round 1: the environment check (new probes vs the counted seeded runs)
+  rp_stage sbx
+  check "E17 5b reprobe env: a template re-stamp since the seeded runs -> dies naming the field, both values and dirs; no baseline" \
+    "$(rp sbx RP_PENV='{"template_sha256": "t2"}')/$(grep -c "template_sha256 differs: the new probe $RPR/N1-probe-py_analyze has \"t2\", the seeded run $RPR/N1-s1 has \"t1\"" "$TMP/rp.out")/$(grep -c . "$TMP/rp.blog")/$([ -e "$RPR/N1/baseline.json" ] && echo left || echo none)" \
+    "1/1/0/none"
+  rp_stage sbx
+  check "E17 5b reprobe env: another snapshot guest RAM -> dies" \
+    "$(rp sbx RP_PENV='{"snapshot_guest_ram_mb": 256}')/$(grep -c 'snapshot_guest_ram_mb differs: .* has 256, the seeded run .* has 1024' "$TMP/rp.out")" "1/1"
+  rp_stage sbx
+  check "E17 5b reprobe env: a worker rebuild -> dies" \
+    "$(rp sbx RP_PENV='{"worker_bin_sha256": "w2"}')/$(grep -c 'worker_bin_sha256 differs' "$TMP/rp.out")" "1/1"
+  rp_stage sbx
+  check "E17 5b reprobe env: a field on one side only (even null) is a mismatch" \
+    "$(rp sbx RP_PENV='{"resident_patch_sha256": null}')/$(grep -c 'resident_patch_sha256 differs: .* has null, the seeded run .* has (absent)' "$TMP/rp.out")" "1/1"
+  rp_stage sbx
+  check "E17 5b reprobe env: a field absent from both sides is equal (the sbx happy path has no resident_patch_sha256)" \
+    "$(rp sbx)/$(grep -c 'differs' "$TMP/rp.out")" "0/0"
+  # fix round 1: a run that failed after the moves names itself and prints the restore commands
+  rp_stage sbx
+  check "E17 5b reprobe recovery: step 3 fails after one probe (a partial N1-probe-py_analyze and probe-corpora left)" \
+    "$(rp sbx RP_CPPARTIAL=1)/$([ -d "$RPR/N1-probe-py_analyze" ] && [ -d "$RPR/probe-corpora" ] && echo partial)" "1/partial"
+  check "E17 5b reprobe recovery: the re-run is refused as a failed previous reprobe, nothing run" \
+    "$(rp sbx)/$(grep -c 'a previous reprobe failed after the moves' "$TMP/rp.out")/$(grep -c 'no .*/N1/baseline.json (run baseline.sh' "$TMP/rp.out")/$(grep -c . "$TMP/rp.clog")" "1/1/0/0"
+  check "E17 5b reprobe recovery: the partial new probe goes to _failed-<ts>-* first, then each _cap30k-* back, then the baseline" \
+    "$(grep '^  mv -- ' "$TMP/rp.out" | sed "s#$RPR#<A>#g; s#_failed-[0-9TZ]*-#_failed-<ts>-#" | tr '\n' ';')" \
+    "  mv -- <A>/N1-probe-py_analyze <A>/_failed-<ts>-N1-probe-py_analyze;  mv -- <A>/probe-corpora <A>/_failed-<ts>-probe-corpora;  mv -- <A>/_cap30k-N1-probe-py_analyze <A>/N1-probe-py_analyze;  mv -- <A>/_cap30k-N1-probe-py_short <A>/N1-probe-py_short;  mv -- <A>/_cap30k-N1-probe-py_test <A>/N1-probe-py_test;  mv -- <A>/_cap30k-probe-corpora <A>/probe-corpora;  mv -- <A>/N1/baseline.cap30k.json <A>/N1/baseline.json;"
+  grep '^  mv -- ' "$TMP/rp.out" >"$TMP/rp-restore.sh"
+  bash "$TMP/rp-restore.sh"
+  check "E17 5b reprobe recovery: the printed commands restore the arm exactly; the re-run then passes" \
+    "$(rp_unmoved sbx)/$(rp sbx)/$(cat "$RPR/N1-probe-py_test/marker")/$(cmp -s "$RPR/N1/baseline.cap30k.json" "$TMP/rp-old-baseline.json" && echo kept)" "unmoved/0/new/kept"
   check "E17 5b reprobe: its only removal is rm -f of the half-written baseline.json; no rm -rf" \
     "$(grep -v '^ *#' "$RE17/rig/reprobe.sh" | grep -c 'rm -rf')/$(grep -v '^ *#' "$RE17/rig/reprobe.sh" | grep -cE '(^|[^a-z])rm ')" "0/1"
   rm -rf "$RP" "$RPS" "$TMP/rp-elsewhere" "$TMP/rp-arm-elsewhere"
