@@ -149,8 +149,8 @@ Each `pycache` turn gains two classes, after `pytest` and before the short Execs
 
 - `py_import`: `cd project && ../venv/bin/python -c 'import numpy, pandas, scipy, sklearn'` (the stack's
   import, ~2 s cold);
-- `py_grep`: `cd project && grep -rn --include=*.py -c 'def ' ../venv/lib/python3.9/site-packages` (a
-  search over many small files, ~2.2 s cold).
+- `py_grep`: `cd project && grep -rc --include='*.py' 'def ' ../venv/lib/python3.9/site-packages | wc -l`
+  (a search that reads every `.py` file of the venv, ~2.2 s cold; one line of output).
 
 A turn is then: `py_analyze`, `py_test`, `py_import`, `py_grep`, two to five `py_short`, `py_analyze`. The
 templates do not change (the venv is already in the workspace); the corpus and the library do, so both
