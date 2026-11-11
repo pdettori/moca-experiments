@@ -189,7 +189,7 @@ def test_library_matches_classes():
     assert sum("python3 -c" in i["cmd"] for i in lib["classes"]["py_short"]) == 1
 
 
-def test_cache_bound_classes_plan_one_invocation():
+def test_cache_bound_classes_nominal_is_planned_duration():
     # Spec v0.4 §4.3: py_import and py_grep have one invocation each whose nominal_ms is the corpus
     # generator's planned duration, so the driver's fill runs it once and sleeps 0.
     lib = library()
