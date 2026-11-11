@@ -1,0 +1,2360 @@
+{
+ "sbx": {
+  "arm": "sbx",
+  "n_max": 1536,
+  "stopped_at": null,
+  "n_max_abs": 1536,
+  "stopped_at_abs": null,
+  "n_max_1s": 1536,
+  "stopped_at_1s": null,
+  "n_max_cpu": 1536,
+  "stopped_at_cpu": null,
+  "top_run": 1536,
+  "rungs_not_run_assumed_held": [
+   1,
+   8,
+   16,
+   24,
+   32,
+   40,
+   48,
+   56,
+   64,
+   80,
+   96,
+   128,
+   160,
+   192,
+   320,
+   448,
+   576,
+   704
+  ],
+  "seeds_undecided": [],
+  "rungs": [
+   {
+    "n": 256,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/sbx/N256",
+      "n": 256,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 125.608,
+      "limit_ms": 335.727,
+      "limit_abs_ms": 361.909,
+      "window_calls": 3619,
+      "median_class_pace": 0.00018178413631175783,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": null,
+      "repeat_required": null,
+      "replayed_duty": {
+       "mean": 0.011199173702366632,
+       "median": 0.003926953333333238,
+       "sessions": 277
+      },
+      "distinct_trace_share": 0.8046875,
+      "a2_pct": 0.015162037037037038,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": null,
+      "egress_wedged": 0,
+      "host_cpu_mean": 3.4252777777777776,
+      "host_cpu_p95": 5.99,
+      "live_vms_max": 182,
+      "vm_mem_sum_gib": 3.2802467346191406,
+      "slice_mem_gib": 7.836856842041016,
+      "mem_available_min_gib": 369.23011016845703,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/sbx/N256"
+     }
+    ]
+   },
+   {
+    "n": 384,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/sbx/N384",
+      "n": 384,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 149.76149999999998,
+      "limit_ms": 335.727,
+      "limit_abs_ms": 361.909,
+      "window_calls": 6173,
+      "median_class_pace": 0.00017825652057568142,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": null,
+      "repeat_required": null,
+      "replayed_duty": {
+       "mean": 0.011939463807081796,
+       "median": 0.003104194444444341,
+       "sessions": 455
+      },
+      "distinct_trace_share": 0.7239583333333334,
+      "a2_pct": 0.027766203703703703,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": null,
+      "egress_wedged": 0,
+      "host_cpu_mean": 5.586811111111111,
+      "host_cpu_p95": 9.68,
+      "live_vms_max": 281,
+      "vm_mem_sum_gib": 6.058933258056641,
+      "slice_mem_gib": 11.033123016357422,
+      "mem_available_min_gib": 368.4580841064453,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/sbx/N384"
+     }
+    ]
+   },
+   {
+    "n": 512,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/sbx/N512",
+      "n": 512,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 133.733,
+      "limit_ms": 335.727,
+      "limit_abs_ms": 361.909,
+      "window_calls": 7935,
+      "median_class_pace": 0.00020764869153133692,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": null,
+      "repeat_required": null,
+      "replayed_duty": {
+       "mean": 0.010989239893751121,
+       "median": 0.0031239677777777737,
+       "sessions": 617
+      },
+      "distinct_trace_share": 0.640625,
+      "a2_pct": 0.026273148148148146,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": null,
+      "egress_wedged": 0,
+      "host_cpu_mean": 6.153288888888889,
+      "host_cpu_p95": 9.89,
+      "live_vms_max": 380,
+      "vm_mem_sum_gib": 7.844257354736328,
+      "slice_mem_gib": 14.541793823242188,
+      "mem_available_min_gib": 368.06842041015625,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/sbx/N512"
+     }
+    ]
+   },
+   {
+    "n": 640,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/sbx/N640",
+      "n": 640,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 170.284,
+      "limit_ms": 335.727,
+      "limit_abs_ms": 361.909,
+      "window_calls": 9954,
+      "median_class_pace": 0.00019289356368545896,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": null,
+      "repeat_required": null,
+      "replayed_duty": {
+       "mean": 0.013139372251300893,
+       "median": 0.0038082022222222034,
+       "sessions": 726
+      },
+      "distinct_trace_share": 0.5453125,
+      "a2_pct": 0.043576388888888894,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": null,
+      "egress_wedged": 0,
+      "host_cpu_mean": 8.181622222222222,
+      "host_cpu_p95": 12.69,
+      "live_vms_max": 441,
+      "vm_mem_sum_gib": 8.834156036376953,
+      "slice_mem_gib": 17.10428237915039,
+      "mem_available_min_gib": 367.81694412231445,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/sbx/N640"
+     }
+    ]
+   },
+   {
+    "n": 768,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/sbx/N768",
+      "n": 768,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 166.298,
+      "limit_ms": 335.727,
+      "limit_abs_ms": 361.909,
+      "window_calls": 13361,
+      "median_class_pace": 0.00026052504833273815,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": null,
+      "repeat_required": null,
+      "replayed_duty": {
+       "mean": 0.01194043572011878,
+       "median": 0.0031456627777778903,
+       "sessions": 898
+      },
+      "distinct_trace_share": 0.5260416666666666,
+      "a2_pct": 0.04715277777777778,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": null,
+      "egress_wedged": 0,
+      "host_cpu_mean": 9.585977777777776,
+      "host_cpu_p95": 14.49,
+      "live_vms_max": 523,
+      "vm_mem_sum_gib": 11.081676483154297,
+      "slice_mem_gib": 20.266448974609375,
+      "mem_available_min_gib": 367.2246513366699,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/sbx/N768"
+     }
+    ]
+   },
+   {
+    "n": 896,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/sbx/N896",
+      "n": 896,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 210.0804999999996,
+      "limit_ms": 335.727,
+      "limit_abs_ms": 361.909,
+      "window_calls": 15038,
+      "median_class_pace": 0.00033506001133853935,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": null,
+      "repeat_required": null,
+      "replayed_duty": {
+       "mean": 0.012663763597636804,
+       "median": 0.0033198955555555102,
+       "sessions": 1072
+      },
+      "distinct_trace_share": 0.484375,
+      "a2_pct": 0.06461805555555555,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": null,
+      "egress_wedged": 0,
+      "host_cpu_mean": 11.976165919282511,
+      "host_cpu_p95": 17.97,
+      "live_vms_max": 663,
+      "vm_mem_sum_gib": 13.654380798339844,
+      "slice_mem_gib": 23.816650390625,
+      "mem_available_min_gib": 366.58624267578125,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/sbx/N896"
+     }
+    ]
+   },
+   {
+    "n": 1024,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/sbx/N1024",
+      "n": 1024,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 216.11950000000002,
+      "limit_ms": 335.727,
+      "limit_abs_ms": 361.909,
+      "window_calls": 17819,
+      "median_class_pace": 0.00039498208231014686,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": null,
+      "repeat_required": null,
+      "replayed_duty": {
+       "mean": 0.013197665102812355,
+       "median": 0.0038678999999998552,
+       "sessions": 1205
+      },
+      "distinct_trace_share": 0.4375,
+      "a2_pct": 0.07753472222222221,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": null,
+      "egress_wedged": 0,
+      "host_cpu_mean": 13.84578811369509,
+      "host_cpu_p95": 19.18,
+      "live_vms_max": 693,
+      "vm_mem_sum_gib": 14.834766387939453,
+      "slice_mem_gib": 26.55817413330078,
+      "mem_available_min_gib": 366.17749404907227,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/sbx/N1024"
+     },
+     {
+      "dir": "e16/results/sbx/N1024-s2",
+      "n": 1024,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 252.1164999999999,
+      "limit_ms": 335.727,
+      "limit_abs_ms": 361.909,
+      "window_calls": 16143,
+      "median_class_pace": 0.0003516250667037202,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": null,
+      "repeat_required": null,
+      "replayed_duty": {
+       "mean": 0.013393753929159796,
+       "median": 0.0033835694444445995,
+       "sessions": 1214
+      },
+      "distinct_trace_share": 0.4287109375,
+      "a2_pct": 0.07939814814814815,
+      "seed": 2,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": null,
+      "egress_wedged": 0,
+      "host_cpu_mean": 14.227853773584904,
+      "host_cpu_p95": 20.29,
+      "live_vms_max": 681,
+      "vm_mem_sum_gib": 14.861976623535156,
+      "slice_mem_gib": 26.738182067871094,
+      "mem_available_min_gib": 366.3364715576172,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/sbx/N1024-s2"
+     }
+    ]
+   },
+   {
+    "n": 1280,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/sbx/N1280",
+      "n": 1280,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 263.1685,
+      "limit_ms": 335.727,
+      "limit_abs_ms": 361.909,
+      "window_calls": 22912,
+      "median_class_pace": 0.000510795625983107,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": null,
+      "repeat_required": null,
+      "replayed_duty": {
+       "mean": 0.013006561306131247,
+       "median": 0.003516821666666721,
+       "sessions": 1544
+      },
+      "distinct_trace_share": 0.35625,
+      "a2_pct": 0.09859953703703704,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": null,
+      "egress_wedged": 0,
+      "host_cpu_mean": 17.8598,
+      "host_cpu_p95": 27.82,
+      "live_vms_max": 926,
+      "vm_mem_sum_gib": 20.155132293701172,
+      "slice_mem_gib": 32.41189193725586,
+      "mem_available_min_gib": 365.21386337280273,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/sbx/N1280"
+     }
+    ]
+   },
+   {
+    "n": 1536,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/sbx/N1536",
+      "n": 1536,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 289.7255,
+      "limit_ms": 335.727,
+      "limit_abs_ms": 361.909,
+      "window_calls": 25514,
+      "median_class_pace": 0.0005180104971389543,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": null,
+      "repeat_required": null,
+      "replayed_duty": {
+       "mean": 0.01432887147200594,
+       "median": 0.0034997000000001085,
+       "sessions": 1798
+      },
+      "distinct_trace_share": 0.296875,
+      "a2_pct": 0.11616898148148148,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": null,
+      "egress_wedged": 0,
+      "host_cpu_mean": 21.7012,
+      "host_cpu_p95": 28.34,
+      "live_vms_max": 1034,
+      "vm_mem_sum_gib": 22.97864532470703,
+      "slice_mem_gib": 37.81358337402344,
+      "mem_available_min_gib": 364.8821601867676,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/sbx/N1536"
+     },
+     {
+      "dir": "e16/results/sbx/N1536-s2",
+      "n": 1536,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 304.93199999999996,
+      "limit_ms": 335.727,
+      "limit_abs_ms": 361.909,
+      "window_calls": 25351,
+      "median_class_pace": 0.0005611797415481234,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": null,
+      "repeat_required": null,
+      "replayed_duty": {
+       "mean": 0.014335125987483897,
+       "median": 0.003987055555555659,
+       "sessions": 1811
+      },
+      "distinct_trace_share": 0.294921875,
+      "a2_pct": 0.12282407407407407,
+      "seed": 2,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": null,
+      "egress_wedged": 0,
+      "host_cpu_mean": 22.632809364548496,
+      "host_cpu_p95": 30.86,
+      "live_vms_max": 1059,
+      "vm_mem_sum_gib": 22.51378631591797,
+      "slice_mem_gib": 37.65293884277344,
+      "mem_available_min_gib": 364.78199768066406,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/sbx/N1536-s2"
+     }
+    ]
+   }
+  ]
+ },
+ "resident-inf": {
+  "arm": "resident-inf",
+  "n_max": 1024,
+  "stopped_at": 1280,
+  "n_max_abs": 1024,
+  "stopped_at_abs": 1280,
+  "n_max_1s": 1024,
+  "stopped_at_1s": 1280,
+  "n_max_cpu": 1024,
+  "stopped_at_cpu": 1280,
+  "top_run": 1280,
+  "rungs_not_run_assumed_held": [
+   1,
+   8,
+   16,
+   24,
+   32,
+   40,
+   48,
+   56,
+   64,
+   80,
+   96,
+   128,
+   160,
+   192,
+   320,
+   448,
+   576,
+   704
+  ],
+  "seeds_undecided": [],
+  "rungs": [
+   {
+    "n": 256,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/resident-inf/N256",
+      "n": 256,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 100.97800000000001,
+      "limit_ms": 395.373000000001,
+      "limit_abs_ms": 381.79100000000034,
+      "window_calls": 3556,
+      "median_class_pace": 8.044594901868152e-05,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": 9.129467713378164,
+      "repeat_required": false,
+      "replayed_duty": {
+       "mean": 0.010735575420634915,
+       "median": 0.0024728011111110554,
+       "sessions": 280
+      },
+      "distinct_trace_share": 0.81640625,
+      "a2_pct": 0.01017361111111111,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": {
+       "footer": true,
+       "end_sessions_sent": 856,
+       "end_sessions_ok": 856,
+       "end_sessions_failed": 0
+      },
+      "egress_wedged": 0,
+      "host_cpu_mean": 2.8169,
+      "host_cpu_p95": 5.2,
+      "live_vms_max": 256,
+      "vm_mem_sum_gib": 25.82648468017578,
+      "slice_mem_gib": 27.472152709960938,
+      "mem_available_min_gib": 350.0315132141113,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/resident-inf/N256"
+     }
+    ]
+   },
+   {
+    "n": 384,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/resident-inf/N384",
+      "n": 384,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 131.53500000000014,
+      "limit_ms": 395.373000000001,
+      "limit_abs_ms": 381.79100000000034,
+      "window_calls": 5974,
+      "median_class_pace": 0.00012461898087368084,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": -24.93780842328137,
+      "repeat_required": false,
+      "replayed_duty": {
+       "mean": 0.013064363915458942,
+       "median": 0.0019588727777778534,
+       "sessions": 460
+      },
+      "distinct_trace_share": 0.7291666666666666,
+      "a2_pct": 0.019375,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": {
+       "footer": true,
+       "end_sessions_sent": 1300,
+       "end_sessions_ok": 1236,
+       "end_sessions_failed": 64
+      },
+      "egress_wedged": 0,
+      "host_cpu_mean": 5.243833333333333,
+      "host_cpu_p95": 8.87,
+      "live_vms_max": 384,
+      "vm_mem_sum_gib": 38.555660247802734,
+      "slice_mem_gib": 40.25774383544922,
+      "mem_available_min_gib": 340.2794532775879,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/resident-inf/N384"
+     }
+    ]
+   },
+   {
+    "n": 512,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/resident-inf/N512-repeat",
+      "n": 512,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 173.67499999999993,
+      "limit_ms": 395.373000000001,
+      "limit_abs_ms": 381.79100000000034,
+      "window_calls": 7941,
+      "median_class_pace": 9.982452524925911e-05,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": 7.014799758685876,
+      "repeat_required": false,
+      "replayed_duty": {
+       "mean": 0.011633491278615293,
+       "median": 0.00284650222222269,
+       "sessions": 597
+      },
+      "distinct_trace_share": 0.59375,
+      "a2_pct": 0.03792824074074074,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": {
+       "footer": true,
+       "end_sessions_sent": 1950,
+       "end_sessions_ok": 1759,
+       "end_sessions_failed": 191
+      },
+      "egress_wedged": 0,
+      "host_cpu_mean": 6.3544,
+      "host_cpu_p95": 10.48,
+      "live_vms_max": 512,
+      "vm_mem_sum_gib": 58.78097152709961,
+      "slice_mem_gib": 60.54293441772461,
+      "mem_available_min_gib": 324.9411506652832,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/resident-inf/N512-repeat"
+     }
+    ]
+   },
+   {
+    "n": 640,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/resident-inf/N640-repeat",
+      "n": 640,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 187.29800000000003,
+      "limit_ms": 395.373000000001,
+      "limit_abs_ms": 381.79100000000034,
+      "window_calls": 10873,
+      "median_class_pace": 0.00015410882600086495,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": 5.9768044267351135,
+      "repeat_required": false,
+      "replayed_duty": {
+       "mean": 0.013846504740541358,
+       "median": 0.002793536666665847,
+       "sessions": 743
+      },
+      "distinct_trace_share": 0.5328125,
+      "a2_pct": 0.04005787037037037,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": {
+       "footer": true,
+       "end_sessions_sent": 2452,
+       "end_sessions_ok": 2132,
+       "end_sessions_failed": 320
+      },
+      "egress_wedged": 0,
+      "host_cpu_mean": 8.988533333333333,
+      "host_cpu_p95": 14.2,
+      "live_vms_max": 640,
+      "vm_mem_sum_gib": 72.76857376098633,
+      "slice_mem_gib": 74.55694961547852,
+      "mem_available_min_gib": 314.36556243896484,
+      "psi_cpu_max": 0.18,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/resident-inf/N640-repeat"
+     }
+    ]
+   },
+   {
+    "n": 768,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/resident-inf/N768",
+      "n": 768,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 158.63799999999998,
+      "limit_ms": 395.373000000001,
+      "limit_abs_ms": 381.79100000000034,
+      "window_calls": 12438,
+      "median_class_pace": 0.0001447998893260305,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": 3.594952119639289,
+      "repeat_required": false,
+      "replayed_duty": {
+       "mean": 0.010853742133590253,
+       "median": 0.002160832222222299,
+       "sessions": 865
+      },
+      "distinct_trace_share": 0.5091145833333334,
+      "a2_pct": 0.04615740740740741,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": {
+       "footer": true,
+       "end_sessions_sent": 2504,
+       "end_sessions_ok": 2056,
+       "end_sessions_failed": 448
+      },
+      "egress_wedged": 0,
+      "host_cpu_mean": 8.48328888888889,
+      "host_cpu_p95": 13.57,
+      "live_vms_max": 768,
+      "vm_mem_sum_gib": 78.08902359008789,
+      "slice_mem_gib": 79.96894073486328,
+      "mem_available_min_gib": 309.00436782836914,
+      "psi_cpu_max": 0.18,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/resident-inf/N768"
+     }
+    ]
+   },
+   {
+    "n": 896,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/resident-inf/N896",
+      "n": 896,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 202.87200000000004,
+      "limit_ms": 395.373000000001,
+      "limit_abs_ms": 381.79100000000034,
+      "window_calls": 14684,
+      "median_class_pace": 0.00017145761280512595,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": -4.909414212123055,
+      "repeat_required": false,
+      "replayed_duty": {
+       "mean": 0.011837253806390982,
+       "median": 0.0024846777777773484,
+       "sessions": 1064
+      },
+      "distinct_trace_share": 0.4921875,
+      "a2_pct": 0.06037037037037037,
+      "seed": 1,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": {
+       "footer": true,
+       "end_sessions_sent": 2921,
+       "end_sessions_ok": 2345,
+       "end_sessions_failed": 576
+      },
+      "egress_wedged": 0,
+      "host_cpu_mean": 11.233355555555557,
+      "host_cpu_p95": 18.86,
+      "live_vms_max": 896,
+      "vm_mem_sum_gib": 92.06288146972656,
+      "slice_mem_gib": 94.09176635742188,
+      "mem_available_min_gib": 297.7107124328613,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/resident-inf/N896"
+     },
+     {
+      "dir": "e16/results/resident-inf/N896-s2",
+      "n": 896,
+      "holds": false,
+      "holds_abs": false,
+      "p95_excess_ms": 195.58899999999997,
+      "limit_ms": 395.373000000001,
+      "limit_abs_ms": 381.79100000000034,
+      "window_calls": 14927,
+      "median_class_pace": 0.0001864303823400082,
+      "failed_calls": 9,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": false,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": 2.6525296037850388,
+      "repeat_required": false,
+      "replayed_duty": {
+       "mean": 0.011044107263544536,
+       "median": 0.0020723166666663665,
+       "sessions": 1089
+      },
+      "distinct_trace_share": 0.47544642857142855,
+      "a2_pct": 0.06532407407407406,
+      "seed": 2,
+      "holds_1s": false,
+      "holds_cpu": false,
+      "nowedge": {
+       "holds": true,
+       "holds_abs": true,
+       "excluded": 9
+      },
+      "stag_valid": null,
+      "end_sessions": {
+       "footer": true,
+       "end_sessions_sent": 2970,
+       "end_sessions_ok": 2227,
+       "end_sessions_failed": 743
+      },
+      "egress_wedged": 1,
+      "host_cpu_mean": 10.873533333333334,
+      "host_cpu_p95": 17.6,
+      "live_vms_max": 896,
+      "vm_mem_sum_gib": 89.74283981323242,
+      "slice_mem_gib": 91.62146759033203,
+      "mem_available_min_gib": 299.8755912780762,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/resident-inf/N896-s2"
+     },
+     {
+      "dir": "e16/results/resident-inf/N896-s3-repeat",
+      "n": 896,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 207.17900000000006,
+      "limit_ms": 395.373000000001,
+      "limit_abs_ms": 381.79100000000034,
+      "window_calls": 13044,
+      "median_class_pace": 0.00016894283476576177,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": 6.192940306404504,
+      "repeat_required": false,
+      "replayed_duty": {
+       "mean": 0.011156149307584132,
+       "median": 0.0024239044444449246,
+       "sessions": 1027
+      },
+      "distinct_trace_share": 0.4174107142857143,
+      "a2_pct": 0.06420138888888889,
+      "seed": 3,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": {
+       "footer": true,
+       "end_sessions_sent": 3493,
+       "end_sessions_ok": 2918,
+       "end_sessions_failed": 575
+      },
+      "egress_wedged": 0,
+      "host_cpu_mean": 10.196266666666666,
+      "host_cpu_p95": 15.35,
+      "live_vms_max": 896,
+      "vm_mem_sum_gib": 99.28220748901367,
+      "slice_mem_gib": 101.23908996582031,
+      "mem_available_min_gib": 294.7464408874512,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/resident-inf/N896-s3-repeat"
+     }
+    ]
+   },
+   {
+    "n": 1024,
+    "holds": true,
+    "holds_abs": true,
+    "holds_1s": true,
+    "holds_cpu": true,
+    "seeds": [
+     {
+      "dir": "e16/results/resident-inf/N1024",
+      "n": 1024,
+      "holds": false,
+      "holds_abs": false,
+      "p95_excess_ms": 203.251,
+      "limit_ms": 395.373000000001,
+      "limit_abs_ms": 381.79100000000034,
+      "window_calls": 16299,
+      "median_class_pace": 0.00021567259297561314,
+      "failed_calls": 14,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": false,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": 1.9093957847919396,
+      "repeat_required": false,
+      "replayed_duty": {
+       "mean": 0.01205695086000735,
+       "median": 0.0025946283333334657,
+       "sessions": 1208
+      },
+      "distinct_trace_share": 0.4384765625,
+      "a2_pct": 0.07224537037037036,
+      "seed": 1,
+      "holds_1s": false,
+      "holds_cpu": false,
+      "nowedge": {
+       "holds": true,
+       "holds_abs": true,
+       "excluded": 14
+      },
+      "stag_valid": null,
+      "end_sessions": {
+       "footer": true,
+       "end_sessions_sent": 3348,
+       "end_sessions_ok": 2443,
+       "end_sessions_failed": 905
+      },
+      "egress_wedged": 1,
+      "host_cpu_mean": 12.02691111111111,
+      "host_cpu_p95": 17.3,
+      "live_vms_max": 1024,
+      "vm_mem_sum_gib": 105.94127655029297,
+      "slice_mem_gib": 107.90779495239258,
+      "mem_available_min_gib": 286.83143615722656,
+      "psi_cpu_max": 0.18,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/resident-inf/N1024"
+     },
+     {
+      "dir": "e16/results/resident-inf/N1024-s2",
+      "n": 1024,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 213.582,
+      "limit_ms": 395.373000000001,
+      "limit_abs_ms": 381.79100000000034,
+      "window_calls": 17058,
+      "median_class_pace": 0.0002690416780140037,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": -9.533169605011516,
+      "repeat_required": false,
+      "replayed_duty": {
+       "mean": 0.011985839977287175,
+       "median": 0.002499274444444519,
+       "sessions": 1223
+      },
+      "distinct_trace_share": 0.4296875,
+      "a2_pct": 0.07563657407407408,
+      "seed": 2,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": {
+       "footer": true,
+       "end_sessions_sent": 3421,
+       "end_sessions_ok": 2717,
+       "end_sessions_failed": 704
+      },
+      "egress_wedged": 0,
+      "host_cpu_mean": 13.216800000000001,
+      "host_cpu_p95": 19.98,
+      "live_vms_max": 1024,
+      "vm_mem_sum_gib": 104.78276824951172,
+      "slice_mem_gib": 106.90913009643555,
+      "mem_available_min_gib": 287.56861877441406,
+      "psi_cpu_max": 1.63,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/resident-inf/N1024-s2"
+     },
+     {
+      "dir": "e16/results/resident-inf/N1024-s3",
+      "n": 1024,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 201.67399999999992,
+      "limit_ms": 395.373000000001,
+      "limit_abs_ms": 381.79100000000034,
+      "window_calls": 16962,
+      "median_class_pace": 0.00022686664828064362,
+      "failed_calls": 0,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": true,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": -12.962296717726648,
+      "repeat_required": false,
+      "replayed_duty": {
+       "mean": 0.01123661035411021,
+       "median": 0.0020785999999999895,
+       "sessions": 1230
+      },
+      "distinct_trace_share": 0.4228515625,
+      "a2_pct": 0.06695601851851851,
+      "seed": 3,
+      "holds_1s": true,
+      "holds_cpu": true,
+      "nowedge": null,
+      "stag_valid": null,
+      "end_sessions": {
+       "footer": true,
+       "end_sessions_sent": 3435,
+       "end_sessions_ok": 2733,
+       "end_sessions_failed": 702
+      },
+      "egress_wedged": 0,
+      "host_cpu_mean": 11.895533333333333,
+      "host_cpu_p95": 17.96,
+      "live_vms_max": 1024,
+      "vm_mem_sum_gib": 102.278076171875,
+      "slice_mem_gib": 104.27544784545898,
+      "mem_available_min_gib": 290.6518745422363,
+      "psi_cpu_max": 1.63,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/resident-inf/N1024-s3"
+     }
+    ]
+   },
+   {
+    "n": 1280,
+    "holds": false,
+    "holds_abs": false,
+    "holds_1s": false,
+    "holds_cpu": false,
+    "seeds": [
+     {
+      "dir": "e16/results/resident-inf/N1280",
+      "n": 1280,
+      "holds": false,
+      "holds_abs": false,
+      "p95_excess_ms": 248.728,
+      "limit_ms": 395.373000000001,
+      "limit_abs_ms": 381.79100000000034,
+      "window_calls": 20420,
+      "median_class_pace": 0.00022683160193737173,
+      "failed_calls": 24,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": false,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": 5.281218912023148,
+      "repeat_required": false,
+      "replayed_duty": {
+       "mean": 0.011691489633152174,
+       "median": 0.002367298888888779,
+       "sessions": 1472
+      },
+      "distinct_trace_share": 0.35390625,
+      "a2_pct": 0.09261574074074075,
+      "seed": 1,
+      "holds_1s": false,
+      "holds_cpu": false,
+      "nowedge": {
+       "holds": true,
+       "holds_abs": true,
+       "excluded": 24
+      },
+      "stag_valid": null,
+      "end_sessions": {
+       "footer": true,
+       "end_sessions_sent": 4164,
+       "end_sessions_ok": 3037,
+       "end_sessions_failed": 1127
+      },
+      "egress_wedged": 1,
+      "host_cpu_mean": 15.851222222222223,
+      "host_cpu_p95": 23.52,
+      "live_vms_max": 1280,
+      "vm_mem_sum_gib": 129.25439071655273,
+      "slice_mem_gib": 131.36417770385742,
+      "mem_available_min_gib": 268.24219131469727,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/resident-inf/N1280"
+     },
+     {
+      "dir": "e16/results/resident-inf/N1280-s2-repeat",
+      "n": 1280,
+      "holds": false,
+      "holds_abs": false,
+      "p95_excess_ms": 261.40900000000005,
+      "limit_ms": 395.373000000001,
+      "limit_abs_ms": 381.79100000000034,
+      "window_calls": 20522,
+      "median_class_pace": 0.00022316452693349476,
+      "failed_calls": 13,
+      "refusals": 0,
+      "reason": null,
+      "binding": "none",
+      "conditions": {
+       "added_latency": true,
+       "no_failures": false,
+       "no_refusals": true,
+       "pace": true
+      },
+      "oom_kills": 0,
+      "memory_abort": null,
+      "memory_events_window": {
+       "high": 0,
+       "max": 0,
+       "oom_kill": 0
+      },
+      "footprint_drift_pct": 6.086138563355068,
+      "repeat_required": false,
+      "replayed_duty": {
+       "mean": 0.013020470296395598,
+       "median": 0.0031707066666666,
+       "sessions": 1492
+      },
+      "distinct_trace_share": 0.3390625,
+      "a2_pct": 0.10131944444444443,
+      "seed": 2,
+      "holds_1s": false,
+      "holds_cpu": false,
+      "nowedge": {
+       "holds": true,
+       "holds_abs": true,
+       "excluded": 13
+      },
+      "stag_valid": null,
+      "end_sessions": {
+       "footer": true,
+       "end_sessions_sent": 4970,
+       "end_sessions_ok": 3853,
+       "end_sessions_failed": 1117
+      },
+      "egress_wedged": 1,
+      "host_cpu_mean": 17.086577777777777,
+      "host_cpu_p95": 23.78,
+      "live_vms_max": 1280,
+      "vm_mem_sum_gib": 142.24333572387695,
+      "slice_mem_gib": 144.51919555664062,
+      "mem_available_min_gib": 261.7918930053711,
+      "psi_cpu_max": 0.0,
+      "grace_artefact_rerun": false,
+      "first_dir": "e16/results/resident-inf/N1280-s2-repeat"
+     }
+    ]
+   }
+  ]
+ },
+ "control": [
+  {
+   "dir": "e16/results/control/N768-a2",
+   "n": 768,
+   "holds": true,
+   "holds_abs": true,
+   "p95_excess_ms": null,
+   "limit_ms": null,
+   "limit_abs_ms": null,
+   "window_calls": 11944,
+   "median_class_pace": null,
+   "failed_calls": 0,
+   "refusals": 0,
+   "reason": null,
+   "binding": "none",
+   "conditions": {
+    "added_latency": true,
+    "no_failures": true,
+    "no_refusals": true,
+    "pace": true
+   },
+   "oom_kills": 0,
+   "memory_abort": null,
+   "memory_events_window": {
+    "high": 0,
+    "max": 0,
+    "oom_kill": 0
+   },
+   "footprint_drift_pct": null,
+   "repeat_required": null,
+   "replayed_duty": {
+    "mean": 4.580199302427457e-06,
+    "median": 2.841666666402792e-06,
+    "sessions": 892
+   },
+   "distinct_trace_share": 0.5091145833333334,
+   "a2_pct": 0.004872685185185186,
+   "seed": 1,
+   "holds_1s": true,
+   "holds_cpu": true,
+   "nowedge": null,
+   "stag_valid": null,
+   "end_sessions": null,
+   "egress_wedged": null,
+   "host_cpu_mean": 0.0579,
+   "host_cpu_p95": 0.11,
+   "live_vms_max": 0,
+   "vm_mem_sum_gib": 0.0,
+   "slice_mem_gib": 1.4949264526367188,
+   "mem_available_min_gib": 370.9026870727539,
+   "psi_cpu_max": 0.0
+  }
+ ],
+ "verdicts": {
+  "1": {
+   "hypothesis": "falsified",
+   "direction": "HOLDS",
+   "sbx_in_range": false,
+   "resident_in_range": true,
+   "numeric": "FALSIFIED",
+   "observed": {
+    "sbx": 1024,
+    "resident-inf": 1024
+   },
+   "ranges": {
+    "sbx": [
+     576,
+     768
+    ],
+    "resident-inf": [
+     768,
+     1024
+    ]
+   }
+  },
+  "2": {
+   "per_arm": {
+    "sbx": {
+     "tested": false
+    },
+    "resident-inf": {
+     "tested": true,
+     "n": 1280,
+     "conditions": {
+      "added_latency": true,
+      "no_failures": false,
+      "no_refusals": true,
+      "pace": true
+     },
+     "failed_calls": 24,
+     "refusals": 0,
+     "binding": "none",
+     "reason": null,
+     "host_cpu_mean": 15.851222222222223,
+     "holds": false
+    }
+   },
+   "verdict": "FALSIFIED"
+  },
+  "3": {
+   "n": 1024,
+   "vm_mem_sum_gib": 105.94127655029297,
+   "slice_mem_gib": 107.90779495239258,
+   "any_memory_verdict": false,
+   "claimed_band_gib": [
+    109,
+    163
+   ],
+   "in_band": false,
+   "verdict": "HOLDS"
+  },
+  "4": {
+   "max_a2_pct": 0.10131944444444443,
+   "rungs": 22,
+   "verdict": "HOLDS"
+  },
+  "post_seal": {
+   "hypothesis": "holds",
+   "direction": "FALSIFIED",
+   "sbx_in_range": false,
+   "resident_in_range": true,
+   "numeric": "FALSIFIED",
+   "observed": {
+    "sbx": 1536,
+    "resident-inf": 1024
+   },
+   "ranges": {
+    "sbx": [
+     576,
+     768
+    ],
+    "resident-inf": [
+     768,
+     1024
+    ]
+   }
+  }
+ },
+ "sbx_sealed_ladder_before_extension": {
+  "n_max": 1024,
+  "stopped_at": null,
+  "n_max_abs": 1024,
+  "stopped_at_abs": null
+ },
+ "supplementary": {
+  "resident-inf": {
+   "verdicts": {
+    "896": {
+     "holds": true,
+     "holds_abs": true,
+     "seeds": [
+      1,
+      2
+     ]
+    },
+    "1024": {
+     "holds": true,
+     "holds_abs": true,
+     "seeds": [
+      1,
+      2
+     ]
+    },
+    "1280": {
+     "holds": true,
+     "holds_abs": true,
+     "seeds": [
+      1
+     ]
+    },
+    "1536": {
+     "holds": true,
+     "holds_abs": true,
+     "seeds": [
+      1
+     ]
+    }
+   },
+   "rows": [
+    {
+     "dir": "e16/results/resident-inf/N896-stag-repeat",
+     "n": 896,
+     "holds": true,
+     "holds_abs": true,
+     "p95_excess_ms": 190.524,
+     "limit_ms": 395.373000000001,
+     "limit_abs_ms": 381.79100000000034,
+     "window_calls": 14023,
+     "median_class_pace": 0.00019218708279877816,
+     "failed_calls": 0,
+     "refusals": 0,
+     "reason": null,
+     "binding": "none",
+     "conditions": {
+      "added_latency": true,
+      "no_failures": true,
+      "no_refusals": true,
+      "pace": true
+     },
+     "oom_kills": 0,
+     "memory_abort": null,
+     "memory_events_window": {
+      "high": 0,
+      "max": 0,
+      "oom_kill": 0
+     },
+     "footprint_drift_pct": 6.974297964307974,
+     "repeat_required": false,
+     "replayed_duty": {
+      "mean": 0.013390748504065042,
+      "median": 0.002558797777777848,
+      "sessions": 1025
+     },
+     "distinct_trace_share": 0.40736607142857145,
+     "a2_pct": 0.06295138888888889,
+     "seed": 1,
+     "holds_1s": true,
+     "holds_cpu": true,
+     "nowedge": null,
+     "stag_valid": {
+      "supplementary": true,
+      "valid": true,
+      "reasons": [],
+      "checks": {
+       "a_egress_wedged_lines": 0,
+       "b_aborted_before_grace_end": 0,
+       "b_first_early_abort": null,
+       "c_applies": true,
+       "c_end_sessions_sent": 3478,
+       "c_end_sessions_ok": 3478,
+       "c_end_sessions_deferred": 896
+      },
+      "grace_end_epoch": 1794207116.0401285,
+      "rule": "user decision 2026-11-09: (a) no egress-wedged line; (b) no aborted Exec before graceEnd; (c) end_sessions_sent == end_sessions_ok"
+     },
+     "end_sessions": {
+      "footer": true,
+      "end_sessions_sent": 3478,
+      "end_sessions_ok": 3478,
+      "end_sessions_failed": 0,
+      "end_sessions_deferred": 896
+     },
+     "egress_wedged": 0,
+     "host_cpu_mean": 11.21668888888889,
+     "host_cpu_p95": 16.49,
+     "live_vms_max": 896,
+     "vm_mem_sum_gib": 100.10087203979492,
+     "slice_mem_gib": 102.0514030456543,
+     "mem_available_min_gib": 293.8517265319824,
+     "psi_cpu_max": 0.0,
+     "tag": "stag",
+     "valid": true
+    },
+    {
+     "dir": "e16/results/resident-inf/N896-stag-s2-repeat",
+     "n": 896,
+     "holds": true,
+     "holds_abs": true,
+     "p95_excess_ms": 207.68500000000023,
+     "limit_ms": 395.373000000001,
+     "limit_abs_ms": 381.79100000000034,
+     "window_calls": 12692,
+     "median_class_pace": 0.00012990502067999898,
+     "failed_calls": 0,
+     "refusals": 0,
+     "reason": null,
+     "binding": "none",
+     "conditions": {
+      "added_latency": true,
+      "no_failures": true,
+      "no_refusals": true,
+      "pace": true
+     },
+     "oom_kills": 0,
+     "memory_abort": null,
+     "memory_events_window": {
+      "high": 0,
+      "max": 0,
+      "oom_kill": 0
+     },
+     "footprint_drift_pct": 5.434841953393356,
+     "repeat_required": false,
+     "replayed_duty": {
+      "mean": 0.013102945112447117,
+      "median": 0.002802135000000449,
+      "sessions": 998
+     },
+     "distinct_trace_share": 0.43191964285714285,
+     "a2_pct": 0.06209490740740741,
+     "seed": 2,
+     "holds_1s": true,
+     "holds_cpu": true,
+     "nowedge": null,
+     "stag_valid": {
+      "supplementary": true,
+      "valid": true,
+      "reasons": [],
+      "checks": {
+       "a_egress_wedged_lines": 0,
+       "b_aborted_before_grace_end": 0,
+       "b_first_early_abort": null,
+       "c_applies": true,
+       "c_end_sessions_sent": 3434,
+       "c_end_sessions_ok": 3434,
+       "c_end_sessions_deferred": 896
+      },
+      "grace_end_epoch": 1794213878.7193716,
+      "rule": "user decision 2026-11-09: (a) no egress-wedged line; (b) no aborted Exec before graceEnd; (c) end_sessions_sent == end_sessions_ok"
+     },
+     "end_sessions": {
+      "footer": true,
+      "end_sessions_sent": 3434,
+      "end_sessions_ok": 3434,
+      "end_sessions_failed": 0,
+      "end_sessions_deferred": 896
+     },
+     "egress_wedged": 0,
+     "host_cpu_mean": 10.98091111111111,
+     "host_cpu_p95": 16.02,
+     "live_vms_max": 896,
+     "vm_mem_sum_gib": 100.60084533691406,
+     "slice_mem_gib": 102.54572296142578,
+     "mem_available_min_gib": 292.9991455078125,
+     "psi_cpu_max": 0.0,
+     "tag": "stag-s2",
+     "valid": true
+    },
+    {
+     "dir": "e16/results/resident-inf/N1024-stag-repeat",
+     "n": 1024,
+     "holds": true,
+     "holds_abs": true,
+     "p95_excess_ms": 213.52000000000018,
+     "limit_ms": 395.373000000001,
+     "limit_abs_ms": 381.79100000000034,
+     "window_calls": 15972,
+     "median_class_pace": 0.00015774118160993833,
+     "failed_calls": 0,
+     "refusals": 0,
+     "reason": null,
+     "binding": "none",
+     "conditions": {
+      "added_latency": true,
+      "no_failures": true,
+      "no_refusals": true,
+      "pace": true
+     },
+     "oom_kills": 0,
+     "memory_abort": null,
+     "memory_events_window": {
+      "high": 0,
+      "max": 0,
+      "oom_kill": 0
+     },
+     "footprint_drift_pct": 7.066886059228095,
+     "repeat_required": false,
+     "replayed_duty": {
+      "mean": 0.0122749814727375,
+      "median": 0.002737999444444819,
+      "sessions": 1186
+     },
+     "distinct_trace_share": 0.3916015625,
+     "a2_pct": 0.07651620370370371,
+     "seed": 1,
+     "holds_1s": true,
+     "holds_cpu": true,
+     "nowedge": null,
+     "stag_valid": {
+      "supplementary": true,
+      "valid": true,
+      "reasons": [],
+      "checks": {
+       "a_egress_wedged_lines": 0,
+       "b_aborted_before_grace_end": 0,
+       "b_first_early_abort": null,
+       "c_applies": true,
+       "c_end_sessions_sent": 3963,
+       "c_end_sessions_ok": 3963,
+       "c_end_sessions_deferred": 1024
+      },
+      "grace_end_epoch": 1794220796.9955723,
+      "rule": "user decision 2026-11-09: (a) no egress-wedged line; (b) no aborted Exec before graceEnd; (c) end_sessions_sent == end_sessions_ok"
+     },
+     "end_sessions": {
+      "footer": true,
+      "end_sessions_sent": 3963,
+      "end_sessions_ok": 3963,
+      "end_sessions_failed": 0,
+      "end_sessions_deferred": 1024
+     },
+     "egress_wedged": 0,
+     "host_cpu_mean": 12.137977777777778,
+     "host_cpu_p95": 16.94,
+     "live_vms_max": 1024,
+     "vm_mem_sum_gib": 115.85791778564453,
+     "slice_mem_gib": 117.8936882019043,
+     "mem_available_min_gib": 282.0511703491211,
+     "psi_cpu_max": 0.0,
+     "tag": "stag",
+     "valid": true
+    },
+    {
+     "dir": "e16/results/resident-inf/N1024-stag-s2-repeat",
+     "n": 1024,
+     "holds": true,
+     "holds_abs": true,
+     "p95_excess_ms": 276.52399999999994,
+     "limit_ms": 395.373000000001,
+     "limit_abs_ms": 381.79100000000034,
+     "window_calls": 14503,
+     "median_class_pace": 0.00017017456538215292,
+     "failed_calls": 0,
+     "refusals": 0,
+     "reason": null,
+     "binding": "none",
+     "conditions": {
+      "added_latency": true,
+      "no_failures": true,
+      "no_refusals": true,
+      "pace": true
+     },
+     "oom_kills": 0,
+     "memory_abort": null,
+     "memory_events_window": {
+      "high": 0,
+      "max": 0,
+      "oom_kill": 0
+     },
+     "footprint_drift_pct": 5.460569826853241,
+     "repeat_required": false,
+     "replayed_duty": {
+      "mean": 0.01375147727326267,
+      "median": 0.0032280566666668484,
+      "sessions": 1132
+     },
+     "distinct_trace_share": 0.357421875,
+     "a2_pct": 0.06690972222222222,
+     "seed": 2,
+     "holds_1s": true,
+     "holds_cpu": true,
+     "nowedge": null,
+     "stag_valid": {
+      "supplementary": true,
+      "valid": true,
+      "reasons": [],
+      "checks": {
+       "a_egress_wedged_lines": 0,
+       "b_aborted_before_grace_end": 0,
+       "b_first_early_abort": null,
+       "c_applies": true,
+       "c_end_sessions_sent": 3988,
+       "c_end_sessions_ok": 3988,
+       "c_end_sessions_deferred": 1024
+      },
+      "grace_end_epoch": 1794227725.3647296,
+      "rule": "user decision 2026-11-09: (a) no egress-wedged line; (b) no aborted Exec before graceEnd; (c) end_sessions_sent == end_sessions_ok"
+     },
+     "end_sessions": {
+      "footer": true,
+      "end_sessions_sent": 3988,
+      "end_sessions_ok": 3988,
+      "end_sessions_failed": 0,
+      "end_sessions_deferred": 1024
+     },
+     "egress_wedged": 0,
+     "host_cpu_mean": 13.01431111111111,
+     "host_cpu_p95": 18.87,
+     "live_vms_max": 1024,
+     "vm_mem_sum_gib": 114.1795768737793,
+     "slice_mem_gib": 116.2309455871582,
+     "mem_available_min_gib": 282.99295806884766,
+     "psi_cpu_max": 0.0,
+     "tag": "stag-s2",
+     "valid": true
+    },
+    {
+     "dir": "e16/results/resident-inf/N1280-stag-repeat",
+     "n": 1280,
+     "holds": true,
+     "holds_abs": true,
+     "p95_excess_ms": 280.98099999999994,
+     "limit_ms": 395.373000000001,
+     "limit_abs_ms": 381.79100000000034,
+     "window_calls": 20285,
+     "median_class_pace": 0.00023622088338126623,
+     "failed_calls": 0,
+     "refusals": 0,
+     "reason": null,
+     "binding": "none",
+     "conditions": {
+      "added_latency": true,
+      "no_failures": true,
+      "no_refusals": true,
+      "pace": true
+     },
+     "oom_kills": 0,
+     "memory_abort": null,
+     "memory_events_window": {
+      "high": 0,
+      "max": 0,
+      "oom_kill": 0
+     },
+     "footprint_drift_pct": 6.4928041474696,
+     "repeat_required": false,
+     "replayed_duty": {
+      "mean": 0.013540495475495663,
+      "median": 0.0029310722222220566,
+      "sessions": 1485
+     },
+     "distinct_trace_share": 0.33515625,
+     "a2_pct": 0.10243055555555557,
+     "seed": 1,
+     "holds_1s": true,
+     "holds_cpu": true,
+     "nowedge": null,
+     "stag_valid": {
+      "supplementary": true,
+      "valid": true,
+      "reasons": [],
+      "checks": {
+       "a_egress_wedged_lines": 0,
+       "b_aborted_before_grace_end": 0,
+       "b_first_early_abort": null,
+       "c_applies": true,
+       "c_end_sessions_sent": 4919,
+       "c_end_sessions_ok": 4919,
+       "c_end_sessions_deferred": 1280
+      },
+      "grace_end_epoch": 1794235007.2225947,
+      "rule": "user decision 2026-11-09: (a) no egress-wedged line; (b) no aborted Exec before graceEnd; (c) end_sessions_sent == end_sessions_ok"
+     },
+     "end_sessions": {
+      "footer": true,
+      "end_sessions_sent": 4919,
+      "end_sessions_ok": 4919,
+      "end_sessions_failed": 0,
+      "end_sessions_deferred": 1280
+     },
+     "egress_wedged": 0,
+     "host_cpu_mean": 17.194,
+     "host_cpu_p95": 24.1,
+     "live_vms_max": 1280,
+     "vm_mem_sum_gib": 144.00861358642578,
+     "slice_mem_gib": 146.18134689331055,
+     "mem_available_min_gib": 259.70986557006836,
+     "psi_cpu_max": 0.0,
+     "tag": "stag",
+     "valid": true
+    },
+    {
+     "dir": "e16/results/resident-inf/N1536-stag-repeat",
+     "n": 1536,
+     "holds": true,
+     "holds_abs": true,
+     "p95_excess_ms": 274.6290000000001,
+     "limit_ms": 395.373000000001,
+     "limit_abs_ms": 381.79100000000034,
+     "window_calls": 24891,
+     "median_class_pace": 0.00023347968894660287,
+     "failed_calls": 0,
+     "refusals": 0,
+     "reason": null,
+     "binding": "none",
+     "conditions": {
+      "added_latency": true,
+      "no_failures": true,
+      "no_refusals": true,
+      "pace": true
+     },
+     "oom_kills": 0,
+     "memory_abort": null,
+     "memory_events_window": {
+      "high": 0,
+      "max": 0,
+      "oom_kill": 0
+     },
+     "footprint_drift_pct": 6.665657537245119,
+     "repeat_required": false,
+     "replayed_duty": {
+      "mean": 0.011946384025431413,
+      "median": 0.0024766588888881316,
+      "sessions": 1835
+     },
+     "distinct_trace_share": 0.296875,
+     "a2_pct": 0.1262962962962963,
+     "seed": 1,
+     "holds_1s": true,
+     "holds_cpu": true,
+     "nowedge": null,
+     "stag_valid": {
+      "supplementary": true,
+      "valid": true,
+      "reasons": [],
+      "checks": {
+       "a_egress_wedged_lines": 0,
+       "b_aborted_before_grace_end": 0,
+       "b_first_early_abort": null,
+       "c_applies": true,
+       "c_end_sessions_sent": 5927,
+       "c_end_sessions_ok": 5927,
+       "c_end_sessions_deferred": 1536
+      },
+      "grace_end_epoch": 1794242717.390188,
+      "rule": "user decision 2026-11-09: (a) no egress-wedged line; (b) no aborted Exec before graceEnd; (c) end_sessions_sent == end_sessions_ok"
+     },
+     "end_sessions": {
+      "footer": true,
+      "end_sessions_sent": 5927,
+      "end_sessions_ok": 5927,
+      "end_sessions_failed": 0,
+      "end_sessions_deferred": 1536
+     },
+     "egress_wedged": 0,
+     "host_cpu_mean": 19.933666666666667,
+     "host_cpu_p95": 26.64,
+     "live_vms_max": 1536,
+     "vm_mem_sum_gib": 172.6644172668457,
+     "slice_mem_gib": 174.96298599243164,
+     "mem_available_min_gib": 238.41693496704102,
+     "psi_cpu_max": 0.0,
+     "tag": "stag",
+     "valid": true
+    }
+   ]
+  },
+  "sbx": {
+   "verdicts": {
+    "1280": {
+     "holds": true,
+     "holds_abs": true,
+     "seeds": [
+      1
+     ]
+    },
+    "1536": {
+     "holds": true,
+     "holds_abs": true,
+     "seeds": [
+      1
+     ]
+    }
+   },
+   "rows": [
+    {
+     "dir": "e16/results/sbx/N1280-postseal",
+     "n": 1280,
+     "holds": true,
+     "holds_abs": true,
+     "p95_excess_ms": 265.9020000000002,
+     "limit_ms": 335.727,
+     "limit_abs_ms": 361.909,
+     "window_calls": 19878,
+     "median_class_pace": 0.00043338066843245926,
+     "failed_calls": 0,
+     "refusals": 0,
+     "reason": null,
+     "binding": "none",
+     "conditions": {
+      "added_latency": true,
+      "no_failures": true,
+      "no_refusals": true,
+      "pace": true
+     },
+     "oom_kills": 0,
+     "memory_abort": null,
+     "memory_events_window": {
+      "high": 0,
+      "max": 0,
+      "oom_kill": 0
+     },
+     "footprint_drift_pct": null,
+     "repeat_required": null,
+     "replayed_duty": {
+      "mean": 0.013066756087019068,
+      "median": 0.0033955077777777076,
+      "sessions": 1545
+     },
+     "distinct_trace_share": 0.35625,
+     "a2_pct": 0.09240740740740741,
+     "seed": 1,
+     "holds_1s": true,
+     "holds_cpu": true,
+     "nowedge": null,
+     "stag_valid": {
+      "supplementary": true,
+      "valid": true,
+      "reasons": [],
+      "checks": {
+       "a_egress_wedged_lines": 0,
+       "b_aborted_before_grace_end": 0,
+       "b_first_early_abort": null,
+       "c_applies": false,
+       "c_end_sessions_sent": null,
+       "c_end_sessions_ok": null,
+       "c_end_sessions_deferred": null
+      },
+      "grace_end_epoch": 1794245519.4297872,
+      "rule": "user decision 2026-11-09: (a) no egress-wedged line; (b) no aborted Exec before graceEnd; (c) end_sessions_sent == end_sessions_ok"
+     },
+     "end_sessions": null,
+     "egress_wedged": 0,
+     "host_cpu_mean": 17.030333333333335,
+     "host_cpu_p95": 22.46,
+     "live_vms_max": 888,
+     "vm_mem_sum_gib": 19.561290740966797,
+     "slice_mem_gib": 32.143104553222656,
+     "mem_available_min_gib": 365.69137954711914,
+     "psi_cpu_max": 0.0,
+     "tag": "postseal",
+     "valid": true
+    },
+    {
+     "dir": "e16/results/sbx/N1536-postseal",
+     "n": 1536,
+     "holds": true,
+     "holds_abs": true,
+     "p95_excess_ms": 271.86800000000005,
+     "limit_ms": 335.727,
+     "limit_abs_ms": 361.909,
+     "window_calls": 27099,
+     "median_class_pace": 0.0005754814540865905,
+     "failed_calls": 0,
+     "refusals": 0,
+     "reason": null,
+     "binding": "none",
+     "conditions": {
+      "added_latency": true,
+      "no_failures": true,
+      "no_refusals": true,
+      "pace": true
+     },
+     "oom_kills": 0,
+     "memory_abort": null,
+     "memory_events_window": {
+      "high": 0,
+      "max": 0,
+      "oom_kill": 0
+     },
+     "footprint_drift_pct": null,
+     "repeat_required": null,
+     "replayed_duty": {
+      "mean": 0.012804032353936318,
+      "median": 0.003585984444444637,
+      "sessions": 1839
+     },
+     "distinct_trace_share": 0.296875,
+     "a2_pct": 0.11914351851851851,
+     "seed": 1,
+     "holds_1s": true,
+     "holds_cpu": true,
+     "nowedge": null,
+     "stag_valid": {
+      "supplementary": true,
+      "valid": true,
+      "reasons": [],
+      "checks": {
+       "a_egress_wedged_lines": 0,
+       "b_aborted_before_grace_end": 0,
+       "b_first_early_abort": null,
+       "c_applies": false,
+       "c_end_sessions_sent": null,
+       "c_end_sessions_ok": null,
+       "c_end_sessions_deferred": null
+      },
+      "grace_end_epoch": 1794248088.2124834,
+      "rule": "user decision 2026-11-09: (a) no egress-wedged line; (b) no aborted Exec before graceEnd; (c) end_sessions_sent == end_sessions_ok"
+     },
+     "end_sessions": null,
+     "egress_wedged": 0,
+     "host_cpu_mean": 20.736833333333333,
+     "host_cpu_p95": 26.76,
+     "live_vms_max": 1028,
+     "vm_mem_sum_gib": 22.964885711669922,
+     "slice_mem_gib": 37.80826950073242,
+     "mem_available_min_gib": 364.87944412231445,
+     "psi_cpu_max": 0.0,
+     "tag": "postseal",
+     "valid": true
+    }
+   ]
+  }
+ }
+}

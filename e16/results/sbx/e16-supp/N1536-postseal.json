@@ -1,0 +1,17 @@
+{
+  "n": 1536,
+  "seed": 1,
+  "holds": true,
+  "holds_abs": true,
+  "p95_excess_ms": 271.86800000000005,
+  "excess_limit_ms": 335.727,
+  "reason": "none",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/sbx/N1536-postseal",
+  "dir": "/srv/e15/runs/lowduty/sbx/N1536-postseal",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16-supp/ladder-N1536-postseal.json",
+  "supplementary": "postseal",
+  "valid": true,
+  "invalid_reasons": []
+}

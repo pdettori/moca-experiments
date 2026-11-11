@@ -15,3 +15,4 @@ microvm/.results-*/
 
 # E2 writes each run's measured table here; experiments/RESULTS.md is the committed baseline.
 experiments/.results/
+.venv/

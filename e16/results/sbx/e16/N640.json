@@ -1,0 +1,14 @@
+{
+  "n": 640,
+  "seed": 1,
+  "holds": true,
+  "holds_abs": true,
+  "p95_excess_ms": 170.284,
+  "excess_limit_ms": 335.727,
+  "reason": "none",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/sbx/N640",
+  "dir": "/srv/e15/runs/lowduty/sbx/N640",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16/ladder-N640.json"
+}

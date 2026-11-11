@@ -1,0 +1,14 @@
+{
+  "n": 1024,
+  "seed": 1,
+  "holds": true,
+  "holds_abs": true,
+  "p95_excess_ms": 216.11950000000002,
+  "excess_limit_ms": 335.727,
+  "reason": "none",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/sbx/N1024",
+  "dir": "/srv/e15/runs/lowduty/sbx/N1024",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16/ladder-N1024.json"
+}

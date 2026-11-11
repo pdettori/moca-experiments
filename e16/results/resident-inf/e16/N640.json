@@ -1,0 +1,14 @@
+{
+  "n": 640,
+  "seed": 1,
+  "holds": true,
+  "holds_abs": true,
+  "p95_excess_ms": 187.29800000000003,
+  "excess_limit_ms": 395.373000000001,
+  "reason": "none",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/resident-inf/N640-repeat",
+  "dir": "/srv/e15/runs/lowduty/resident-inf/N640-repeat",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/resident-inf/e16/ladder-N640.json"
+}

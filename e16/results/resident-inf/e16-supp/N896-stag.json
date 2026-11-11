@@ -1,0 +1,17 @@
+{
+  "n": 896,
+  "seed": 1,
+  "holds": true,
+  "holds_abs": true,
+  "p95_excess_ms": 190.524,
+  "excess_limit_ms": 395.373000000001,
+  "reason": "none",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/resident-inf/N896-stag-repeat",
+  "dir": "/srv/e15/runs/lowduty/resident-inf/N896-stag-repeat",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/resident-inf/e16-supp/ladder-N896-stag.json",
+  "supplementary": "stag",
+  "valid": true,
+  "invalid_reasons": []
+}

@@ -1,0 +1,14 @@
+{
+  "n": 896,
+  "seed": 2,
+  "holds": false,
+  "holds_abs": false,
+  "p95_excess_ms": 195.58899999999997,
+  "excess_limit_ms": 395.373000000001,
+  "reason": "no_failures",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/resident-inf/N896-s2",
+  "dir": "/srv/e15/runs/lowduty/resident-inf/N896-s2",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/resident-inf/e16/ladder-N896-s2.json"
+}

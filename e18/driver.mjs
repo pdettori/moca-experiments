@@ -1,4 +1,4 @@
-// E18 driver: plays a user, injects a crash, times the recovery. See docs/specs/E18-crash-recovery-latency-design.md.
+// E18 driver: plays a user, injects a crash, times the recovery. See e18/SPEC.md.
 // Every time is measured from killedAt, the instant the kill returned.
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';

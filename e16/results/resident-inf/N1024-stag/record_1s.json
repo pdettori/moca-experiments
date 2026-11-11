@@ -1,0 +1,270 @@
+{
+  "H_s": 1800,
+  "aborted": false,
+  "arm": "resident-inf",
+  "baseline_driver_bin_sha256": "4971f732ec037686f65b6f97ef5f3c06911d0eae8139b4624bbc82552fd3ff9d",
+  "baseline_path": "/srv/e15/runs/lowduty/resident-inf/N1/baseline.json",
+  "baseline_source": "/srv/e15/runs/lowduty/resident-inf/N1/baseline.json",
+  "binding": "none",
+  "by_class": {
+    "build": {
+      "calls": 129,
+      "failed": 0,
+      "p95_added_ms": 2526.2760000000017
+    },
+    "file_ops": {
+      "calls": 178,
+      "failed": 0,
+      "p95_added_ms": 23.013999999999996
+    },
+    "host_infra": {
+      "calls": 214,
+      "failed": 0,
+      "p95_added_ms": 691.0110000000004
+    },
+    "interpreter": {
+      "calls": 1152,
+      "failed": 0,
+      "p95_added_ms": 1626.8100000000013
+    },
+    "lint_check": {
+      "calls": 121,
+      "failed": 0,
+      "p95_added_ms": 487.0430000000001
+    },
+    "network": {
+      "calls": 141,
+      "failed": 0,
+      "p95_added_ms": 4039.805999999997
+    },
+    "opaque": {
+      "calls": 99,
+      "failed": 0,
+      "p95_added_ms": 4103.8369999999995
+    },
+    "other": {
+      "calls": 171,
+      "failed": 0,
+      "p95_added_ms": 2274.941999999999
+    },
+    "process": {
+      "calls": 173,
+      "failed": 0,
+      "p95_added_ms": 45.51299999999992
+    },
+    "read": {
+      "calls": 2426,
+      "failed": 0,
+      "p95_added_ms": 65.895
+    },
+    "search": {
+      "calls": 80,
+      "failed": 0,
+      "p95_added_ms": 35.976
+    },
+    "shell_read": {
+      "calls": 7091,
+      "failed": 0,
+      "p95_added_ms": -13.048
+    },
+    "test": {
+      "calls": 58,
+      "failed": 0,
+      "p95_added_ms": 1784.6329999999998
+    },
+    "unparsed": {
+      "calls": 27,
+      "failed": 0,
+      "p95_added_ms": 4432.9649999999965
+    },
+    "vcs": {
+      "calls": 1168,
+      "failed": 0,
+      "p95_added_ms": 591.3389999999999
+    },
+    "wait": {
+      "calls": 100,
+      "failed": 0,
+      "p95_added_ms": 101.467
+    },
+    "write": {
+      "calls": 2295,
+      "failed": 0,
+      "p95_added_ms": 182.71000000000004
+    }
+  },
+  "by_provider": {
+    "claude": {
+      "calls": 8804,
+      "failed": 0,
+      "p95_added_ms": 316.46399999999994
+    },
+    "codex": {
+      "calls": 6819,
+      "failed": 0,
+      "p95_added_ms": 158.98800000000006
+    }
+  },
+  "causes": {},
+  "conditions": {
+    "added_latency": true,
+    "no_failures": true,
+    "no_refusals": true,
+    "pace": true
+  },
+  "conditions_abs": {
+    "added_latency": true,
+    "no_failures": true,
+    "no_refusals": true,
+    "pace": true
+  },
+  "corpus": "/srv/e15/corpora/lowduty/corpus.jsonl",
+  "corpus_exclude": null,
+  "corpus_mean_span_min": 149.25038000730996,
+  "corpus_sha256": "0790d748aff79df6fc0f60897b41bbaabb238131d6b1cafb84b6cffce36a0588",
+  "cut_at_end": 0,
+  "dataset_mib": 0,
+  "dataset_seed": 1,
+  "disk_await_mean_ms": 1.1446993318485523,
+  "disk_read_max_mbs": 1017.2,
+  "disk_read_mean_mbs": 2.6917044444444445,
+  "disk_read_p95_mbs": 6.674,
+  "disk_read_single_mbs": 1186.0,
+  "distinct_trace_share": 0.435546875,
+  "distinct_trace_share_sessions": 0.37166666666666665,
+  "drift_basis": "sum",
+  "driver": {
+    "a2_ok": true,
+    "a2_pct_of_host": 0.07666666666666667,
+    "end_sessions": {
+      "end_sessions_failed": 0,
+      "end_sessions_ok": 3335,
+      "end_sessions_sent": 3335
+    },
+    "header": {
+      "goarch": "amd64",
+      "gomaxprocs": 96,
+      "goos": "linux",
+      "header": true,
+      "num_cpu": 96,
+      "t0_epoch": 1794214155.747181
+    },
+    "window_cpu_ms": 66240
+  },
+  "driver_bin": "/srv/e15/bin/e15-driver-defer",
+  "driver_bin_sha256": "92ee10bd51443da1fc61dc93debd8717d062204ba8d9fe64395f52349b113987",
+  "driver_exit": 0,
+  "driver_load_s": 0.6482188701629639,
+  "end_session_defer": true,
+  "end_session_defer_note": "E16 supplementary (not the sealed procedure): run-end end-session Execs sent after end+grace, paced",
+  "end_session_exec": true,
+  "end_session_rate": 50,
+  "excess_limit_ms": 1000.0,
+  "failed_calls": 0,
+  "fallback_calls": 0,
+  "fallback_share": 0.0,
+  "floor_mb": 1536,
+  "footprint_drift_basis": "sum",
+  "footprint_drift_median_pct": 42.7044933745143,
+  "footprint_drift_pct": 13.593680867534669,
+  "footprint_drift_sum_pct": 13.593680867534669,
+  "grace_s": 300,
+  "holds": true,
+  "holds_abs": true,
+  "host_mem_total_kb": 395812440,
+  "host_profile": "fresh-metal",
+  "ignore_c4": false,
+  "launch_ts": 1794214155.098962,
+  "library": "/srv/e15/src/e15/commands/library.json",
+  "library_sha256": "3c8251383a81239366d5e9c4781af747f4c67cb18b75dc93de4db7045cce7b5f",
+  "median_class_pace": 0.00022681510889754897,
+  "median_pace": -0.00012484091787290374,
+  "memory_abort": null,
+  "memory_events_window": {
+    "high": 0,
+    "max": 0,
+    "oom_kill": 0
+  },
+  "moca_commit": "c13d55649777e69ec7649d6fa8c08f4acb1f4e2e",
+  "moca_experiments_commit": "4af1873f9dec509a9972f0d60fa582733c9f53d1",
+  "n": 1024,
+  "n1_median_pace": -0.0012049438202247353,
+  "n1_overhead_ms": -73.595,
+  "not_started": 0,
+  "offset_join_misses": 0,
+  "oom_kills": 0,
+  "p95_added_ms": 220.45299999999997,
+  "p95_excess_ms": 239.38799999999995,
+  "p95_limit_abs_ms": 1000.0,
+  "p95_limit_override_ms": 1000.0,
+  "pace_excess": 0.0010801029023518316,
+  "pace_excluded_nonpositive": 1,
+  "point": "lowduty",
+  "point_settings": "point=lowduty corpus=lowduty library=src/e15/commands/library.json template=template/workspace.img image_mb=256 dataset_mib=0 dataset_seed=1 scan_classes= scan_cmd=",
+  "point_sig": "ee5a62a28550e9a6d77f97a6475da1313689dc3ceec18fd4efb10dd505c6ab90",
+  "probe_failed": {},
+  "refusal_scope": "window",
+  "refusals": 0,
+  "refusals_by_reason": {},
+  "repeat_required": true,
+  "replayed_duty": {
+    "mean": 0.012061207731481482,
+    "median": 0.0024676594444447094,
+    "sessions": 1200
+  },
+  "resident_patch_sha256": "1d0ce8b1a97c6db06a75fe27a43a371c00359be66cc37182ee76d0cc7a229dba",
+  "run_id": "lowduty-resident-inf-n1024-stag-1794213903",
+  "rung_start_ts": 1794214155.747181,
+  "scan_classes": [],
+  "scan_cmd": "",
+  "seed": 1,
+  "sessions_evaluated": 1021,
+  "sessions_excluded_lt3": 177,
+  "sessions_started": 3335,
+  "slice_memory_max": "402090098688",
+  "snapshot_guest_ram_mb": 1024,
+  "snapshot_hash": "sha256:505dd864f0c1a630340563a9dade2210fa468666b2a96d4493f6fd558992534c",
+  "spread_s": 60,
+  "template": "/srv/e15/template/workspace.img",
+  "template_sha256": "7d8a638b0b3c5295",
+  "time_origin_mismatch": false,
+  "undercovered": [],
+  "unseeded_sessions": 0,
+  "warmup_s": 1200,
+  "window_calls": 15623,
+  "window_s": 900,
+  "window_samples": 450,
+  "worker_bin_sha256": "47a3a7f07e231e1c373fb238c62b9f152bb5f2b2101d006186b266551120cf77",
+  "worker_env": {
+    "E15_RESIDENT": "1",
+    "E15_RESIDENT_IDLE_S": "0",
+    "RELAY_ADDR": "127.0.0.1:9643",
+    "RELAY_TLS": "false",
+    "SANDBOX_ID": "e15",
+    "SH_CHROOT_BASE": "/srv/e15/jail",
+    "SH_DIAG_PHASES": "1",
+    "SH_DIAG_STATS_ADDR": "127.0.0.1:9646",
+    "SH_FIRECRACKER_BIN": "/srv/e15/bin/firecracker",
+    "SH_GUEST_RAM_MB": "1024",
+    "SH_HOST_MEM_FLOOR_MB": "1536",
+    "SH_JAILER_BIN": "/srv/e15/bin/jailer",
+    "SH_MAX_COMMITTED_MB": "4194304",
+    "SH_MAX_RUNS": "4096",
+    "SH_PARENT_CGROUP": "e15.slice/e15-vms.slice",
+    "SH_SNAPSHOT_DIR": "/srv/e15/snapshots",
+    "SH_SNAPSHOT_IMAGE": "e15",
+    "SH_STANDBY_DEPTH": "0",
+    "SH_VMM": "firecracker",
+    "SH_WORKSPACE_IDLE": "24h",
+    "SH_WORKSPACE_IMAGE_MB": "256",
+    "SH_WORKSPACE_ROOT": "/srv/e15/workspaces",
+    "TZ": "UTC",
+    "WORKER_MAX_CONCURRENT": "256"
+  },
+  "workspace_copy": "reflink",
+  "workspace_image_mb": 256,
+  "workspace_seeding": "cp --reflink=always of the template per key before t0",
+  "workspaces_k_mult": 2,
+  "workspaces_per_slot": 32,
+  "workspaces_precreated": 32768
+}

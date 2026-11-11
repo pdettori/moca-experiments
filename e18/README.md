@@ -1,8 +1,8 @@
 # E18: crash recovery latency
 
 Measures the extra wait a user sees when a moca worker or the supervisor is killed, on the Docker Compose
-trial, with the model replaced by a canned-response stub. Spec: `../docs/specs/E18-crash-recovery-latency-design.md`.
-Plan: `../docs/specs/E18-crash-recovery-latency-plan.md`.
+trial, with the model replaced by a canned-response stub. Spec: `SPEC.md`.
+Plan: `PLAN.md`.
 
 ## Run
 

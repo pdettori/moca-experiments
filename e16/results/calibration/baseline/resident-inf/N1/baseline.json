@@ -1,0 +1,191 @@
+{
+  "baseline_p95_ms": 71.864,
+  "calls": 48,
+  "class_counts": {
+    "build": 20,
+    "file_ops": 20,
+    "host_infra": 20,
+    "interpreter": 20,
+    "lint_check": 20,
+    "network": 20,
+    "opaque": 20,
+    "other": 20,
+    "process": 20,
+    "read": 20,
+    "search": 20,
+    "shell_read": 20,
+    "test": 20,
+    "unparsed": 20,
+    "vcs": 20,
+    "wait": 20,
+    "write": 20
+  },
+  "class_medians": {
+    "build": -36.69999999999999,
+    "file_ops": -198.019,
+    "host_infra": -17.227000000000494,
+    "interpreter": -19.479000000000006,
+    "lint_check": -29.703999999999922,
+    "network": -122.937,
+    "opaque": -17.614999999999903,
+    "other": -61.502,
+    "process": -73.595,
+    "read": -15.072,
+    "search": -18.5305,
+    "shell_read": -77.5955,
+    "test": -30.213000000000008,
+    "unparsed": -110.84800000000001,
+    "vcs": -10.415,
+    "wait": -69.92050000000017,
+    "write": -8.200000000000003
+  },
+  "corpus_class_counts": {
+    "build": 272,
+    "file_ops": 684,
+    "host_infra": 2125,
+    "interpreter": 3030,
+    "lint_check": 266,
+    "network": 2041,
+    "opaque": 276,
+    "other": 580,
+    "process": 1287,
+    "read": 5746,
+    "search": 109,
+    "shell_read": 19216,
+    "test": 127,
+    "unparsed": 96,
+    "vcs": 2866,
+    "wait": 734,
+    "write": 6392
+  },
+  "corpus_sha256": "0790d748aff79df6fc0f60897b41bbaabb238131d6b1cafb84b6cffce36a0588",
+  "driver_bin_sha256": "4971f732ec037686f65b6f97ef5f3c06911d0eae8139b4624bbc82552fd3ff9d",
+  "evaluable": [
+    {
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-s1",
+      "seed": 1
+    },
+    {
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-s2",
+      "seed": 2
+    },
+    {
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-s3",
+      "seed": 3
+    }
+  ],
+  "excess_p95_ms": 131.79100000000034,
+  "global_median_ms": -38.69199999999999,
+  "library_sha256": "3c8251383a81239366d5e9c4781af747f4c67cb18b75dc93de4db7045cce7b5f",
+  "n1_median_pace": -0.0012049438202247353,
+  "n1_pace_sessions": 5,
+  "overhead_ms": -73.595,
+  "point_sig": "ee5a62a28550e9a6d77f97a6475da1313689dc3ceec18fd4efb10dd505c6ab90",
+  "probe_failed": {},
+  "probe_runs": [
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-build",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-file_ops",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-host_infra",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-interpreter",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-lint_check",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-network",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-opaque",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-other",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-process",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-read",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-search",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-shell_read",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-test",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-unparsed",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-vcs",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-wait",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-probe-write",
+      "ok": 20
+    }
+  ],
+  "runs": [
+    {
+      "calls": 11,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-s1",
+      "p95_added_ms": 136.4979999999996
+    },
+    {
+      "calls": 27,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-s2",
+      "p95_added_ms": 63.101
+    },
+    {
+      "calls": 10,
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1-s3",
+      "p95_added_ms": 9.786000000000058
+    }
+  ],
+  "skipped": [],
+  "undercovered": []
+}

@@ -1,0 +1,14 @@
+{
+  "n": 1280,
+  "seed": 1,
+  "holds": false,
+  "holds_abs": false,
+  "p95_excess_ms": 248.728,
+  "excess_limit_ms": 395.373000000001,
+  "reason": "no_failures",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/resident-inf/N1280",
+  "dir": "/srv/e15/runs/lowduty/resident-inf/N1280",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/resident-inf/e16/ladder-N1280.json"
+}

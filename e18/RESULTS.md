@@ -1,6 +1,6 @@
 # E18 results: crash recovery latency
 
-Spec: `../docs/specs/E18-crash-recovery-latency-design.md`. Host: macOS (Apple silicon), podman machine through the
+Spec: `SPEC.md`. Host: macOS (Apple silicon), podman machine through the
 docker CLI, Compose 5.7.0, moca image `ghcr.io/rossoctl/moca:latest`, 2026-11-10. Model replaced by a canned-response
 stub (200 ms per turn; 2000 ms for the mid-turn cases so a kill can land inside the turn). 10 runs per case, each on a
 fresh session. Real-model baseline: 20 turns through the IBM LiteLLM gateway, median T = 3.67 s, p95 = 6.03 s
