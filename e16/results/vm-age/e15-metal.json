@@ -1,0 +1,186 @@
+{
+  "bins_min": [
+    0,
+    5,
+    10,
+    15,
+    20,
+    25,
+    30,
+    35,
+    40,
+    45,
+    50,
+    55
+  ],
+  "median_mib": [
+    54.74609375,
+    76.69921875,
+    91.861328125,
+    101.546875,
+    113.859375,
+    117.107421875,
+    118.068359375,
+    126.89453125,
+    131.15625,
+    131.15234375,
+    126.6640625,
+    166.431640625
+  ],
+  "p95_mib": [
+    142.07421875,
+    168.01953125,
+    179.8828125,
+    198.18359375,
+    199.49609375,
+    200.94140625,
+    202.92578125,
+    216.58203125,
+    209.14453125,
+    212.21484375,
+    203.12109375,
+    168.0
+  ],
+  "vms_per_bin": [
+    3315,
+    1712,
+    1300,
+    1056,
+    917,
+    760,
+    618,
+    323,
+    269,
+    221,
+    166,
+    4
+  ],
+  "growth_20_to": {
+    "25": {
+      "pct": 1.5307763948861242,
+      "vms": 760
+    },
+    "30": {
+      "pct": 3.840934467061752,
+      "vms": 618
+    },
+    "35": {
+      "pct": 8.576489855944391,
+      "vms": 323
+    },
+    "40": {
+      "pct": 12.223002105685342,
+      "vms": 269
+    },
+    "45": {
+      "pct": 12.902683435335272,
+      "vms": 221
+    },
+    "50": {
+      "pct": 11.145006769610454,
+      "vms": 166
+    }
+  },
+  "growth_20_60_pct": null,
+  "vms_20_60": 0,
+  "vms": 3315,
+  "max_age_min": 55,
+  "growth_20_last": {
+    "to_min": 50,
+    "pct": 11.145006769610454,
+    "vms": 166
+  },
+  "births": 3326,
+  "min_vms": 20,
+  "rungs": [
+    "e15/results/metal/default/resident-inf/N64",
+    "e15/results/metal/default/resident-inf/N80",
+    "e15/results/metal/default/resident-inf/N80-repeat",
+    "e15/results/metal/default/resident-inf/N96",
+    "e15/results/metal/default/resident-inf/N96-repeat",
+    "e15/results/metal/default/resident-inf/N128",
+    "e15/results/metal/default/resident-inf/N128-repeat",
+    "e15/results/metal/default/resident-inf/N160",
+    "e15/results/metal/default/resident-inf/N160-repeat"
+  ],
+  "per_rung": [
+    {
+      "rung": "e15/results/metal/default/resident-inf/N64",
+      "vms": 187,
+      "max_age_min": 35,
+      "births": 188,
+      "attributed_samples": 132807,
+      "unattributed_samples": 17
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/N80",
+      "vms": 260,
+      "max_age_min": 35,
+      "births": 262,
+      "attributed_samples": 165871,
+      "unattributed_samples": 0
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/N80-repeat",
+      "vms": 311,
+      "max_age_min": 50,
+      "births": 312,
+      "attributed_samples": 261907,
+      "unattributed_samples": 0
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/N96",
+      "vms": 292,
+      "max_age_min": 35,
+      "births": 293,
+      "attributed_samples": 199231,
+      "unattributed_samples": 1
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/N96-repeat",
+      "vms": 349,
+      "max_age_min": 55,
+      "births": 350,
+      "attributed_samples": 314119,
+      "unattributed_samples": 20
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/N128",
+      "vms": 391,
+      "max_age_min": 35,
+      "births": 392,
+      "attributed_samples": 265445,
+      "unattributed_samples": 0
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/N128-repeat",
+      "vms": 474,
+      "max_age_min": 55,
+      "births": 475,
+      "attributed_samples": 418881,
+      "unattributed_samples": 1
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/N160",
+      "vms": 474,
+      "max_age_min": 35,
+      "births": 476,
+      "attributed_samples": 331875,
+      "unattributed_samples": 28
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/N160-repeat",
+      "vms": 577,
+      "max_age_min": 55,
+      "births": 578,
+      "attributed_samples": 523832,
+      "unattributed_samples": 124
+    }
+  ],
+  "rules": {
+    "bin_s": 300,
+    "identity": "worker.log restore/destroy phases through moca's LIFO cgroup free list",
+    "free_tolerance_s": 1.0
+  },
+  "decision": "run the long rung (growth_20_60_pct is null: too few VMs observed at 60 min)"
+}

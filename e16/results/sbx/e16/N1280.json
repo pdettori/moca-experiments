@@ -1,0 +1,15 @@
+{
+  "n": 1280,
+  "seed": 1,
+  "holds": true,
+  "holds_abs": true,
+  "p95_excess_ms": 263.1685,
+  "excess_limit_ms": 335.727,
+  "reason": "none",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/sbx/N1280",
+  "dir": "/srv/e15/runs/lowduty/sbx/N1280",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16/ladder-N1280.json",
+  "post_seal_extension": true
+}

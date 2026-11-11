@@ -1,0 +1,14 @@
+{
+  "n": 1024,
+  "seed": 2,
+  "holds": true,
+  "holds_abs": true,
+  "p95_excess_ms": 213.582,
+  "excess_limit_ms": 395.373000000001,
+  "reason": "none",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/resident-inf/N1024-s2",
+  "dir": "/srv/e15/runs/lowduty/resident-inf/N1024-s2",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/resident-inf/e16/ladder-N1024-s2.json"
+}

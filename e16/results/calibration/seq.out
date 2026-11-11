@@ -1,0 +1,14 @@
+E16 baselines START 2026-11-07T19:10:59Z src 554396eb108c8c751443e6c08da489a3f9fa4b16
+E16 baselines resident-inf DONE 2026-11-07T21:29:58Z :: {"excess_p95_ms": 131.79, "overhead_ms": -73.59, "n1_median_pace": -0.0, "undercovered": [], "probe_failed": {}, "evaluable": [1, 2, 3], "skipped": []}
+E16 baselines END rc=0 2026-11-07T21:29:58Z
+E16 long-rung START 2026-11-07T21:29:58Z src fc0acec795bdf4820f484af0eeebf537565f8fca
+E16 long-rung resident-inf N=256 holds=true holds_abs=true p95x=107 reason=none
+E16 long-rung END rc=0 2026-11-08T00:41:42Z
+E16 baselines START 2026-11-08T00:41:42Z src fc0acec795bdf4820f484af0eeebf537565f8fca
+E16 baselines sbx DONE 2026-11-08T03:00:47Z :: {"excess_p95_ms": 111.91, "overhead_ms": -16.51, "n1_median_pace": 0.0, "undercovered": [], "probe_failed": {}, "evaluable": [1, 2, 3], "skipped": []}
+E16 baselines END rc=0 2026-11-08T03:00:47Z
+E16 cal START 2026-11-08T03:00:47Z src ef5e4b7e059afd282f540eaa157a8da25d334668
+E16 cal sbx N=256 holds=true holds_abs=true p95x=137 reason=none
+E16 cal resident-inf N=256 holds=true holds_abs=true p95x=108 reason=none
+E16 cal END rc=0 2026-11-08T04:13:15Z
+E16 SEQ END rc=0 2026-11-08T04:13:15Z

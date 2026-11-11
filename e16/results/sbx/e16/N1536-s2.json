@@ -1,0 +1,15 @@
+{
+  "n": 1536,
+  "seed": 2,
+  "holds": true,
+  "holds_abs": true,
+  "p95_excess_ms": 304.93199999999996,
+  "excess_limit_ms": 335.727,
+  "reason": "none",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/sbx/N1536-s2",
+  "dir": "/srv/e15/runs/lowduty/sbx/N1536-s2",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16/ladder-N1536-s2.json",
+  "post_seal_extension": true
+}

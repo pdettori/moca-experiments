@@ -1,0 +1,17 @@
+{
+  "n": 1280,
+  "seed": 1,
+  "holds": true,
+  "holds_abs": true,
+  "p95_excess_ms": 265.9020000000002,
+  "excess_limit_ms": 335.727,
+  "reason": "none",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/sbx/N1280-postseal",
+  "dir": "/srv/e15/runs/lowduty/sbx/N1280-postseal",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16-supp/ladder-N1280-postseal.json",
+  "supplementary": "postseal",
+  "valid": true,
+  "invalid_reasons": []
+}

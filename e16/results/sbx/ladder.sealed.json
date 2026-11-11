@@ -1,0 +1,236 @@
+{
+  "point": "lowduty",
+  "arm": "sbx",
+  "assembled_by": "e16/rig/chain.sh (chainlib.py)",
+  "ladder": [
+    1,
+    8,
+    16,
+    24,
+    32,
+    40,
+    48,
+    56,
+    64,
+    80,
+    96,
+    128,
+    160,
+    192,
+    256,
+    320,
+    384,
+    448,
+    512,
+    576,
+    640,
+    704,
+    768,
+    896,
+    1024,
+    1280,
+    1536
+  ],
+  "rungs_run": [
+    256,
+    384,
+    512,
+    640,
+    768,
+    896,
+    1024
+  ],
+  "rungs": [
+    {
+      "n": 256,
+      "holds": true,
+      "holds_abs": true,
+      "seeds": [
+        {
+          "n": 256,
+          "seed": 1,
+          "holds": true,
+          "holds_abs": true,
+          "p95_excess_ms": 125.608,
+          "excess_limit_ms": 335.727,
+          "reason": "none",
+          "repeated": false,
+          "grace_artefact_rerun": false,
+          "first_dir": "/srv/e15/runs/lowduty/sbx/N256",
+          "dir": "/srv/e15/runs/lowduty/sbx/N256",
+          "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16/ladder-N256.json"
+        }
+      ]
+    },
+    {
+      "n": 384,
+      "holds": true,
+      "holds_abs": true,
+      "seeds": [
+        {
+          "n": 384,
+          "seed": 1,
+          "holds": true,
+          "holds_abs": true,
+          "p95_excess_ms": 149.76149999999998,
+          "excess_limit_ms": 335.727,
+          "reason": "none",
+          "repeated": false,
+          "grace_artefact_rerun": false,
+          "first_dir": "/srv/e15/runs/lowduty/sbx/N384",
+          "dir": "/srv/e15/runs/lowduty/sbx/N384",
+          "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16/ladder-N384.json"
+        }
+      ]
+    },
+    {
+      "n": 512,
+      "holds": true,
+      "holds_abs": true,
+      "seeds": [
+        {
+          "n": 512,
+          "seed": 1,
+          "holds": true,
+          "holds_abs": true,
+          "p95_excess_ms": 133.733,
+          "excess_limit_ms": 335.727,
+          "reason": "none",
+          "repeated": false,
+          "grace_artefact_rerun": false,
+          "first_dir": "/srv/e15/runs/lowduty/sbx/N512",
+          "dir": "/srv/e15/runs/lowduty/sbx/N512",
+          "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16/ladder-N512.json"
+        }
+      ]
+    },
+    {
+      "n": 640,
+      "holds": true,
+      "holds_abs": true,
+      "seeds": [
+        {
+          "n": 640,
+          "seed": 1,
+          "holds": true,
+          "holds_abs": true,
+          "p95_excess_ms": 170.284,
+          "excess_limit_ms": 335.727,
+          "reason": "none",
+          "repeated": false,
+          "grace_artefact_rerun": false,
+          "first_dir": "/srv/e15/runs/lowduty/sbx/N640",
+          "dir": "/srv/e15/runs/lowduty/sbx/N640",
+          "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16/ladder-N640.json"
+        }
+      ]
+    },
+    {
+      "n": 768,
+      "holds": true,
+      "holds_abs": true,
+      "seeds": [
+        {
+          "n": 768,
+          "seed": 1,
+          "holds": true,
+          "holds_abs": true,
+          "p95_excess_ms": 166.298,
+          "excess_limit_ms": 335.727,
+          "reason": "none",
+          "repeated": false,
+          "grace_artefact_rerun": false,
+          "first_dir": "/srv/e15/runs/lowduty/sbx/N768",
+          "dir": "/srv/e15/runs/lowduty/sbx/N768",
+          "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16/ladder-N768.json"
+        }
+      ]
+    },
+    {
+      "n": 896,
+      "holds": true,
+      "holds_abs": true,
+      "seeds": [
+        {
+          "n": 896,
+          "seed": 1,
+          "holds": true,
+          "holds_abs": true,
+          "p95_excess_ms": 210.0804999999996,
+          "excess_limit_ms": 335.727,
+          "reason": "none",
+          "repeated": false,
+          "grace_artefact_rerun": false,
+          "first_dir": "/srv/e15/runs/lowduty/sbx/N896",
+          "dir": "/srv/e15/runs/lowduty/sbx/N896",
+          "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16/ladder-N896.json"
+        }
+      ]
+    },
+    {
+      "n": 1024,
+      "holds": true,
+      "holds_abs": true,
+      "seeds": [
+        {
+          "n": 1024,
+          "seed": 1,
+          "holds": true,
+          "holds_abs": true,
+          "p95_excess_ms": 216.11950000000002,
+          "excess_limit_ms": 335.727,
+          "reason": "none",
+          "repeated": false,
+          "grace_artefact_rerun": false,
+          "first_dir": "/srv/e15/runs/lowduty/sbx/N1024",
+          "dir": "/srv/e15/runs/lowduty/sbx/N1024",
+          "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16/ladder-N1024.json"
+        },
+        {
+          "n": 1024,
+          "seed": 2,
+          "holds": true,
+          "holds_abs": true,
+          "p95_excess_ms": 252.1164999999999,
+          "excess_limit_ms": 335.727,
+          "reason": "none",
+          "repeated": false,
+          "grace_artefact_rerun": false,
+          "first_dir": "/srv/e15/runs/lowduty/sbx/N1024-s2",
+          "dir": "/srv/e15/runs/lowduty/sbx/N1024-s2",
+          "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16/ladder-N1024-s2.json"
+        }
+      ]
+    }
+  ],
+  "n_max": 1024,
+  "stopped_at": null,
+  "n_max_abs": 1024,
+  "stopped_at_abs": null,
+  "rungs_not_run_assumed_held": [
+    1,
+    8,
+    16,
+    24,
+    32,
+    40,
+    48,
+    56,
+    64,
+    80,
+    96,
+    128,
+    160,
+    192,
+    320,
+    448,
+    576,
+    704
+  ],
+  "seeds_undecided": [],
+  "gap_rule": "n_max = largest run rung holding with every run rung below it holding; ladder rungs never run below it are assumed held (listed)",
+  "seed_rule": "verdict = majority of seeds s1..s3; two disagreeing seeds without a third leave seed 1's verdict and list the rung in seeds_undecided",
+  "n1_overhead_ms": -16.508999999999993,
+  "n1_median_pace": 0.0012896330275229406,
+  "B_ms": 111.90899999999999
+}

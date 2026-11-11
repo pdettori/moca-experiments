@@ -1,0 +1,17 @@
+{
+  "n": 1024,
+  "seed": 1,
+  "holds": true,
+  "holds_abs": true,
+  "p95_excess_ms": 213.52000000000018,
+  "excess_limit_ms": 395.373000000001,
+  "reason": "none",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/resident-inf/N1024-stag-repeat",
+  "dir": "/srv/e15/runs/lowduty/resident-inf/N1024-stag-repeat",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/resident-inf/e16-supp/ladder-N1024-stag.json",
+  "supplementary": "stag",
+  "valid": true,
+  "invalid_reasons": []
+}

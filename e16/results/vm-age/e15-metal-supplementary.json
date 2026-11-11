@@ -1,0 +1,190 @@
+{
+  "bins_min": [
+    0,
+    5,
+    10,
+    15,
+    20,
+    25,
+    30,
+    35,
+    40,
+    45,
+    50,
+    55
+  ],
+  "median_mib": [
+    56.216796875,
+    80.626953125,
+    90.66796875,
+    97.427734375,
+    108.876953125,
+    111.28515625,
+    115.375,
+    118.357421875,
+    121.064453125,
+    119.8203125,
+    121.49609375,
+    119.39453125
+  ],
+  "p95_mib": [
+    149.10546875,
+    174.17578125,
+    181.55859375,
+    190.72265625,
+    192.9140625,
+    193.64453125,
+    192.2890625,
+    195.64453125,
+    194.7421875,
+    195.75,
+    196.21875,
+    188.52734375
+  ],
+  "vms_per_bin": [
+    10794,
+    5562,
+    4145,
+    3438,
+    2942,
+    2502,
+    2085,
+    1198,
+    954,
+    750,
+    564,
+    89
+  ],
+  "growth_20_to": {
+    "25": {
+      "pct": 2.5891249549873985,
+      "vms": 2502
+    },
+    "30": {
+      "pct": 12.737127371273704,
+      "vms": 2085
+    },
+    "35": {
+      "pct": 12.265068499495179,
+      "vms": 1198
+    },
+    "40": {
+      "pct": 18.747485584015024,
+      "vms": 954
+    },
+    "45": {
+      "pct": 18.71432165179867,
+      "vms": 750
+    },
+    "50": {
+      "pct": 17.96184624720294,
+      "vms": 564
+    },
+    "55": {
+      "pct": 22.48046483670607,
+      "vms": 89
+    }
+  },
+  "growth_20_60_pct": null,
+  "vms_20_60": 0,
+  "vms": 10794,
+  "max_age_min": 55,
+  "growth_20_last": {
+    "to_min": 55,
+    "pct": 22.48046483670607,
+    "vms": 89
+  },
+  "births": 10824,
+  "min_vms": 20,
+  "rungs": [
+    "e15/results/metal/default/resident-inf/supplementary-1s/N192-1s",
+    "e15/results/metal/default/resident-inf/supplementary-1s/N256-1s",
+    "e15/results/metal/default/resident-inf/supplementary-1s/N320-1s",
+    "e15/results/metal/default/resident-inf/supplementary-1s/N320-1s-repeat",
+    "e15/results/metal/default/resident-inf/supplementary-1s/N384-1s",
+    "e15/results/metal/default/resident-inf/supplementary-1s/N384-1s-repeat",
+    "e15/results/metal/default/resident-inf/supplementary-1s/N448-1s",
+    "e15/results/metal/default/resident-inf/supplementary-1s/N448-1s-repeat",
+    "e15/results/metal/default/resident-inf/supplementary-1s/N448-1s-repeat-g900"
+  ],
+  "per_rung": [
+    {
+      "rung": "e15/results/metal/default/resident-inf/supplementary-1s/N192-1s",
+      "vms": 577,
+      "max_age_min": 35,
+      "births": 578,
+      "attributed_samples": 398147,
+      "unattributed_samples": 111
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/supplementary-1s/N256-1s",
+      "vms": 801,
+      "max_age_min": 35,
+      "births": 804,
+      "attributed_samples": 531255,
+      "unattributed_samples": 183
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/supplementary-1s/N320-1s",
+      "vms": 955,
+      "max_age_min": 35,
+      "births": 958,
+      "attributed_samples": 663675,
+      "unattributed_samples": 140
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/supplementary-1s/N320-1s-repeat",
+      "vms": 1154,
+      "max_age_min": 55,
+      "births": 1157,
+      "attributed_samples": 1048098,
+      "unattributed_samples": 57
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/supplementary-1s/N384-1s",
+      "vms": 1163,
+      "max_age_min": 35,
+      "births": 1166,
+      "attributed_samples": 802573,
+      "unattributed_samples": 1509
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/supplementary-1s/N384-1s-repeat",
+      "vms": 1374,
+      "max_age_min": 55,
+      "births": 1378,
+      "attributed_samples": 1263009,
+      "unattributed_samples": 1566
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/supplementary-1s/N448-1s",
+      "vms": 1357,
+      "max_age_min": 35,
+      "births": 1361,
+      "attributed_samples": 905079,
+      "unattributed_samples": 1959
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/supplementary-1s/N448-1s-repeat",
+      "vms": 1695,
+      "max_age_min": 55,
+      "births": 1700,
+      "attributed_samples": 1438598,
+      "unattributed_samples": 2466
+    },
+    {
+      "rung": "e15/results/metal/default/resident-inf/supplementary-1s/N448-1s-repeat-g900",
+      "vms": 1718,
+      "max_age_min": 55,
+      "births": 1722,
+      "attributed_samples": 1463142,
+      "unattributed_samples": 2381
+    }
+  ],
+  "rules": {
+    "bin_s": 300,
+    "identity": "worker.log restore/destroy phases through moca's LIFO cgroup free list",
+    "free_tolerance_s": 1.0
+  },
+  "decision": "run the long rung (growth_20_60_pct is null: too few VMs observed at 60 min)"
+}

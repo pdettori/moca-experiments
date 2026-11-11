@@ -1,0 +1,14 @@
+{
+  "n": 512,
+  "seed": 1,
+  "holds": true,
+  "holds_abs": true,
+  "p95_excess_ms": 133.733,
+  "excess_limit_ms": 335.727,
+  "reason": "none",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/sbx/N512",
+  "dir": "/srv/e15/runs/lowduty/sbx/N512",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/sbx/e16/ladder-N512.json"
+}

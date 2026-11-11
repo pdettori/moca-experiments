@@ -1,0 +1,14 @@
+{
+  "n": 512,
+  "seed": 1,
+  "holds": true,
+  "holds_abs": true,
+  "p95_excess_ms": 173.67499999999993,
+  "excess_limit_ms": 395.373000000001,
+  "reason": "none",
+  "repeated": false,
+  "grace_artefact_rerun": false,
+  "first_dir": "/srv/e15/runs/lowduty/resident-inf/N512-repeat",
+  "dir": "/srv/e15/runs/lowduty/resident-inf/N512-repeat",
+  "invocation_ladder_json": "/srv/e15/runs/lowduty/resident-inf/e16/ladder-N512.json"
+}

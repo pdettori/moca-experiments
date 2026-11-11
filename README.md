@@ -1,90 +1,54 @@
 # moca-experiments
 
-Reproducible performance/behaviour experiments and benchmark drivers for
-[MOCA](https://github.com/rossoctl/serverless-harness) (Micro Orchestrator for Cloud Agents) — split out so people deploying MOCA aren't
-exposed to research/experiment clutter in the main repo.
+Reproducible experiments and benchmark drivers for [MOCA](https://github.com/rossoctl/moca),
+split out so people deploying MOCA are not exposed to research clutter in the main repo.
+Each experiment has a question, a sealed prediction where it applies, a driver, a result and
+the steps to repeat it.
+
+## Experiments
+
+| ID | Question | Status | Start here |
+|---|---|---|---|
+| E1, E3, E4, E6, E7 | Knative economics, mobility, recovery, saturation, converge-contention | archived (Kind/OCP cluster, deprecated deployment) | [`knative/EXPERIMENTS.md`](knative/EXPERIMENTS.md) |
+| E2, E5 | In-process experiment runners; SWE-bench sandbox sharing | archived | [`experiments/README.md`](experiments/README.md), [`experiments/RESULTS.md`](experiments/RESULTS.md) |
+| E10–E13 | microVM sandbox tier: lifecycle, density, vsock egress, restore capacity | done: measured against a pre-set bar, then stopped | [`microvm/RESULTS-SUMMARY.md`](microvm/RESULTS-SUMMARY.md) |
+| E14 | Stock coding agents with every command in a fresh microVM, 40-run SWE-bench comparison | done: no measurable difference at this sample size | [`sbx/RESULTS-SUMMARY.md`](sbx/RESULTS-SUMMARY.md) |
+| E15 | Sessions per host: SBX per-Exec microVMs vs resident microVMs, trace replay | done: resident holds as many or more on every host and point | [`e15/results/metal/RESULTS-METAL.md`](e15/results/metal/RESULTS-METAL.md), spec [`e15/SPEC.md`](e15/SPEC.md) |
+| E15b | Per-turn command bundling, SBX vs resident | spec approved, not built | [`e15/SPEC-bundled.md`](e15/SPEC-bundled.md) |
+| E16 | Does SBX beat resident at duty cycle ≤ 2%? | done: tie at the sealed point, hypothesis falsified | [`e16/RESULTS.md`](e16/RESULTS.md) |
+| E17 | Lease mode: does a warm guest with an idle timeout pay? | design approved, nothing built | [`e17/SPEC.md`](e17/SPEC.md) |
+| E18 | Crash recovery latency on the Compose trial | done | [`e18/RESULTS.md`](e18/RESULTS.md) |
+
+## Reproducing
+
+[`docs/REPRODUCING.md`](docs/REPRODUCING.md) says what each experiment needs: cluster-free tests
+that run on a laptop, a KVM host for E10–E14, or a bare-metal host for E15–E17. It also covers
+fetching the raw data and the main-repo checkout the drivers expect.
+
+- The summaries, sealed predictions and analysis code are all in this repo.
+- The raw per-run traces for E15 and E16 (about 1.4 GB uncompressed) are release assets, not
+  git content. `data/fetch-data.sh` downloads and verifies them; see
+  [`data/MANIFEST.md`](data/MANIFEST.md).
+- How an experiment is laid out and what each file is for: [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md).
 
 ## Layout
 
-- `knative/` — E1 (economics/benefit), E3 (mobility), E4 (recovery), E6 (saturation), E7
-  (converge-contention): early Kind/OCP cluster experiments, `run-experiments.sh` (E1/E3/E4
-  orchestrator), their `EXPERIMENTS.md` write-up, the SWE-bench sandbox-build/measure scripts
-  those experiments and `experiments/swebench/` both use, and `lib.sh` — a point-in-time copy of
-  the main repo's deployment helper library these scripts need (see the note at the top of that
-  file; it is not independently maintained here).
-- `microvm/` — E10 (lifecycle), E11 (density/replenishment), E12 (vsock egress), E13 (restore
-  capacity/telemetry): bare-metal microVM experiments, their `EXPERIMENTS.md`/`METAL-RUNBOOK.md`
-  write-ups, `predictions.json`, and their tests. **Start at
-  [`microvm/RESULTS-SUMMARY.md`](microvm/RESULTS-SUMMARY.md)** — the acceptance bar and the
-  decision it produced, the latency decomposition, the instrument defects the density
-  conclusions rested on, and which published numbers were retracted. `EXPERIMENTS.md`
-  remains the source of truth.
-
-**A note on `microvm/` (E10/E11) too:** their cluster-free structural tests (`e10-lifecycle.test.sh`,
-`e11-density.test.sh`, `e12-vsock-egress-probe.test.sh`, `e13-*.test.sh`) run standalone here —
-those are what CI actually gates on. The drivers themselves (`e10-lifecycle.sh`, `e11-density.sh`)
-are bare-metal/root-only regardless of repo, and additionally need: a sibling checkout of the
-main repo's `remote-worker/` Go module and `proto/` (override with `REMOTE_WORKER_DIR`,
-`PROTO_FILE`, `PROTO_IMPORT_PATH` — real overrides now, not just path arithmetic) for the Go
-exec-driver path; and the main repo's own pnpm workspace (`pnpm --filter @moca/sandbox-relay
-start`) to launch the sandbox-relay both the container and microvm arms need — that part cannot
-be satisfied by an env var at all, since `pnpm --filter` resolves workspace packages from the
-current repo's own `pnpm-workspace.yaml`. In practice: run the drivers from a checkout of the
-main repo (or a sibling of it with `REMOTE_WORKER_DIR`/`PROTO_FILE`/`PROTO_IMPORT_PATH` set --
-`VMPOOLCTL` derives from `REMOTE_WORKER_DIR` automatically unless set separately),
-same caveat as `knative/`'s cluster experiments and `experiments/`'s E2/E5. `e11-density.test.sh`'s
-Go seam-closure check specifically skips gracefully (like its "no go on PATH" check) when no
-`remote-worker/` checkout is found, rather than failing.
-- `sbx/` — E14: stock coding agents (Claude Code, OpenCode) whose every command runs in a fresh
-  microVM, reached through the sandbox-service prototype (SBX1 wave 0). Three rounds, ending in
-  a 40-run SWE-bench Verified comparison of stock against remote. **Start at
-  [`sbx/RESULTS-SUMMARY.md`](sbx/RESULTS-SUMMARY.md)**; `EXPERIMENTS.md` is the record,
-  `RUNBOOK.md` the replication steps, and `HARNESS.md` every script and config used, embedded
-  as markdown.
-- `experiments/` — the original `@sh/experiments` workspace package: M6's E2/E5 in-process
-  experiment runners, the E11 density-analysis module (`src/microvm-density.ts`, consumed by
-  `microvm/e11-density.sh`), and `swebench/` — the SWE-bench sandbox-sharing evaluation harness
-  (`gen_swebench_deck.py` for bake-list/deck generation, prediction merging, report summarizing,
-  and its own `RUNBOOK.md`).
-
-**A note on the `knative/` experiments (E1/E3/E4/E6/E7):** these require a live Kind/OpenShift
-cluster and the main repo's deployment manifests to actually run — they're preserved here as a
-point-in-time record of what was measured, not necessarily guaranteed to stay runnable
-standalone. The main repo's own direction is moving off Kubernetes entirely (see its
-`docs/specs/`, track `RA1`).
-
-## What did *not* move (stays in the main `moca` repo)
-
-Some things this content depends on are production code or infrastructure, not experiments,
-and stayed behind:
-
-- `harness/src/swebench-setup.ts` — real production code, imported by `harness/src/run-leaf.ts`
-  (SWE-bench-as-a-workload provisioning inside the live leaf-execution path).
-- `remote-worker/` (the whole Go module, including `cmd/exec-driver` and `cmd/null-responder`,
-  which `microvm/tests/e11-density.test.sh`'s seam-closure check wants) — kept as one coherent
-  module rather than fragmented across two repos. `cmd/vmpoolctl` specifically cannot leave it
-  at all: it imports a Go `internal/` package, which no other module may ever import.
-- `deploy/knative/swebench-sandbox-buildconfig.yaml` and `swebench-sandbox-pool.yaml` — K8s
-  deployment manifests, validated by a production test
-  (`packages/knative-server/test/swebench-sandbox-pool.test.ts`, which reads `-pool.yaml`
-  specifically).
-- `deploy/knative/setup-ocp.sh` and the *original* `lib.sh` — general OpenShift deployment
-  tooling, shared by demos and smoke tests that also did not move.
-- `deploy/knative/session-usage.py` — a per-leaf cost-calculation utility referenced by the
-  main repo's `lib.sh`; the copy of `lib.sh` here calls it too, but the call is guarded (`||
-  true`), so cost-report output silently comes out empty here rather than erroring.
-
-`experiments/swebench/RUNBOOK.md` and the code here that references any of the above use paths
-relative to the main repo and are marked inline (`# [main repo]`) as such.
-
-## History
-
-Git history for every file here except `knative/lib.sh` (a deliberate point-in-time copy, see
-above) was preserved via `git filter-repo` from the main repo at the point of the split
-(2026-09-25) — `git log` and `git blame` work as if these files always lived here.
+```
+README.md             this file: index of experiments
+docs/                 REPRODUCING.md, CONVENTIONS.md
+data/                 MANIFEST.md, fetch-data.sh (raw traces live in release assets)
+knative/  experiments/  microvm/  sbx/     E1–E14 (older, grouped by theme)
+e15/  e16/  e17/  e18/                     one directory per experiment
+scripts/              repo tooling (commit-msg hook)
+```
 
 ## Relationship to the main repo
 
-This repo holds research/benchmark code only. Production code, deployment automation, and design
-docs live in [rossoctl/serverless-harness](https://github.com/rossoctl/serverless-harness) (see
-that repo's `docs/specs/` for the architecture and re-architecture plans, track `RA1`).
+This repo holds research and benchmark code only. Production code, deployment automation and
+design documents live in [rossoctl/moca](https://github.com/rossoctl/moca). What did not move
+and why is in [`docs/REPRODUCING.md`](docs/REPRODUCING.md#what-stays-in-the-main-repo).
+
+## History
+
+Git history for every file here except `knative/lib.sh` (a point-in-time copy) was preserved
+via `git filter-repo` from the main repo at the split (2026-09-25).

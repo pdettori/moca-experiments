@@ -1,4 +1,4 @@
-# E18: replace the model with a canned-response stub (docs/specs/E18-crash-recovery-latency-design.md §3.2).
+# E18: replace the model with a canned-response stub (e18/SPEC.md §3.2).
 # Use with: docker compose -f <moca>/deploy/compose/docker-compose.yml -f e18/compose.override.yml up -d
 services:
   stub:

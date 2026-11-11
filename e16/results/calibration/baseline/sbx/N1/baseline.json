@@ -1,0 +1,191 @@
+{
+  "baseline_p95_ms": 127.293,
+  "calls": 47,
+  "class_counts": {
+    "build": 20,
+    "file_ops": 20,
+    "host_infra": 20,
+    "interpreter": 20,
+    "lint_check": 20,
+    "network": 20,
+    "opaque": 20,
+    "other": 20,
+    "process": 20,
+    "read": 20,
+    "search": 20,
+    "shell_read": 20,
+    "test": 20,
+    "unparsed": 20,
+    "vcs": 20,
+    "wait": 20,
+    "write": 20
+  },
+  "class_medians": {
+    "build": 35.44050000000013,
+    "file_ops": -114.309,
+    "host_infra": 40.85149999999999,
+    "interpreter": 62.05000000000001,
+    "lint_check": 55.81850000000006,
+    "network": -74.88550000000001,
+    "opaque": 71.81599999999997,
+    "other": -16.508999999999993,
+    "process": -15.041500000000013,
+    "read": 32.4985,
+    "search": 33.1315,
+    "shell_read": -34.242000000000004,
+    "test": 78.87199999999999,
+    "unparsed": -47.601999999999634,
+    "vcs": 72.1285,
+    "wait": -25.22650000000067,
+    "write": 80.92899999999997
+  },
+  "corpus_class_counts": {
+    "build": 272,
+    "file_ops": 684,
+    "host_infra": 2125,
+    "interpreter": 3030,
+    "lint_check": 266,
+    "network": 2041,
+    "opaque": 276,
+    "other": 580,
+    "process": 1287,
+    "read": 5746,
+    "search": 109,
+    "shell_read": 19216,
+    "test": 127,
+    "unparsed": 96,
+    "vcs": 2866,
+    "wait": 734,
+    "write": 6392
+  },
+  "corpus_sha256": "0790d748aff79df6fc0f60897b41bbaabb238131d6b1cafb84b6cffce36a0588",
+  "driver_bin_sha256": "4971f732ec037686f65b6f97ef5f3c06911d0eae8139b4624bbc82552fd3ff9d",
+  "evaluable": [
+    {
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-s1",
+      "seed": 1
+    },
+    {
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-s2",
+      "seed": 2
+    },
+    {
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-s3",
+      "seed": 3
+    }
+  ],
+  "excess_p95_ms": 111.90899999999999,
+  "global_median_ms": 27.13000000000001,
+  "library_sha256": "3c8251383a81239366d5e9c4781af747f4c67cb18b75dc93de4db7045cce7b5f",
+  "n1_median_pace": 0.0012896330275229406,
+  "n1_pace_sessions": 5,
+  "overhead_ms": -16.508999999999993,
+  "point_sig": "ee5a62a28550e9a6d77f97a6475da1313689dc3ceec18fd4efb10dd505c6ab90",
+  "probe_failed": {},
+  "probe_runs": [
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-build",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-file_ops",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-host_infra",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-interpreter",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-lint_check",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-network",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-opaque",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-other",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-process",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-read",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-search",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-shell_read",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-test",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-unparsed",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-vcs",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-wait",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-probe-write",
+      "ok": 20
+    }
+  ],
+  "runs": [
+    {
+      "calls": 11,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-s1",
+      "p95_added_ms": 215.8809999999994
+    },
+    {
+      "calls": 26,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-s2",
+      "p95_added_ms": 73.907
+    },
+    {
+      "calls": 10,
+      "dir": "/srv/e15/runs/lowduty/sbx/N1-s3",
+      "p95_added_ms": 127.293
+    }
+  ],
+  "skipped": [],
+  "undercovered": []
+}

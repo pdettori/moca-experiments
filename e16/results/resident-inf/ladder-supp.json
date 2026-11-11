@@ -1,0 +1,141 @@
+{
+  "supplementary": true,
+  "voted": false,
+  "rule": "valid rungs only (stag_valid.json); a rung's verdict = majority of its valid seeds; two disagreeing seeds without a third: null",
+  "verdicts": {
+    "896": {
+      "holds": true,
+      "holds_abs": true,
+      "seeds": [
+        1,
+        2
+      ]
+    },
+    "1024": {
+      "holds": true,
+      "holds_abs": true,
+      "seeds": [
+        1,
+        2
+      ]
+    },
+    "1280": {
+      "holds": true,
+      "holds_abs": true,
+      "seeds": [
+        1
+      ]
+    },
+    "1536": {
+      "holds": true,
+      "holds_abs": true,
+      "seeds": [
+        1
+      ]
+    }
+  },
+  "rows": [
+    {
+      "n": 896,
+      "seed": 1,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 190.524,
+      "excess_limit_ms": 395.373000000001,
+      "reason": "none",
+      "repeated": false,
+      "grace_artefact_rerun": false,
+      "first_dir": "/srv/e15/runs/lowduty/resident-inf/N896-stag-repeat",
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N896-stag-repeat",
+      "invocation_ladder_json": "/srv/e15/runs/lowduty/resident-inf/e16-supp/ladder-N896-stag.json",
+      "supplementary": "stag",
+      "valid": true,
+      "invalid_reasons": []
+    },
+    {
+      "n": 896,
+      "seed": 2,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 207.68500000000023,
+      "excess_limit_ms": 395.373000000001,
+      "reason": "none",
+      "repeated": false,
+      "grace_artefact_rerun": false,
+      "first_dir": "/srv/e15/runs/lowduty/resident-inf/N896-stag-s2-repeat",
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N896-stag-s2-repeat",
+      "invocation_ladder_json": "/srv/e15/runs/lowduty/resident-inf/e16-supp/ladder-N896-stag-s2.json",
+      "supplementary": "stag-s2",
+      "valid": true,
+      "invalid_reasons": []
+    },
+    {
+      "n": 1024,
+      "seed": 1,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 213.52000000000018,
+      "excess_limit_ms": 395.373000000001,
+      "reason": "none",
+      "repeated": false,
+      "grace_artefact_rerun": false,
+      "first_dir": "/srv/e15/runs/lowduty/resident-inf/N1024-stag-repeat",
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1024-stag-repeat",
+      "invocation_ladder_json": "/srv/e15/runs/lowduty/resident-inf/e16-supp/ladder-N1024-stag.json",
+      "supplementary": "stag",
+      "valid": true,
+      "invalid_reasons": []
+    },
+    {
+      "n": 1024,
+      "seed": 2,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 276.52399999999994,
+      "excess_limit_ms": 395.373000000001,
+      "reason": "none",
+      "repeated": false,
+      "grace_artefact_rerun": false,
+      "first_dir": "/srv/e15/runs/lowduty/resident-inf/N1024-stag-s2-repeat",
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1024-stag-s2-repeat",
+      "invocation_ladder_json": "/srv/e15/runs/lowduty/resident-inf/e16-supp/ladder-N1024-stag-s2.json",
+      "supplementary": "stag-s2",
+      "valid": true,
+      "invalid_reasons": []
+    },
+    {
+      "n": 1280,
+      "seed": 1,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 280.98099999999994,
+      "excess_limit_ms": 395.373000000001,
+      "reason": "none",
+      "repeated": false,
+      "grace_artefact_rerun": false,
+      "first_dir": "/srv/e15/runs/lowduty/resident-inf/N1280-stag-repeat",
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1280-stag-repeat",
+      "invocation_ladder_json": "/srv/e15/runs/lowduty/resident-inf/e16-supp/ladder-N1280-stag.json",
+      "supplementary": "stag",
+      "valid": true,
+      "invalid_reasons": []
+    },
+    {
+      "n": 1536,
+      "seed": 1,
+      "holds": true,
+      "holds_abs": true,
+      "p95_excess_ms": 274.6290000000001,
+      "excess_limit_ms": 395.373000000001,
+      "reason": "none",
+      "repeated": false,
+      "grace_artefact_rerun": false,
+      "first_dir": "/srv/e15/runs/lowduty/resident-inf/N1536-stag-repeat",
+      "dir": "/srv/e15/runs/lowduty/resident-inf/N1536-stag-repeat",
+      "invocation_ladder_json": "/srv/e15/runs/lowduty/resident-inf/e16-supp/ladder-N1536-stag.json",
+      "supplementary": "stag",
+      "valid": true,
+      "invalid_reasons": []
+    }
+  ]
+}

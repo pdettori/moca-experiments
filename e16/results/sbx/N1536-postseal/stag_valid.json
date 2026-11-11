@@ -1,0 +1,16 @@
+{
+  "supplementary": true,
+  "valid": true,
+  "reasons": [],
+  "checks": {
+    "a_egress_wedged_lines": 0,
+    "b_aborted_before_grace_end": 0,
+    "b_first_early_abort": null,
+    "c_applies": false,
+    "c_end_sessions_sent": null,
+    "c_end_sessions_ok": null,
+    "c_end_sessions_deferred": null
+  },
+  "grace_end_epoch": 1794248088.2124834,
+  "rule": "user decision 2026-11-09: (a) no egress-wedged line; (b) no aborted Exec before graceEnd; (c) end_sessions_sent == end_sessions_ok"
+}

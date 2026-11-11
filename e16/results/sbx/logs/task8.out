@@ -1,0 +1,91 @@
+E16 ladder-sbx START 2026-11-08T13:45:14Z src 2565bc9525857bffef3456b76dbc156ba58b2b3b
+E16 ladder-sbx sbx START 2026-11-08T13:45:14Z
+E16 ladder-sbx sbx N=256 holds=true holds_abs=true p95x=126 reason=none
+E16 ladder-sbx sbx N=384 holds=true holds_abs=true p95x=150 reason=none
+E16 ladder-sbx sbx N=512 holds=true holds_abs=true p95x=134 reason=none
+E16 ladder-sbx sbx N=640 holds=true holds_abs=true p95x=170 reason=none
+E16 ladder-sbx sbx N=768 holds=true holds_abs=true p95x=166 reason=none
+E16 ladder-sbx sbx N=896 holds=true holds_abs=true p95x=210 reason=none
+E16 ladder-sbx sbx N=1024 holds=true holds_abs=true p95x=216 reason=none
+E16 ladder-sbx sbx DONE 2026-11-08T18:09:52Z :: n_max n_max_stopped n_max_abs stopped_abs = 1024 null 1024 null
+E16 ladder-sbx END rc=0 2026-11-08T18:09:52Z
+E16 ladder-resident START 2026-11-08T18:09:52Z src 257e932165060b67a924fcff875ae5516b9d7425
+E16 ladder-resident resident-inf START 2026-11-08T18:09:52Z
+E16 ladder-resident resident-inf N=256 holds=true holds_abs=true p95x=101 reason=none
+E16 ladder-resident resident-inf N=384 holds=true holds_abs=true p95x=132 reason=none
+E16 ladder-resident resident-inf N=512 holds=true holds_abs=true p95x=174 reason=none
+E16 ladder-resident resident-inf N=640 holds=true holds_abs=true p95x=187 reason=none
+E16 ladder-resident resident-inf N=768 holds=true holds_abs=true p95x=159 reason=none
+E16 ladder-resident resident-inf N=896 holds=true holds_abs=true p95x=203 reason=none
+E16 ladder-resident resident-inf N=1024 holds=false holds_abs=false p95x=203 reason=no_failures
+E16 ladder-resident resident-inf DONE 2026-11-09T00:35:28Z :: n_max n_max_stopped n_max_abs stopped_abs = 896 1024 896 1024
+E16 ladder-resident END rc=0 2026-11-09T00:35:28Z
+E16 ladder-sbx-ext START 2026-11-09T00:35:46Z src 3feaf152e49bc4195cecbf17d8dc8d9db29549c0
+E16 ladder-sbx-ext SKIP: resident-inf n_max=896 < 1024 (the comparison is decided without it)
+E16 ladder-sbx-ext END rc=0 2026-11-09T00:35:46Z
+E16 seeds START 2026-11-09T00:35:46Z src 3feaf152e49bc4195cecbf17d8dc8d9db29549c0
+E16 seeds sbx N=1024-s2 holds=true holds_abs=true p95x=252 reason=none
+E16 seeds sbx DONE :: 1024 null 1024 null
+E16 seeds resident-inf N=896-s2 holds=false holds_abs=false p95x=196 reason=no_failures
+E16 seeds resident-inf N=896 s1 and s2 disagree: seed 3
+E16 seeds resident-inf N=896-s3 holds=true holds_abs=true p95x=207 reason=none
+E16 seeds resident-inf N=1024-s2 holds=true holds_abs=true p95x=214 reason=none
+E16 seeds resident-inf N=1024 s1 and s2 disagree: seed 3
+E16 seeds resident-inf N=1024-s3 holds=true holds_abs=true p95x=202 reason=none
+E16 seeds resident-inf DONE :: 1024 null 1024 null
+E16 seeds END rc=0 2026-11-09T04:59:36Z
+E16 SETUP-defer START 2026-11-09T04:59:54Z
+E16 SETUP-defer DONE 4971f732ec037686 92ee10bd51443da1
+E16 stag START 2026-11-09T04:59:56Z src 4af1873f9dec509a9972f0d60fa582733c9f53d1
+E16 stag START (SUPPLEMENTARY: end-session defer; not the sealed procedure) 2026-11-09T04:59:56Z
+E16 stag resident-inf N=896-stag holds=true holds_abs=true p95x=191 reason=none
+E16 stag resident-inf N=896-stag validity: valid
+E16 stag resident-inf N=896-stag-s2 holds=true holds_abs=true p95x=208 reason=none
+E16 stag resident-inf N=896-stag-s2 validity: valid
+E16 stag resident-inf N=896 verdict (majority of valid seeds): holds=true
+E16 stag resident-inf N=1024-stag holds=true holds_abs=true p95x=214 reason=none
+E16 stag resident-inf N=1024-stag validity: valid
+E16 stag resident-inf N=1024-stag-s2 holds=true holds_abs=true p95x=277 reason=none
+E16 stag resident-inf N=1024-stag-s2 validity: valid
+E16 stag resident-inf N=1024 verdict (majority of valid seeds): holds=true
+E16 stag PAIR resident-inf 896=true 1024=true 2026-11-09T12:35:53Z
+E16 stag resident-inf N=1280 memory check: MemAvailable 370 GiB idle, projected slice memory 130 GiB of 377
+E16 stag resident-inf N=1280-stag holds=true holds_abs=true p95x=281 reason=none
+E16 stag resident-inf N=1280-stag validity: valid
+E16 stag resident-inf N=1536 memory check: MemAvailable 370 GiB idle, projected slice memory 156 GiB of 377
+E16 stag resident-inf N=1536-stag holds=true holds_abs=true p95x=275 reason=none
+E16 stag resident-inf N=1536-stag validity: valid
+E16 stag sbx N=1280 memory check: MemAvailable 369 GiB idle, projected slice memory 33 GiB of 377
+E16 stag sbx N=1280-postseal holds=true holds_abs=true p95x=266 reason=none
+E16 stag sbx N=1280-postseal validity: valid
+E16 stag sbx N=1536 memory check: MemAvailable 370 GiB idle, projected slice memory 40 GiB of 377
+E16 stag sbx N=1536-postseal holds=true holds_abs=true p95x=272 reason=none
+E16 stag sbx N=1536-postseal validity: valid
+E16 stag DONE rc=0 2026-11-09T18:10:43Z
+E16 stag END rc=0 2026-11-09T18:10:43Z
+E16 ladder-resident-ext START 2026-11-09T18:11:13Z src 9284daee5bff7ed5b66c72c4cbefacb1894a86bc
+E16 ladder-resident-ext resident-inf START (sealed extension 1280 1536) 2026-11-09T18:11:13Z
+E16 ladder-resident-ext resident-inf N=1280 memory check: MemAvailable 369 GiB idle, projected slice memory 130 GiB of 377
+E16 ladder-resident-ext resident-inf N=1280 holds=false holds_abs=false p95x=249 reason=no_failures
+E16 ladder-resident-ext resident-inf DONE 2026-11-09T18:53:49Z :: n_max n_max_stopped n_max_abs stopped_abs = 1024 1280 1024 1280
+E16 ladder-resident-ext END rc=0 2026-11-09T18:53:49Z
+E16 ladder-sbx-ext START 2026-11-09T18:53:49Z src 9284daee5bff7ed5b66c72c4cbefacb1894a86bc
+E16 ladder-sbx-ext sbx START (post-seal extension; resident-inf n_max=1024) 2026-11-09T18:53:49Z
+E16 ladder-sbx-ext sbx N=1280 memory check: MemAvailable 370 GiB idle, projected slice memory 33 GiB of 377
+E16 ladder-sbx-ext sbx N=1280 holds=true holds_abs=true p95x=263 reason=none
+E16 ladder-sbx-ext sbx N=1536 memory check: MemAvailable 369 GiB idle, projected slice memory 39 GiB of 377
+E16 ladder-sbx-ext sbx N=1536 holds=true holds_abs=true p95x=290 reason=none
+E16 ladder-sbx-ext sbx DONE 2026-11-09T20:18:11Z :: n_max 1536 stopped_at None n_max_abs 1536 stopped_at_abs None
+E16 ladder-sbx-ext END rc=0 2026-11-09T20:18:11Z
+E16 seeds START 2026-11-09T20:18:11Z src 9284daee5bff7ed5b66c72c4cbefacb1894a86bc
+E16 seeds sbx N=1536 memory check: MemAvailable 369 GiB idle, projected slice memory 38 GiB of 377
+E16 seeds sbx N=1536-s2 holds=true holds_abs=true p95x=305 reason=none
+E16 seeds sbx DONE :: 1536 null 1536 null
+E16 seeds resident-inf N=1024 SKIP (row exists: /srv/e15/runs/lowduty/resident-inf/e16/N1024-s2.json)
+E16 seeds resident-inf N=1024 s1 and s2 disagree: seed 3
+E16 seeds resident-inf N=1024 SKIP (row exists: /srv/e15/runs/lowduty/resident-inf/e16/N1024-s3.json)
+E16 seeds resident-inf N=1280 memory check: MemAvailable 369 GiB idle, projected slice memory 131 GiB of 377
+E16 seeds resident-inf N=1280-s2 holds=false holds_abs=false p95x=261 reason=no_failures
+E16 seeds resident-inf DONE :: 1024 1280 1024 1280
+E16 seeds END rc=0 2026-11-09T22:57:10Z
+E16 control START 2026-11-09T22:57:10Z src 9284daee5bff7ed5b66c72c4cbefacb1894a86bc

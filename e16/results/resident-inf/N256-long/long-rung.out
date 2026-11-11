@@ -1,0 +1,3 @@
+E16 long-rung START 2026-11-07T19:09:37Z src 554396eb108c8c751443e6c08da489a3f9fa4b16
+E16 long-rung resident-inf N=256 RIG_ERROR rung.sh: no N=1 baseline.json for resident-inf matching point lowduty (run baseline.sh lowduty resident-inf first)
+E16 long-rung END rc=1 2026-11-07T19:09:37Z
