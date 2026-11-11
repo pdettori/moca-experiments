@@ -16,7 +16,7 @@ import pycache_corpus  # noqa: E402
 GAPS = os.path.join(HERE, "testdata", "gaps-20.jsonl")
 DRIVER = os.path.join(HERE, "..", "..", "e15", "driver")
 DRIVER_FIXTURE = os.path.join(DRIVER, "testdata", "pycache-corpus.jsonl")
-TURN_HEAD = ["py_analyze", "py_test"]
+TURN_HEAD = ["py_analyze", "py_test", "py_import", "py_grep"]  # spec v0.4 §4.3
 
 
 def gen(tmp_path, duty=0.095, sessions=40, seed=1, name="out", extra=()):
@@ -32,24 +32,28 @@ def turns(classes):
     """Split a session's classes into turns; None when they do not follow the cycle."""
     out, k = [], 0
     while k < len(classes):
-        if classes[k:k + 2] != TURN_HEAD:
+        if classes[k:k + len(TURN_HEAD)] != TURN_HEAD:
             return None
-        j = k + 2
+        j = k + len(TURN_HEAD)
         while j < len(classes) and classes[j] == "py_short":
             j += 1
         if j >= len(classes) or classes[j] != "py_analyze":
             return None
-        out.append(j - k - 2)
+        out.append(j - k - len(TURN_HEAD))
         k = j + 1
     return out
 
 
 def test_turn_order(tmp_path):
-    _, corpus, _ = gen(tmp_path, duty=0.015)
+    # Spec v0.4 §4.3: py_analyze, py_test, py_import, py_grep, py_short x k (2 <= k <= 5), py_analyze.
+    _, corpus, report = gen(tmp_path, duty=0.015)
     for s in corpus:
         ks = turns([c["class"] for c in s["calls"]])
         assert ks, s["session"]
         assert all(2 <= k <= 5 for k in ks), (s["session"], ks)
+    per = report["calls_per_class"]
+    assert set(per) == set(pycache_corpus.DUR_MS)
+    assert per["py_import"] == per["py_grep"] == per["py_test"] == per["py_analyze"] // 2
 
 
 def test_seed_is_deterministic(tmp_path):
@@ -96,7 +100,7 @@ def test_min_turns_is_a_parameter(tmp_path):
 
 def test_schema_and_timeline(tmp_path):
     _, corpus, report = gen(tmp_path)
-    want = {"py_analyze": 15000, "py_test": 60000, "py_short": 300}
+    want = {"py_analyze": 15000, "py_test": 60000, "py_import": 2000, "py_grep": 2200, "py_short": 300}
     users = set()
     for s in corpus:
         assert set(s) == {"session", "user", "provider", "calls"}
@@ -177,11 +181,11 @@ def cal_file(tmp_path, durations, name="cal.json"):
 
 def test_durations_from_overrides_dur_and_work(tmp_path):
     # After calibration the corpora carry the measured N=1 medians, never the placeholders.
-    cal = {"py_analyze": 21000.4, "py_test": 55000, "py_short": 450}
+    cal = {"py_analyze": 21000.4, "py_test": 55000, "py_import": 1980.6, "py_grep": 2150, "py_short": 450}
     path = cal_file(tmp_path, cal)
     _, base, base_report = gen(tmp_path, name="base")
     _, corpus, report = gen(tmp_path, name="cal", extra=("--durations-from", path))
-    want = {"py_analyze": 21000, "py_test": 55000, "py_short": 450}
+    want = {"py_analyze": 21000, "py_test": 55000, "py_import": 1981, "py_grep": 2150, "py_short": 450}
     for s in corpus:
         for c in s["calls"]:
             assert c["dur_ms"] == c["work_ms"] == want[c["class"]]
@@ -194,25 +198,39 @@ def test_durations_from_overrides_dur_and_work(tmp_path):
     with open(path, "rb") as f:
         assert report["durations_from"] == {"file": "cal.json",
                                             "sha256": hashlib.sha256(f.read()).hexdigest()}
-    assert base_report["durations_ms"] == {"py_analyze": 15000, "py_test": 60000, "py_short": 300}
+    assert base_report["durations_ms"] == {"py_analyze": 15000, "py_test": 60000, "py_import": 2000,
+                                           "py_grep": 2200, "py_short": 300}
     assert base_report["durations_from"] is None
 
 
 def test_durations_from_is_deterministic(tmp_path):
-    path = cal_file(tmp_path, {"py_analyze": 18000, "py_test": 52000, "py_short": 410})
+    path = cal_file(tmp_path, {"py_analyze": 18000, "py_test": 52000, "py_import": 1990, "py_grep": 2170,
+                               "py_short": 410})
     a, _, _ = gen(tmp_path, name="a", extra=("--durations-from", path))
     b, _, _ = gen(tmp_path, name="b", extra=("--durations-from", path))
     assert (a / "corpus.jsonl").read_bytes() == (b / "corpus.jsonl").read_bytes()
     assert (a / "corpus-report.json").read_bytes() == (b / "corpus-report.json").read_bytes()
 
 
+FIVE = {"py_analyze": 18000, "py_test": 52000, "py_import": 1990, "py_grep": 2170, "py_short": 410}
+
+
+def with_(**kw):
+    """FIVE with some classes replaced; a value of None drops the class."""
+    d = dict(FIVE, **kw)
+    return {k: v for k, v in d.items() if v is not None}
+
+
 @pytest.mark.parametrize("durations", [
-    {"py_analyze": 18000, "py_test": 52000},                                   # a class missing
-    {"py_analyze": 18000, "py_test": 52000, "py_short": 410, "py_lint": 1},    # an unknown class
-    {"py_analyze": 18000, "py_test": 0, "py_short": 410},                      # not positive
-    {"py_analyze": 18000, "py_test": "52000", "py_short": 410},                # not a number
-    {"py_analyze": True, "py_test": 52000, "py_short": 410},                   # a bool is not a number
-    [18000, 52000, 410],                                                        # not an object
+    with_(py_grep=None),                         # four classes: py_grep missing
+    with_(py_import=None),                       # four classes: py_import missing
+    with_(py_import=None, py_grep=None),         # the three pre-v0.4 classes
+    with_(py_lint=1),                            # six classes: an unknown one
+    with_(py_test=0),                            # not positive
+    with_(py_grep=-5),                           # not positive
+    with_(py_test="52000"),                      # not a number
+    with_(py_analyze=True),                      # a bool is not a number
+    list(FIVE.values()),                         # not an object
 ])
 def test_durations_from_refuses_a_bad_file(tmp_path, capsys, durations):
     path = cal_file(tmp_path, durations)

@@ -697,11 +697,12 @@ func TestLoadCorpusAcceptsPycache(t *testing.T) {
 	}
 }
 
-// E17's pycache library (e17/workload/library.json) must plan every py_analyze and py_test call of
-// the pycache corpus as ONE invocation: a chained second analyze or test run would double the
-// call's work. fill picks a second copy of an invocation of Ms() m only while the remainder
-// work_ms - m is >= 50 and >= m, so one invocation per call holds while Ms() > work_ms/2; the
-// boundary cases pin that for Task 5's measured run_ms.
+// E17's pycache library (e17/workload/library.json) must plan every py_analyze, py_test, py_import
+// and py_grep call of the pycache corpus as ONE invocation with no sleep: a chained second analyze
+// or test run would double the call's work, and a padded import or grep (spec v0.4 §4.3) would
+// not be the cache-bound command alone. fill picks a second copy of an invocation of Ms() m only
+// while the remainder work_ms - m is >= 50 and >= m, so one invocation per call holds while
+// Ms() > work_ms/2; the boundary cases pin that for Task 5's measured run_ms.
 func TestPlanPycacheOneInvocationPerHeavyCall(t *testing.T) {
 	l, err := LoadLibrary("../../e17/workload/library.json")
 	if err != nil {
@@ -711,21 +712,24 @@ func TestPlanPycacheOneInvocationPerHeavyCall(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	heavy := 0
+	single := map[string]bool{"py_analyze": true, "py_test": true, "py_import": true, "py_grep": true}
+	seen := map[string]int{}
 	for _, s := range ss {
 		for _, c := range s.Calls {
-			if c.Class != "py_analyze" && c.Class != "py_test" {
+			if !single[c.Class] {
 				continue
 			}
-			heavy++
+			seen[c.Class]++
 			p := plan(t, l, c, 1, s.ID)
 			if len(p) != 1 || p[0].Cmd != l.Classes[c.Class][0].Cmd || p[0].Exit != 0 || p[0].SleepAfterMs != 0 {
 				t.Fatalf("%s call %d (%s, work %d ms): plan %+v, want the one library invocation", s.ID, c.I, c.Class, c.WorkMs, p)
 			}
 		}
 	}
-	if heavy == 0 {
-		t.Fatal("fixture has no py_analyze/py_test calls")
+	for cls := range single {
+		if seen[cls] == 0 {
+			t.Fatalf("fixture has no %s calls", cls)
+		}
 	}
 	if err := validatePlans(ss, l, 1, Scan{}); err != nil {
 		t.Fatal(err)

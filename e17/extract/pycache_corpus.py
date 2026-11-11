@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """E17 pycache corpus generator: synthetic cache-heavy Python sessions in E15's corpus schema.
 
-E17 SPEC §4.2. A session is a loop of turns, each a fixed sequence of calls:
-  py_analyze, py_test, py_short x k (2 <= k <= 5, drawn per turn), py_analyze.
+E17 SPEC §4.2 and §4.3 (v0.4). A session is a loop of turns, each a fixed sequence of calls:
+  py_analyze, py_test, py_import, py_grep, py_short x k (2 <= k <= 5, drawn per turn), py_analyze.
 Every session has at least --min-turns turns (default 4), so a lease is tested across turns and not
 only inside one; the duty fit below adds turns only above that floor.
-dur_ms = work_ms are the N = 1 planned durations (py_analyze 15 s, py_test 60 s, py_short 300 ms);
-the library's real commands decide the actual time. Those three are placeholders until calibration:
---durations-from CAL.json (a JSON object, each class to its measured N = 1 median run_ms, e.g.
-{"py_analyze": 17250, "py_test": 58100, "py_short": 410}; every class, nothing else, each > 0)
-replaces them, rounded to whole ms, so the busy time, the duty fit and the offsets use the measured
-durations. The report records the durations used (durations_ms) and the file's name and sha256
-(durations_from, null without one). Users pyc-u00 .. pyc-u39 round-robin (so the driver's 15%
-per-user cap never binds); provider "synthetic"; out_bytes 0 (the driver never reads it).
+dur_ms = work_ms are the N = 1 planned durations (py_analyze 15 s, py_test 60 s, py_import 2 s,
+py_grep 2.2 s, py_short 300 ms); the library's real commands decide the actual time. py_import and
+py_grep are the §1.1 feasibility probe's cold N = 1 times. All five are placeholders until
+calibration: --durations-from CAL.json (a JSON object, each class to its measured N = 1 median
+run_ms, e.g. {"py_analyze": 17250, "py_test": 58100, "py_import": 1980, "py_grep": 2160,
+"py_short": 410}; every class, nothing else, each > 0) replaces them, rounded to whole ms, so the
+busy time, the duty fit and the offsets use the measured durations. The report records the
+durations used (durations_ms) and the file's name and sha256 (durations_from, null without one).
+Users pyc-u00 .. pyc-u39 round-robin (so the driver's 15% per-user cap never binds); provider
+"synthetic"; out_bytes 0 (the driver never reads it).
 
 Gaps are drawn (seeded) from the gap source's gap_ms values. Each source session's last call is
 left out: E15 writes 0 there as a terminator, not as a gap. The draws are then scaled to the
@@ -63,8 +65,13 @@ MAX_EXTRA_TURNS = 50
 MIN_TURNS = 4
 USERS = 40
 PROVIDER = "synthetic"
-DUR_MS = {"py_analyze": 15_000, "py_test": 60_000, "py_short": 300}
-SKELETON = {"py_analyze": "python analyze.py", "py_test": "python -m pytest -x -q tests"}
+DUR_MS = {"py_analyze": 15_000, "py_test": 60_000, "py_import": 2_000, "py_grep": 2_200,
+          "py_short": 300}
+# Skeletons are descriptive only: the driver runs the library's command for the class.
+SKELETON = {"py_analyze": "python analyze.py", "py_test": "python -m pytest -x -q tests",
+            "py_import": "python -c 'import numpy, pandas, scipy, sklearn'",
+            "py_grep": "grep -rc def venv"}
+TURN_HEAD = ("py_analyze", "py_test", "py_import", "py_grep")
 SHORT_SKELETONS = ("grep", "read", "edit")
 
 
@@ -82,7 +89,7 @@ def load_gaps(path):
 def turn(rng):
     """One turn's (class, skeleton) pairs."""
     k = rng.randint(2, 5)
-    return ([("py_analyze", SKELETON["py_analyze"]), ("py_test", SKELETON["py_test"])]
+    return ([(cls, SKELETON[cls]) for cls in TURN_HEAD]
             + [("py_short", rng.choice(SHORT_SKELETONS)) for _ in range(k)]
             + [("py_analyze", SKELETON["py_analyze"])])
 

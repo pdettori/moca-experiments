@@ -2268,26 +2268,26 @@ for l in open(sys.argv[1]):
 print(" ".join(sorted(s)))' "$GC/$1/corpus.jsonl"
   }
   check "E17 gen_corpora: placeholders without --durations-from, and it says so" \
-    "$(gc)/$(gcd pycache)/$(grep -c 'placeholder durations' "$TMP/gc.out")" "0/py_analyze=15000/15000 py_short=300/300 py_test=60000/60000/1"
+    "$(gc)/$(gcd pycache)/$(grep -c 'placeholder durations' "$TMP/gc.out")" "0/py_analyze=15000/15000 py_grep=2200/2200 py_import=2000/2000 py_short=300/300 py_test=60000/60000/1"
   check "E17 gen_corpora: pycache at duty 0.095, pycache-low at 0.015; 400 sessions, seed 1, min-turns 4" \
     "$(gcr pycache '(r["duty_target"], r["sessions"], r["seed"], r["min_turns"])')/$(gcr pycache-low '(r["duty_target"], r["sessions"], r["seed"], r["min_turns"])')" \
     "(0.095, 400, 1, 4)/(0.015, 400, 1, 4)"
   check "E17 gen_corpora: same as pycache_corpus.py run directly (byte-identical)" \
     "$(python3 "$E17D/extract/pycache_corpus.py" --gaps-from "$E17D/extract/testdata/gaps-20.jsonl" --duty 0.015 --sessions 400 --seed 1 --min-turns 4 --out "$TMP/gc-direct" >/dev/null 2>&1; cmp -s "$TMP/gc-direct/corpus.jsonl" "$GC/pycache-low/corpus.jsonl" && echo same)" "same"
   cp "$GC/pycache/corpus.jsonl" "$TMP/gc-placeholder.jsonl"
-  printf '{"py_analyze": 18250.6, "py_test": 57100, "py_short": 412}\n' >"$TMP/cal.json"
+  printf '{"py_analyze": 18250.6, "py_test": 57100, "py_import": 1980.6, "py_grep": 2150, "py_short": 412}\n' >"$TMP/cal.json"
   check "E17 gen_corpora --durations-from: every call carries the measured durations, both corpora" \
     "$(gc --durations-from "$TMP/cal.json")/$(gcd pycache)/$(gcd pycache-low)" \
-    "0/py_analyze=18251/18251 py_short=412/412 py_test=57100/57100/py_analyze=18251/18251 py_short=412/412 py_test=57100/57100"
+    "0/py_analyze=18251/18251 py_grep=2150/2150 py_import=1981/1981 py_short=412/412 py_test=57100/57100/py_analyze=18251/18251 py_grep=2150/2150 py_import=1981/1981 py_short=412/412 py_test=57100/57100"
   check "E17 gen_corpora --durations-from: the reports record them and the file, and no placeholder note" \
     "$(gcr pycache 'r["durations_ms"]')/$(gcr pycache-low 'r["durations_from"]["file"]')/$(grep -c 'placeholder durations' "$TMP/gc.out")" \
-    "{'py_analyze': 18251, 'py_test': 57100, 'py_short': 412}/cal.json/0"
+    "{'py_analyze': 18251, 'py_test': 57100, 'py_import': 1981, 'py_grep': 2150, 'py_short': 412}/cal.json/0"
   check "E17 gen_corpora --durations-from: the duty is still met with the measured durations" \
     "$(gcr pycache 'r["duty_achieved"]["mean"] <= 0.095 * 1.2')/$(gcr pycache-low 'r["duty_achieved"]["mean"] <= 0.015 * 1.2')" "True/True"
   check "E17 gen_corpora --durations-from: the corpus changed, the report's corpus_sha256 is its file's" \
     "$(cmp -s "$TMP/gc-placeholder.jsonl" "$GC/pycache/corpus.jsonl" && echo same || echo changed)/$([ "$(gcr pycache 'r["corpus_sha256"]')" = "$(sha256sum "$GC/pycache/corpus.jsonl" | cut -d' ' -f1)" ] && echo match)" "changed/match"
   cp "$GC/pycache/corpus.jsonl" "$TMP/gc-cal.jsonl"
-  printf '{"py_analyze": 18250, "py_test": 57100}\n' >"$TMP/cal-bad.json"
+  printf '{"py_analyze": 18250, "py_test": 57100, "py_import": 1980, "py_short": 412}\n' >"$TMP/cal-bad.json"
   check "E17 gen_corpora --durations-from: a file missing a class fails, the corpora stay as they were" \
     "$(gc --durations-from "$TMP/cal-bad.json")/$(grep -c 'pycache_corpus.py: --durations-from' "$TMP/gc.out")/$(cmp -s "$TMP/gc-cal.jsonl" "$GC/pycache/corpus.jsonl" && echo kept)/$(find "$GC" -maxdepth 1 -name '.pycache*' | grep -c .)" "1/1/kept/0"
   check "E17 gen_corpora: a missing CAL.json, or another argument, is a usage error" \

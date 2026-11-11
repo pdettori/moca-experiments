@@ -21,6 +21,26 @@
         "cpu_ms": null
       }
     ],
+    "py_import": [
+      {
+        "id": "import_stack",
+        "cmd": "cd project && ../venv/bin/python -c 'import numpy, pandas, scipy, sklearn'",
+        "exit": 0,
+        "nominal_ms": 2000,
+        "run_ms": null,
+        "cpu_ms": null
+      }
+    ],
+    "py_grep": [
+      {
+        "id": "grep_venv",
+        "cmd": "cd project && grep -rc --include='*.py' 'def ' ../venv/lib/python3.9/site-packages | wc -l",
+        "exit": 0,
+        "nominal_ms": 2200,
+        "run_ms": null,
+        "cpu_ms": null
+      }
+    ],
     "py_short": [
       {
         "id": "grep_def",

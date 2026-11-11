@@ -30,7 +30,7 @@ LOCK = HERE / "wheels.lock"
 DRIVER = ROOT / "e15" / "driver"
 WHEELS = pathlib.Path(os.environ.get("E17_WHEELS", "/tmp/kagenti/e17-wheels-probe"))
 SHARD_MIB = 32
-CLASSES = {"py_analyze", "py_test", "py_short"}
+CLASSES = {"py_analyze", "py_test", "py_import", "py_grep", "py_short"}
 
 sys.path.insert(0, str(ROOT / "e17" / "extract"))
 import pycache_corpus  # noqa: E402
@@ -181,8 +181,50 @@ def test_library_matches_classes():
             assert inv["run_ms"] is None and inv["cpu_ms"] is None, inv
     assert [i["cmd"] for i in lib["classes"]["py_analyze"]] == ["cd project && ../venv/bin/python analyze.py"]
     assert [i["cmd"] for i in lib["classes"]["py_test"]] == ["cd project && ../venv/bin/python -m pytest -p no:cacheprovider -x -q tests"]
+    assert [(i["id"], i["cmd"]) for i in lib["classes"]["py_import"]] == [
+        ("import_stack", "cd project && ../venv/bin/python -c 'import numpy, pandas, scipy, sklearn'")]
+    assert [(i["id"], i["cmd"]) for i in lib["classes"]["py_grep"]] == [
+        ("grep_venv", "cd project && grep -rc --include='*.py' 'def ' ../venv/lib/python3.9/site-packages | wc -l")]
     assert 6 <= len(lib["classes"]["py_short"]) <= 10
     assert sum("python3 -c" in i["cmd"] for i in lib["classes"]["py_short"]) == 1
+
+
+def test_cache_bound_classes_plan_one_invocation():
+    # Spec v0.4 §4.3: py_import and py_grep have one invocation each whose nominal_ms is the corpus
+    # generator's planned duration, so the driver's fill runs it once and sleeps 0.
+    lib = library()
+    for cls, ms in (("py_import", 2000), ("py_grep", 2200)):
+        assert pycache_corpus.DUR_MS[cls] == ms
+        (inv,) = lib["classes"][cls]
+        assert inv["nominal_ms"] == pycache_corpus.DUR_MS[cls], cls
+
+
+def test_grep_venv_prints_one_count(tmp_path):
+    # The guest's venv is not staged by --dir: a fake site-packages stands in for it. The command
+    # reads every .py file under it and prints one line (the number of files), exit 0.
+    ws = tmp_path / "ws"
+    stage(ws, "--dataset-mib", "1")
+    sp = ws / "venv" / "lib" / "python3.9" / "site-packages"
+    (sp / "pkg").mkdir(parents=True)
+    (sp / "x.py").write_text("def f():\n    pass\n")
+    (sp / "pkg" / "y.py").write_text("x = 1\n")
+    (sp / "pkg" / "z.txt").write_text("def not_python\n")
+    (inv,) = library()["classes"]["py_grep"]
+    r = run_cmd(ws, inv["cmd"])
+    assert r.returncode == inv["exit"] == 0, r.stderr
+    assert re.fullmatch(r"\s*2\n", r.stdout), r.stdout
+
+
+def test_import_stack_runs(tmp_path):
+    need_stack()
+    if importlib.util.find_spec("scipy") is None:
+        pytest.skip(f"scipy is not importable by {sys.executable}")
+    ws = tmp_path / "ws"
+    stage(ws, "--dataset-mib", "1")
+    shim_venv(ws)
+    (inv,) = library()["classes"]["py_import"]
+    r = run_cmd(ws, inv["cmd"])
+    assert r.returncode == inv["exit"] == 0, r.stderr
 
 
 def test_short_commands_exit_zero(tmp_path):

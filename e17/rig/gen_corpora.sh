@@ -9,9 +9,10 @@
 #
 #   bash e17/rig/gen_corpora.sh [--durations-from CAL.json]
 #
-# --durations-from CAL.json: a JSON object, each class (py_analyze, py_test, py_short) to its
-# measured N=1 median run_ms (the calibration, PLAN Task 5 step 4). The corpora then carry those
-# as dur_ms/work_ms, not the 15000/60000/300 placeholders (ruling: after calibration they must),
+# --durations-from CAL.json: a JSON object, each of the five classes (py_analyze, py_test, py_import,
+# py_grep, py_short; spec v0.4 §4.3) to its measured N=1 median run_ms (the calibration, PLAN Task 5
+# step 4). The corpora then carry those as dur_ms/work_ms, not the 15000/60000/2000/2200/300
+# placeholders (ruling: after calibration they must),
 # and each corpus-report.json records them (durations_ms, durations_from). Without it the
 # placeholders stay, and this script says so. Each corpus directory is replaced whole: written to
 # a temporary sibling first, then moved over the old one.
