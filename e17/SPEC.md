@@ -1,5 +1,11 @@
 # E17 — lease mode: does a warm guest with an idle timeout pay, and does measured admission hold?
 
+Version: 0.4, 2026-11-11
+2026-11-11 (later): `pycache-io` dropped — its feasibility gate failed (§8: `analyze.py` at CPU scale 1, `D` =
+768, warm only 3.6% faster than cold; the 768 MiB CSV parse is itself compute). A second probe (§1.1) found
+where a warm guest pays: importing the stack (1.98 → 0.53 s) and `grep -r` over the venv (2.17 → 0.08 s).
+User decision: add those two operations as classes `py_import` and `py_grep` to every `pycache` turn,
+regenerate the corpus and rebuild both N = 1 baselines; criterion 2 is restated per class (§7.5).
 Version: 0.3, 2026-11-11
 2026-11-11: point `pycache-io` added (§4.3; user decision after the calibration preview in §1.1): the same
 project at `D` = 768 MiB with `analyze.py`'s CPU scale at 1, so its time is mostly reading and parsing the
@@ -49,8 +55,14 @@ Rig: the E15/E16 metal host, AWS m7i.metal-24xl (96 vCPU, 377 GiB, bare metal).
   run):** warm `py_analyze` −5% (n = 2), warm `py_test` +1% (n = 1), warm `py_short` +89% (63 → 7 ms,
   n = 5). The heavy calls are CPU-bound by design (`analyze.py` at `ANALYZE_WORK_SCALE` 32 is mostly a
   KMeans fit; `pytest` is numeric work), so a warm page cache and warm imports save ~1–2 s of a 15–60 s
-  call. Short calls gain because a VM boot is most of their cost. `pycache-io` (§4.3) is the cache-bound
-  case; `pycache` stays as the CPU-heavy case.
+  call. Short calls gain because a VM boot is most of their cost.
+- **Feasibility probes (2026-11-11, `resident-300` guests on the `D` = 768 template, cold = first Exec in a
+  new VM, warm = the same VM again):** `analyze.py` at CPU scale 1: 14.8 s cold, 14.3 s warm (3.6%; the CSV
+  parse is compute). `import numpy, pandas, scipy, sklearn`: 1.98 s cold, 0.49–0.57 s warm (−72%). `grep -r`
+  over the venv's site-packages: 2.15–2.18 s cold, 0.08 s warm (−96%; its cold pass ran after the import in
+  the same VM, so it was partly warm). `find` over the venv: 0.08 → 0.06 s. A warm guest pays on short
+  commands that read many small files or import a large stack, and on VM-boot-bound commands; not on
+  long compute.
 - The trace workload is not cache-heavy. E16's VMs flattened near 150 MiB, but a page-cache-heavy
   Python workload can grow a lease VM toward its guest RAM, which measured admission must then absorb
   by reclaim (question 3).
@@ -131,13 +143,18 @@ Turn gaps are drawn so that the session's duty matches a target (default 9.5%; `
 **Measured per Exec:** wall time, and whether the Exec ran warm (in a guest that had served this
 session before) or cold. Warm and cold are reported per command kind.
 
-### 4.3 Cache-bound variant (point `pycache-io`)
+### 4.3 Cache-bound classes (v0.4)
 
-The `pycache` project and session shape, with two template changes: `D` = 768 MiB, and `analyze.py`'s CPU
-scale at 1 (`ANALYZE_WORK_SCALE`, a template build parameter). `analyze.py` still reads and hashes every
-byte and parses every shard, so its time is mostly I/O, CSV parsing and the stack's imports, which is
-what a warm guest can save. `py_test` and `py_short` are unchanged. The point has its own corpus (9.5%
-duty, generated with its own measured durations) and its own N = 1 baselines for `sbx` and `resident-300`.
+Each `pycache` turn gains two classes, after `pytest` and before the short Execs:
+
+- `py_import`: `cd project && ../venv/bin/python -c 'import numpy, pandas, scipy, sklearn'` (the stack's
+  import, ~2 s cold);
+- `py_grep`: `cd project && grep -rn --include=*.py -c 'def ' ../venv/lib/python3.9/site-packages` (a
+  search over many small files, ~2.2 s cold).
+
+A turn is then: `py_analyze`, `py_test`, `py_import`, `py_grep`, two to five `py_short`, `py_analyze`. The
+templates do not change (the venv is already in the workspace); the corpus and the library do, so both
+arms' N = 1 baselines are rebuilt. `pycache-io` (v0.3) is not built.
 
 ## 5. Arms
 
@@ -169,7 +186,7 @@ bound by the host and not by policy (anti-goal 2).
 
 ### 7.1 Latency (question 1)
 
-Points `pycache`, `pycache-io` and `pycache-low`, rungs N = 1, 32, 128.
+Points `pycache` and `pycache-low`, rungs N = 1, 32, 128.
 
 - Per command kind: median and p95 wall time, warm and cold, per arm.
 - **Gain** = 1 − (lease warm median ÷ sbx median), per command kind, per rung.
@@ -219,10 +236,9 @@ E17b passes if all hold:
 
 1. **Capacity:** `lease-300` `N_max` ≥ `sbx` `N_max` at `default` (primary verdict). At `lowduty`, E16
    stands.
-2. **Latency:** at N = 1 and N = 128, the median warm `analyze.py` and `pytest` are each at least 20%
-   faster in `lease-300` than in `sbx`. Judged and reported per point (`pycache`, `pycache-io`).
-   *Proposed, sealed with the predictions:* criterion 2 holds if it holds at `pycache-io`; `pycache` is
-   reported as the CPU-heavy case, where the preview (§1.1) expects no gain on the heavy calls.
+2. **Latency (per class, v0.4; user decision 2026-11-11):** at `pycache` N = 1 and N = 128, the median
+   warm `py_import`, `py_grep` and `py_short` are each at least 50% faster in `lease-300` than in `sbx`.
+   `py_analyze` and `py_test` (compute) are reported, not gated.
 3. **Reclaim:** at `squeeze`, zero memory-guard events, zero refusals while an idle lease existed, and
    every reclaim of the idle-longest lease.
 4. **Notices:** every lease end has exactly one matching notice.
@@ -241,14 +257,13 @@ rerun.
 | `pycache` and `pycache-low` latency rungs (4 arms × 3 N × 2 points) | a | 6 |
 | Capacity ladders: sbx and lease-300 at default (sbx's E15 metal ladder reused if the rig and commit match), lease-30 and lease-120 at default only | a | 10 |
 | `pycache` gain against `D` (N = 1, `D` = 64, 256, 768 MiB, §10) and the 256 MiB guest-RAM runs (§5) | a | 3 |
-| `pycache-io` feasibility gate: `analyze.py` cold then warm in one resident guest, CPU scale 1, `D` = 768. If warm is not at least 10% faster than cold, stop and go back to the user before its calibration | a | 0.5 |
-| `pycache-io` template, corpus, N = 1 baselines + probes (`sbx`, `resident-300`) | a | 9 |
-| `pycache-io` latency rungs (4 arms × 3 N) | a | 3 |
+| `pycache-io` feasibility gate (failed, 3.6% < 10%) and the import/grep probe | a | 0.5 |
+| v0.4: corpus and library with `py_import`/`py_grep`; rebuild both N = 1 baselines + probes | a | 9 |
 | **E17a report, build decision (user)** | a | — |
 | E17b: the same latency and capacity rungs, shipped lease | b | 18 |
 | `squeeze` point | b | 3 |
 | §7.4 overhead probe and gates | b | 2 |
-| **Total** | | **about 40 h (a) + 23 h (b)** |
+| **Total** | | **about 37 h (a) + 23 h (b)** |
 
 Reuse of earlier ladders is allowed only when the moca commit, rig profile and corpus hash match, and
 the record says so.
@@ -303,6 +318,7 @@ E15 and E16 procedures unchanged.
 | Per-Exec arm keeps the never-binding budget; lease arms use stock admission | yes | our call: question 3 needs the real admission path |
 | Drop the `lowduty` capacity ladder | yes | user, 2026-11-10, after E16's result (arms do not separate at 1–2% duty) |
 | Add a cache-bound variant `pycache-io` (§4.3) after the calibration preview | yes | user, 2026-11-11 |
-| `pycache-io` at `D` = 768, `ANALYZE_WORK_SCALE` 1, its own corpus and baselines; a 10% feasibility gate before its calibration | yes | our call, 2026-11-11 |
-| Criterion 2 judged per point, and holding at `pycache-io` | proposed | our call; sealed with the predictions |
+| `pycache-io` at `D` = 768, `ANALYZE_WORK_SCALE` 1, its own corpus and baselines; a 10% feasibility gate before its calibration | gate failed (3.6%); dropped | our call, 2026-11-11 |
+| Add `py_import` and `py_grep` to every `pycache` turn; rebuild both baselines | yes | user, 2026-11-11 |
+| Criterion 2 per class: `py_import`, `py_grep`, `py_short` ≥ 50% faster warm; compute classes reported | yes | user, 2026-11-11 |
 
