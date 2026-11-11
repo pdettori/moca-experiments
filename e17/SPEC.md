@@ -1,5 +1,10 @@
 # E17 — lease mode: does a warm guest with an idle timeout pay, and does measured admission hold?
 
+Version: 0.3, 2026-11-11
+2026-11-11: point `pycache-io` added (§4.3; user decision after the calibration preview in §1.1): the same
+project at `D` = 768 MiB with `analyze.py`'s CPU scale at 1, so its time is mostly reading and parsing the
+dataset and importing the stack. Criterion 2 is proposed per point (§7.5), sealed with the predictions. A
+feasibility gate (§8) runs before its calibration.
 Version: 0.2 (draft for review), 2026-11-10
 2026-11-10: E16's final result folded in (§1.1). The `lowduty` capacity ladder is dropped: E16 already
 answers question 2 at low duty, so E17's rig time goes to the cache-heavy points instead (§7.2, §8). The
@@ -40,6 +45,12 @@ Rig: the E15/E16 metal host, AWS m7i.metal-24xl (96 vCPU, 377 GiB, bare metal).
 
   So a warm guest neither gains nor costs capacity at low duty on the trace workload. The case for a
   lease rests on the cache-heavy latency gain (question 1) and on the default point (question 2).
+- **Calibration preview (2026-11-11, not sealed; N = 1, `pycache`, 4 seeded `sbx` runs and 1 `resident-300`
+  run):** warm `py_analyze` −5% (n = 2), warm `py_test` +1% (n = 1), warm `py_short` +89% (63 → 7 ms,
+  n = 5). The heavy calls are CPU-bound by design (`analyze.py` at `ANALYZE_WORK_SCALE` 32 is mostly a
+  KMeans fit; `pytest` is numeric work), so a warm page cache and warm imports save ~1–2 s of a 15–60 s
+  call. Short calls gain because a VM boot is most of their cost. `pycache-io` (§4.3) is the cache-bound
+  case; `pycache` stays as the CPU-heavy case.
 - The trace workload is not cache-heavy. E16's VMs flattened near 150 MiB, but a page-cache-heavy
   Python workload can grow a lease VM toward its guest RAM, which measured admission must then absorb
   by reclaim (question 3).
@@ -114,8 +125,19 @@ from the E15 corpus's gap distribution):
 Turn gaps are drawn so that the session's duty matches a target (default 9.5%; `pycache-low` at 1.5%).
 `e17/workload/` builds the template and the session schedule from a seed, so a rung is repeatable.
 
+**As built (calibration, 2026-11-10):** CSV shards, not Parquet (no pyarrow in the wheel set);
+`ANALYZE_WORK_SCALE` 32 (≈ 17.7 s at N = 1 on the rig) and the test suite's `WORK_SCALE` 0.35 (≈ 62 s).
+
 **Measured per Exec:** wall time, and whether the Exec ran warm (in a guest that had served this
 session before) or cold. Warm and cold are reported per command kind.
+
+### 4.3 Cache-bound variant (point `pycache-io`)
+
+The `pycache` project and session shape, with two template changes: `D` = 768 MiB, and `analyze.py`'s CPU
+scale at 1 (`ANALYZE_WORK_SCALE`, a template build parameter). `analyze.py` still reads and hashes every
+byte and parses every shard, so its time is mostly I/O, CSV parsing and the stack's imports, which is
+what a warm guest can save. `py_test` and `py_short` are unchanged. The point has its own corpus (9.5%
+duty, generated with its own measured durations) and its own N = 1 baselines for `sbx` and `resident-300`.
 
 ## 5. Arms
 
@@ -147,7 +169,7 @@ bound by the host and not by policy (anti-goal 2).
 
 ### 7.1 Latency (question 1)
 
-Points `pycache` and `pycache-low`, rungs N = 1, 32, 128.
+Points `pycache`, `pycache-io` and `pycache-low`, rungs N = 1, 32, 128.
 
 - Per command kind: median and p95 wall time, warm and cold, per arm.
 - **Gain** = 1 − (lease warm median ÷ sbx median), per command kind, per rung.
@@ -197,8 +219,10 @@ E17b passes if all hold:
 
 1. **Capacity:** `lease-300` `N_max` ≥ `sbx` `N_max` at `default` (primary verdict). At `lowduty`, E16
    stands.
-2. **Latency:** at `pycache` N = 1 and N = 128, the median warm `analyze.py` and `pytest` are each at
-   least 20% faster in `lease-300` than in `sbx`.
+2. **Latency:** at N = 1 and N = 128, the median warm `analyze.py` and `pytest` are each at least 20%
+   faster in `lease-300` than in `sbx`. Judged and reported per point (`pycache`, `pycache-io`).
+   *Proposed, sealed with the predictions:* criterion 2 holds if it holds at `pycache-io`; `pycache` is
+   reported as the CPU-heavy case, where the preview (§1.1) expects no gain on the heavy calls.
 3. **Reclaim:** at `squeeze`, zero memory-guard events, zero refusals while an idle lease existed, and
    every reclaim of the idle-longest lease.
 4. **Notices:** every lease end has exactly one matching notice.
@@ -217,11 +241,14 @@ rerun.
 | `pycache` and `pycache-low` latency rungs (4 arms × 3 N × 2 points) | a | 6 |
 | Capacity ladders: sbx and lease-300 at default (sbx's E15 metal ladder reused if the rig and commit match), lease-30 and lease-120 at default only | a | 10 |
 | `pycache` gain against `D` (N = 1, `D` = 64, 256, 768 MiB, §10) and the 256 MiB guest-RAM runs (§5) | a | 3 |
+| `pycache-io` feasibility gate: `analyze.py` cold then warm in one resident guest, CPU scale 1, `D` = 768. If warm is not at least 10% faster than cold, stop and go back to the user before its calibration | a | 0.5 |
+| `pycache-io` template, corpus, N = 1 baselines + probes (`sbx`, `resident-300`) | a | 9 |
+| `pycache-io` latency rungs (4 arms × 3 N) | a | 3 |
 | **E17a report, build decision (user)** | a | — |
 | E17b: the same latency and capacity rungs, shipped lease | b | 18 |
 | `squeeze` point | b | 3 |
 | §7.4 overhead probe and gates | b | 2 |
-| **Total** | | **about 27 h (a) + 23 h (b)** |
+| **Total** | | **about 40 h (a) + 23 h (b)** |
 
 Reuse of earlier ladders is allowed only when the moca commit, rig profile and corpus hash match, and
 the record says so.
@@ -275,3 +302,7 @@ E15 and E16 procedures unchanged.
 | Idle timeouts 30, 120, 300 s | yes | our call: the assessment's Phase 3a arms B1–B3, with 300 s in place of 10 min after E15's resident-300 |
 | Per-Exec arm keeps the never-binding budget; lease arms use stock admission | yes | our call: question 3 needs the real admission path |
 | Drop the `lowduty` capacity ladder | yes | user, 2026-11-10, after E16's result (arms do not separate at 1–2% duty) |
+| Add a cache-bound variant `pycache-io` (§4.3) after the calibration preview | yes | user, 2026-11-11 |
+| `pycache-io` at `D` = 768, `ANALYZE_WORK_SCALE` 1, its own corpus and baselines; a 10% feasibility gate before its calibration | yes | our call, 2026-11-11 |
+| Criterion 2 judged per point, and holding at `pycache-io` | proposed | our call; sealed with the predictions |
+
