@@ -8,6 +8,8 @@
 # idle worker and all 20 calls are in the window. Prints the probe run directories (one per line)
 # on stdout. A rung.sh failure is a rig error (exit 1); a probe whose calls fail is not -- the
 # failures are in its calls.jsonl and baseline.py reports them. E15_RUNG overrides the rung command.
+# make_probe.py caps planned durations at the point's E15_P_PROBE_CAP_MS (points.sh: 120000 at the
+# pycache points, whose py_test has one fixed ~62 s runtime), else at 30000 as before.
 set -euo pipefail
 E15_PROG=classprobe.sh
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,7 +35,7 @@ rm -rf "$PROBES"
 # and its rungs run at mem512 (rung.sh: the mem512 template and the driver's scan flags), so the
 # per-class medians include the once-per-call data.bin scan.
 python3 "$E15_SRC/analysis/make_probe.py" "$E15_CORPORA/$E15_P_CORPUS/corpus.jsonl" "$E15_P_LIBRARY" "$PROBES" \
-  --per-class "${E15_PROBE_CALLS:-20}" --seed "${E15_PROBE_SEED:-1}" >&2 ||
+  --per-class "${E15_PROBE_CALLS:-20}" --seed "${E15_PROBE_SEED:-1}" --cap-ms "${E15_P_PROBE_CAP_MS:-30000}" >&2 ||
   die "make_probe.py failed"
 PER=${E15_PROBE_CALLS:-20}
 python3 - "$PROBES" <<'PY' >&2

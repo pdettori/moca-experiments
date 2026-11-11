@@ -7,7 +7,8 @@ E17 runs on the E15 metal host (`/srv/e15`, profile `fresh-metal`) with E15's ri
   - library `/srv/e15/src/e17/workload/library.json`;
   - 1536 MiB workspaces;
   - arms `sbx resident-300 lease-30 lease-120`;
-  - no fallback.
+  - no fallback;
+  - a class-probe cap of 120 000 ms (`E15_P_PROBE_CAP_MS`, in the point signature; E15's points keep 30 000).
 
   | point | corpus (`/srv/e15/corpora/<corpus>/`) | template |
   |---|---|---|
@@ -32,6 +33,7 @@ loop is E15's, unchanged. Where each script's output lands: `e17/results/README.
 | `sync.sh` | laptop: rsync `e15/`, `e16/` and `e17/` to `/srv/e15/src/`, and install the metal library. Stage the corpora `$E17_CORPORA/{pycache,pycache-low}/` to `/srv/e15/corpora/<point>/`, and the wheels `$E17_WHEELS/` to `/srv/e15/wheels-pycache/` |
 | `bringup.sh` | host, idempotent, after `setup.sh`: check the corpora and the wheels against `wheels.lock`; loop-mount the snapshot rootfs that `state/artifacts` records, read-only; build `template-pycache-d{64,256,768}`; stamp each image's sha256 in `state/template-pycache-d<D>`. Each template is skipped while its inputs stamp matches. Manifest `~/e17-manifest.md` |
 | `smoke.sh` | host: `rung.sh ARM 1 pycache` per arm (60 s warm-up, 120 s window, tag `smoke`). On `sbx`: the `py_analyze` calls exit 0, and one `py_analyze` Exec through the relay prints the D=256 `BUILD`'s `dataset_sha256`. Then `warmcold.py` on each rung |
+| `reprobe.sh ARM` | host (Task 5b): re-run only `classprobe.sh pycache ARM` under the pycache probe cap (`E15_P_PROBE_CAP_MS=120000`, points.sh; E15's 30 s cap made `py_test`'s median +31 s) and recompute `runs/pycache/ARM/N1/baseline.json` with `baseline.py` from the seeded runs `baseline.sh` counted plus the new probes. The old probe is moved aside to `_cap30k-N1-probe-*`, `_cap30k-probe-corpora` and `N1/baseline.cap30k.json`. Refuses while a rung's worker runs, and refuses a second run |
 
 Then, on the host: `rung.sh {sbx|resident-300|lease-30|lease-120} N {pycache|pycache-low|pycache-d64|pycache-d768}`.
 Rig runs are started by the controller only.

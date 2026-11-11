@@ -17,8 +17,12 @@
 #     E15_P_SCAN_CMD      the scan, run ONCE per recorded call of those classes (driver --scan-cmd)
 #     E15_P_FALLBACK      1: with no pooled runs of its own, the point may use the default point's
 #                         N=1 baseline (rung.sh); 0 for default itself and for mem512
+#     E15_P_PROBE_CAP_MS  the class probe's cap on planned durations (classprobe.sh -> make_probe.py
+#                         --cap-ms); set by the pycache points only, unset otherwise (classprobe.sh:
+#                         30000, make_probe.py's own default)
 #     E15_P_SETTINGS      the point's settings line (point name, corpus, library, template, image
-#                         size, dataset, scan); its sha256 is the point signature
+#                         size, dataset, scan; then probe_cap_ms only where the cap is set); its
+#                         sha256 is the point signature
 #   e15_point_sig POINT   echo the point signature: sha256 of E15_P_SETTINGS. rung.sh records it in
 #                         params.json/record.json, baseline.py in baseline.json, and rung.sh refuses
 #                         a baseline whose point_sig is not the one it expects
@@ -38,6 +42,9 @@
 # pycache-d768 replay the pycache corpus on the D=64 and D=768 templates. The templates
 # (template-pycache-d<D>, stamp template-pycache-d<D>) are built by e17/rig/bringup.sh, not
 # setup.sh, so e15_templates is E15's. No fallback: each point needs its own baselines.
+# Probe cap 120000 ms (E17 Task 5b): pycache's py_test runs ~62 s whatever it is planned at, so
+# E15's 30 000 ms cap made its probe median +31 s. The cap is in these points' settings, so a
+# baseline probed under another cap has another point_sig and rung.sh refuses it.
 
 E15_MEM512_SCAN_CLASSES=read,shell_read,search,test,interpreter,lint_check
 E15_MEM512_SCAN_CMD='cat /workspace/data.bin >/dev/null'
@@ -53,6 +60,9 @@ e15_point() {
   E15_P_SCAN_CLASSES=""
   E15_P_SCAN_CMD=""
   E15_P_FALLBACK=1
+  # Never defaulted: unset here so a pycache call cannot leak it into the next point's (setup.sh
+  # calls e15_point for several points in one shell).
+  unset E15_P_PROBE_CAP_MS
   case "$1" in
   default)
     E15_P_ARMS="sbx resident-inf resident-300 control"
@@ -96,12 +106,14 @@ e15_point() {
     E15_P_TEMPLATE=$E15_ROOT/$E15_P_TEMPLATE_STAMP/workspace.img
     E15_P_IMAGE_MB=1536
     E15_P_FALLBACK=0
+    E15_P_PROBE_CAP_MS=120000
     ;;
   *) return 1 ;;
   esac
   E15_P_SETTINGS="point=$1 corpus=$E15_P_CORPUS library=${E15_P_LIBRARY#"$E15_ROOT"/} template=${E15_P_TEMPLATE#"$E15_ROOT"/}"
   E15_P_SETTINGS+=" image_mb=$E15_P_IMAGE_MB dataset_mib=$E15_P_DATASET_MIB dataset_seed=$E15_P_DATASET_SEED"
   E15_P_SETTINGS+=" scan_classes=$E15_P_SCAN_CLASSES scan_cmd=$E15_P_SCAN_CMD"
+  [ -z "${E15_P_PROBE_CAP_MS:-}" ] || E15_P_SETTINGS+=" probe_cap_ms=$E15_P_PROBE_CAP_MS"
 }
 
 e15_point_sig() {
