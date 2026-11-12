@@ -1,0 +1,384 @@
+{
+  "baseline_arm": "sbx",
+  "groups": [
+    {
+      "arm": "sbx",
+      "classes": {
+        "py_analyze": {
+          "all": {
+            "median_ms": 15344.7155,
+            "n": 20,
+            "p95_ms": 16775.01
+          },
+          "cold": {
+            "median_ms": 15344.7155,
+            "n": 20,
+            "p95_ms": 16775.01
+          },
+          "unknown": 0,
+          "warm": {
+            "median_ms": null,
+            "n": 0,
+            "p95_ms": null
+          }
+        },
+        "py_grep": {
+          "all": {
+            "median_ms": 387.9725,
+            "n": 20,
+            "p95_ms": 400.619
+          },
+          "cold": {
+            "median_ms": 387.9725,
+            "n": 20,
+            "p95_ms": 400.619
+          },
+          "unknown": 0,
+          "warm": {
+            "median_ms": null,
+            "n": 0,
+            "p95_ms": null
+          }
+        },
+        "py_import": {
+          "all": {
+            "median_ms": 755.2294999999999,
+            "n": 20,
+            "p95_ms": 766.152
+          },
+          "cold": {
+            "median_ms": 755.2294999999999,
+            "n": 20,
+            "p95_ms": 766.152
+          },
+          "unknown": 0,
+          "warm": {
+            "median_ms": null,
+            "n": 0,
+            "p95_ms": null
+          }
+        },
+        "py_short": {
+          "all": {
+            "median_ms": 47.2525,
+            "n": 20,
+            "p95_ms": 79.135
+          },
+          "cold": {
+            "median_ms": 47.2525,
+            "n": 20,
+            "p95_ms": 79.135
+          },
+          "unknown": 0,
+          "warm": {
+            "median_ms": null,
+            "n": 0,
+            "p95_ms": null
+          }
+        },
+        "py_test": {
+          "all": {
+            "median_ms": 61377.2765,
+            "n": 20,
+            "p95_ms": 61881.046
+          },
+          "cold": {
+            "median_ms": 61377.2765,
+            "n": 20,
+            "p95_ms": 61881.046
+          },
+          "unknown": 0,
+          "warm": {
+            "median_ms": null,
+            "n": 0,
+            "p95_ms": null
+          }
+        }
+      },
+      "counts": {
+        "calls": 100,
+        "not_in_window": 0,
+        "not_ok": 0,
+        "unknown": 0,
+        "used": 100
+      },
+      "dataset_mib": 256,
+      "first_after_idle": {
+        "all": {
+          "median_ms": null,
+          "n": 0,
+          "p95_ms": null
+        },
+        "by_class": {}
+      },
+      "n": 1,
+      "point": "pycache",
+      "rungs": [
+        {
+          "dir": "/srv/e15/runs/pycache/sbx/N1-probe-py_analyze",
+          "warmcold": {
+            "cold": 20,
+            "dropped_end_session_execs": [],
+            "unknown": 0,
+            "unknown_keys": {},
+            "warm": 0
+          }
+        },
+        {
+          "dir": "/srv/e15/runs/pycache/sbx/N1-probe-py_test",
+          "warmcold": {
+            "cold": 20,
+            "dropped_end_session_execs": [],
+            "unknown": 0,
+            "unknown_keys": {},
+            "warm": 0
+          }
+        },
+        {
+          "dir": "/srv/e15/runs/pycache/sbx/N1-probe-py_import",
+          "warmcold": {
+            "cold": 20,
+            "dropped_end_session_execs": [],
+            "unknown": 0,
+            "unknown_keys": {},
+            "warm": 0
+          }
+        },
+        {
+          "dir": "/srv/e15/runs/pycache/sbx/N1-probe-py_grep",
+          "warmcold": {
+            "cold": 20,
+            "dropped_end_session_execs": [],
+            "unknown": 0,
+            "unknown_keys": {},
+            "warm": 0
+          }
+        },
+        {
+          "dir": "/srv/e15/runs/pycache/sbx/N1-probe-py_short",
+          "warmcold": {
+            "cold": 20,
+            "dropped_end_session_execs": [],
+            "unknown": 0,
+            "unknown_keys": {},
+            "warm": 0
+          }
+        }
+      ],
+      "snapshot_guest_ram_mb": 1024,
+      "warm_share": 0.0
+    },
+    {
+      "arm": "resident-300",
+      "classes": {
+        "py_analyze": {
+          "all": {
+            "median_ms": 14569.903,
+            "n": 20,
+            "p95_ms": 14842.356
+          },
+          "baseline_median_ms": 15344.7155,
+          "cold": {
+            "median_ms": 17851.675,
+            "n": 1,
+            "p95_ms": 17851.675
+          },
+          "gain": 0.05064658904884878,
+          "unknown": 0,
+          "warm": {
+            "median_ms": 14567.558,
+            "n": 19,
+            "p95_ms": 14842.356
+          }
+        },
+        "py_grep": {
+          "all": {
+            "median_ms": 111.84049999999999,
+            "n": 20,
+            "p95_ms": 114.579
+          },
+          "baseline_median_ms": 387.9725,
+          "cold": {
+            "median_ms": 2209.817,
+            "n": 1,
+            "p95_ms": 2209.817
+          },
+          "gain": 0.7118275135479963,
+          "unknown": 0,
+          "warm": {
+            "median_ms": 111.803,
+            "n": 19,
+            "p95_ms": 114.579
+          }
+        },
+        "py_import": {
+          "all": {
+            "median_ms": 452.6005,
+            "n": 20,
+            "p95_ms": 454.421
+          },
+          "baseline_median_ms": 755.2294999999999,
+          "cold": {
+            "median_ms": 1952.262,
+            "n": 1,
+            "p95_ms": 1952.262
+          },
+          "gain": 0.4008178970763191,
+          "unknown": 0,
+          "warm": {
+            "median_ms": 452.52,
+            "n": 19,
+            "p95_ms": 454.421
+          }
+        },
+        "py_short": {
+          "all": {
+            "median_ms": 4.8875,
+            "n": 20,
+            "p95_ms": 36.068
+          },
+          "baseline_median_ms": 47.2525,
+          "cold": {
+            "median_ms": 95.133,
+            "n": 1,
+            "p95_ms": 95.133
+          },
+          "gain": 0.8989471456536691,
+          "unknown": 0,
+          "warm": {
+            "median_ms": 4.775,
+            "n": 19,
+            "p95_ms": 36.068
+          }
+        },
+        "py_test": {
+          "all": {
+            "median_ms": 60821.5965,
+            "n": 20,
+            "p95_ms": 61127.079
+          },
+          "baseline_median_ms": 61377.2765,
+          "cold": {
+            "median_ms": 62653.618,
+            "n": 1,
+            "p95_ms": 62653.618
+          },
+          "gain": 0.009231258412060739,
+          "unknown": 0,
+          "warm": {
+            "median_ms": 60810.687,
+            "n": 19,
+            "p95_ms": 61127.079
+          }
+        }
+      },
+      "counts": {
+        "calls": 100,
+        "not_in_window": 0,
+        "not_ok": 0,
+        "unknown": 0,
+        "used": 100
+      },
+      "dataset_mib": 256,
+      "first_after_idle": {
+        "all": {
+          "median_ms": null,
+          "n": 0,
+          "p95_ms": null
+        },
+        "by_class": {}
+      },
+      "n": 1,
+      "point": "pycache",
+      "rungs": [
+        {
+          "dir": "/srv/e15/runs/pycache/resident-300/N1-probe-py_analyze",
+          "warmcold": {
+            "cold": 1,
+            "dropped_end_session_execs": [
+              {
+                "reason": "after-end-session-line",
+                "req": 7881239218356245,
+                "session": "e15-pycache-resident-300-n1-probe-py_analyze-1794437957-0-0",
+                "vm": "vm-2"
+              }
+            ],
+            "unknown": 0,
+            "unknown_keys": {},
+            "warm": 19
+          }
+        },
+        {
+          "dir": "/srv/e15/runs/pycache/resident-300/N1-probe-py_test",
+          "warmcold": {
+            "cold": 1,
+            "dropped_end_session_execs": [
+              {
+                "reason": "after-end-session-line",
+                "req": 525579442978837,
+                "session": "e15-pycache-resident-300-n1-probe-py_test-1794438530-0-0",
+                "vm": "vm-2"
+              }
+            ],
+            "unknown": 0,
+            "unknown_keys": {},
+            "warm": 19
+          }
+        },
+        {
+          "dir": "/srv/e15/runs/pycache/resident-300/N1-probe-py_import",
+          "warmcold": {
+            "cold": 1,
+            "dropped_end_session_execs": [
+              {
+                "reason": "after-end-session-line",
+                "req": 2598639897673749,
+                "session": "e15-pycache-resident-300-n1-probe-py_import-1794438396-0-0",
+                "vm": "vm-2"
+              }
+            ],
+            "unknown": 0,
+            "unknown_keys": {},
+            "warm": 19
+          }
+        },
+        {
+          "dir": "/srv/e15/runs/pycache/resident-300/N1-probe-py_grep",
+          "warmcold": {
+            "cold": 1,
+            "dropped_end_session_execs": [
+              {
+                "reason": "after-end-session-line",
+                "req": 1918377207529493,
+                "session": "e15-pycache-resident-300-n1-probe-py_grep-1794438310-0-0",
+                "vm": "vm-2"
+              }
+            ],
+            "unknown": 0,
+            "unknown_keys": {},
+            "warm": 19
+          }
+        },
+        {
+          "dir": "/srv/e15/runs/pycache/resident-300/N1-probe-py_short",
+          "warmcold": {
+            "cold": 1,
+            "dropped_end_session_execs": [
+              {
+                "reason": "after-end-session-line",
+                "req": 3520163785736213,
+                "session": "e15-pycache-resident-300-n1-probe-py_short-1794438479-0-0",
+                "vm": "vm-2"
+              }
+            ],
+            "unknown": 0,
+            "unknown_keys": {},
+            "warm": 19
+          }
+        }
+      ],
+      "snapshot_guest_ram_mb": 1024,
+      "warm_share": 0.95
+    }
+  ]
+}
