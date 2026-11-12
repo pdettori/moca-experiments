@@ -1,5 +1,9 @@
 # E17 — lease mode: does a warm guest with an idle timeout pay, and does measured admission hold?
 
+Version: 0.5, 2026-11-12
+2026-11-12: predictions sealed (`e17/predictions.json`). User decision: E17a's latency rungs are cut to one pair,
+`pycache` N = 128, `sbx` and `lease-300`; criterion 1 reuses E15's metal `default` ladders when the driver, corpus
+and profile match. The N = 1 calibration answers the latency question at N = 1 (§8, §12).
 Version: 0.4, 2026-11-11
 2026-11-11 (later): `pycache-io` dropped — its feasibility gate failed (§8: `analyze.py` at CPU scale 1, `D` =
 768, warm only 3.6% faster than cold; the 768 MiB CSV parse is itself compute). A second probe (§1.1) found
@@ -259,6 +263,7 @@ rerun.
 | `pycache` gain against `D` (N = 1, `D` = 64, 256, 768 MiB, §10) and the 256 MiB guest-RAM runs (§5) | a | 3 |
 | `pycache-io` feasibility gate (failed, 3.6% < 10%) and the import/grep probe | a | 0.5 |
 | v0.4: corpus and library with `py_import`/`py_grep`; rebuild both N = 1 baselines + probes | a | 9 |
+| v0.5 (sealed plan): `pycache` N = 128, `sbx` and `lease-300`; `default` ladders reused from E15 metal or re-run for those two arms. Replaces the latency, capacity and gain-against-D rows above for E17a | a | 2–8 |
 | **E17a report, build decision (user)** | a | — |
 | E17b: the same latency and capacity rungs, shipped lease | b | 18 |
 | `squeeze` point | b | 3 |
@@ -321,4 +326,5 @@ E15 and E16 procedures unchanged.
 | `pycache-io` at `D` = 768, `ANALYZE_WORK_SCALE` 1, its own corpus and baselines; a 10% feasibility gate before its calibration | gate failed (3.6%); dropped | our call, 2026-11-11 |
 | Add `py_import` and `py_grep` to every `pycache` turn; rebuild both baselines | yes | user, 2026-11-11 |
 | Criterion 2 per class: `py_import`, `py_grep`, `py_short` ≥ 50% faster warm; compute classes reported | yes | user, 2026-11-11 |
+| Seal the predictions; cut E17a to `pycache` N = 128 (`sbx`, `lease-300`) and reuse E15's `default` ladders | yes | user, 2026-11-12 |
 

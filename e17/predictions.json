@@ -1,11 +1,11 @@
 {
-  "status": "DRAFT",
-  "sealed": false,
+  "status": "SEALED",
+  "sealed": true,
   "spec": "e17/SPEC.md v0.4",
   "section": "9",
   "recordedAt": "2026-11-12",
   "codeCommit": "52a0bcb",
-  "note": "DRAFT E17a predictions from the v0.4 pycache calibration (N=1 baselines + class probes, sbx and resident-300, seeds 2,3,6,7 each) and three one-off guest diagnoses (grepcheck, grepdiag, hostcache; ~/e17-manifest.md on the rig). To be reviewed and sealed with the user before the first measured E17a rung. Summaries: e17/results/calibration/v0.4/.",
+  "note": "E17a predictions from the v0.4 pycache calibration (N=1 baselines + class probes, sbx and resident-300, seeds 2,3,6,7 each) and three one-off guest diagnoses (grepcheck, grepdiag, hostcache; ~/e17-manifest.md on the rig). To be reviewed and sealed with the user before the first measured E17a rung. Summaries: e17/results/calibration/v0.4/.",
   "calibration": {
     "host": "AWS m7i.metal-24xl, 96 vCPU, 377 GiB, /srv/e15 XFS reflink, profile fresh-metal",
     "corpus_sha256_pycache": "16337509ea7e82c5b9fc10b2e609212c70b302720609f6fc0ce2a446342438bf",
@@ -14,34 +14,116 @@
     "durations_from": "e17/results/calibration/durations-v0.4.json",
     "template": "template-pycache-d256 301f6f51 (D = 256 MiB, 1536 MiB image)",
     "point_sig": "39b898b7f22a5215b1adb902d8f0e62eb67825bc90d33970e06a63740fbe2d10",
-    "sbx": {"B_ms": 264.7, "limit_ms": 794.1, "evaluable_seeds": [2, 3, 6, 7], "calls": 43, "probe_failed": {}},
-    "resident-300": {"B_ms": 112.1, "limit_ms": 336.3, "evaluable_seeds": [2, 3, 6, 7], "calls": 43, "probe_failed": {}},
+    "sbx": {
+      "B_ms": 264.7,
+      "limit_ms": 794.1,
+      "evaluable_seeds": [
+        2,
+        3,
+        6,
+        7
+      ],
+      "calls": 43,
+      "probe_failed": {}
+    },
+    "resident-300": {
+      "B_ms": 112.1,
+      "limit_ms": 336.3,
+      "evaluable_seeds": [
+        2,
+        3,
+        6,
+        7
+      ],
+      "calls": 43,
+      "probe_failed": {}
+    },
     "latency_n1_seeded": {
       "_": "realistic turns, in-window ok calls; gain = 1 - resident-300 warm median / sbx median (e17/analysis/latency_report.py)",
-      "py_short": {"sbx_ms": 53, "warm_ms": 6, "gain": 0.89},
-      "py_import": {"sbx_ms": 755, "warm_ms": 454, "gain": 0.40},
-      "py_grep": {"sbx_ms": 1960, "warm_ms": 2000, "gain": -0.02, "n_per_arm": 5},
-      "py_analyze": {"sbx_ms": 15601, "warm_ms": 14416, "gain": 0.08},
-      "py_test": {"sbx_ms": 61232, "warm_ms": 60977, "gain": 0.00},
+      "py_short": {
+        "sbx_ms": 53,
+        "warm_ms": 6,
+        "gain": 0.89
+      },
+      "py_import": {
+        "sbx_ms": 755,
+        "warm_ms": 454,
+        "gain": 0.4
+      },
+      "py_grep": {
+        "sbx_ms": 1960,
+        "warm_ms": 2000,
+        "gain": -0.02,
+        "n_per_arm": 5
+      },
+      "py_analyze": {
+        "sbx_ms": 15601,
+        "warm_ms": 14416,
+        "gain": 0.08
+      },
+      "py_test": {
+        "sbx_ms": 61232,
+        "warm_ms": 60977,
+        "gain": 0.0
+      },
       "warm_share_resident_300": 0.907
     },
     "latency_n1_probes": {
       "_": "20 back-to-back calls per class in one session (the first call is the workspace's first touch)",
-      "py_short": {"sbx_ms": 47, "warm_ms": 5, "gain": 0.90},
-      "py_import": {"sbx_ms": 755, "warm_ms": 453, "gain": 0.40},
-      "py_grep": {"sbx_ms": 388, "warm_ms": 112, "gain": 0.71},
-      "py_analyze": {"sbx_ms": 15345, "warm_ms": 14568, "gain": 0.05},
-      "py_test": {"sbx_ms": 61377, "warm_ms": 60811, "gain": 0.01}
+      "py_short": {
+        "sbx_ms": 47,
+        "warm_ms": 5,
+        "gain": 0.9
+      },
+      "py_import": {
+        "sbx_ms": 755,
+        "warm_ms": 453,
+        "gain": 0.4
+      },
+      "py_grep": {
+        "sbx_ms": 388,
+        "warm_ms": 112,
+        "gain": 0.71
+      },
+      "py_analyze": {
+        "sbx_ms": 15345,
+        "warm_ms": 14568,
+        "gain": 0.05
+      },
+      "py_test": {
+        "sbx_ms": 61377,
+        "warm_ms": 60811,
+        "gain": 0.01
+      }
     },
     "py_grep_mechanism": "grep reads the venv's .py sources, which nothing else in a turn reads (imports load .pyc). Per call: (a) the first grep on a freshly copied workspace costs ~2 s in both arms (host page cache cold, new inode); (b) a later grep in the same lease VM costs ~115 ms (guest page cache); sbx gets ~390 ms from the host page cache; (c) a later grep in a NEW lease VM, after the previous one was idle-destroyed, cost ~2 s in the seeded runs but 0.49 s in the hostcache check, where the destroyed VM had run only two greps. Probable cause (not measured directly): each VM's cgroup has memory.max = PerVMBytes = guest RAM + overhead (remote-worker/internal/vmpool/cgroup.go writeMemoryMax), host page cache from a VM's own reads is charged to it, and a lease VM that ran analyze/pytest sits at ~1024 MiB (every resident-300 VM peaked at 1023.98 MiB), so its charged host cache is reclaimed. This is not specific to the E15 resident patch: the shipped lease runs in the same per-VM cgroups.",
     "py_grep_case_shares": {
       "_": "from the pycache corpus gaps (a VM survives between two calls iff the gap <= the idle timeout)",
-      "lease-30": {"a_first": 0.25, "b_same_vm": 0.03, "c_new_vm": 0.72},
-      "lease-120": {"a_first": 0.25, "b_same_vm": 0.16, "c_new_vm": 0.59},
-      "lease-300": {"a_first": 0.25, "b_same_vm": 0.32, "c_new_vm": 0.43}
+      "lease-30": {
+        "a_first": 0.25,
+        "b_same_vm": 0.03,
+        "c_new_vm": 0.72
+      },
+      "lease-120": {
+        "a_first": 0.25,
+        "b_same_vm": 0.16,
+        "c_new_vm": 0.59
+      },
+      "lease-300": {
+        "a_first": 0.25,
+        "b_same_vm": 0.32,
+        "c_new_vm": 0.43
+      }
     },
-    "warm_share_from_corpus": {"lease-30": 0.60, "lease-120": 0.85, "lease-300": 0.91},
-    "vm_peak_memory_n1": {"resident-300": "6 VMs, median 1024 MiB, 5 of 6 > 900 MiB", "sbx": "19 VMs, median 923 MiB, 11 of 19 > 900 MiB"}
+    "warm_share_from_corpus": {
+      "lease-30": 0.6,
+      "lease-120": 0.85,
+      "lease-300": 0.91
+    },
+    "vm_peak_memory_n1": {
+      "resident-300": "6 VMs, median 1024 MiB, 5 of 6 > 900 MiB",
+      "sbx": "19 VMs, median 923 MiB, 11 of 19 > 900 MiB"
+    }
   },
   "predictions": [
     {
@@ -91,5 +173,7 @@
     "Criterion 2 is predicted to fail (prediction 1). Keep the 50% bar as decided (2026-11-11) and let the rungs confirm it, or decide now that the calibration answers E17a's latency question.",
     "py_grep's case (c) cost (~2 s) rests on a probable cause, per-VM memory.max reclaiming a grown lease VM's host page cache, that was not measured directly. If it is wrong, the lease's py_grep median moves toward ~0.5 s, still below sbx's, so prediction 1's verdict does not depend on it.",
     "Lease design input, whatever E17a's verdict: with memory.max = guest RAM + overhead, a lease VM that fills its guest RAM loses its host-cached workspace pages, so the VM that replaces it starts colder than a per-Exec VM would."
-  ]
+  ],
+  "sealedAt": "2026-11-12T01:57:57Z",
+  "sealNote": "Sealed on the user's go-ahead (2026-11-12, 'go ahead with the recommendation'), before any measured E17a rung. User decision at the seal: the 50% criterion-2 bar stays; the E17a latency matrix is cut to one rung pair, point pycache N=128, sbx and lease-300 (= resident-300), because the N=1 calibration already answers the latency question at N=1 and N=128 is the one case that could move it. Criterion 1 reuses E15's metal default ladders (sbx 80, resident-300 128) if the driver, corpus and rig profile match, otherwise runs those two arms only. pycache-low, the gain-against-D runs, the 256 MiB guest-RAM runs and the lease-30/lease-120 ladders are not run in E17a. Predictions 1-6 are unchanged; their N=1 parts are judged on the calibration, their N=128 parts on the new rung pair."
 }
