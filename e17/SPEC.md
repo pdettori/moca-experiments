@@ -1,5 +1,15 @@
 # E17 — lease mode: does a warm guest with an idle timeout pay, and does measured admission hold?
 
+Version: 0.6, 2026-11-12
+2026-11-12 (later): E17a is built, run and reported — it misses (`e17/results/E17A-REPORT.md`; §7.5).
+Criterion 2 fails at N = 1 and N = 128 (import ~40%, grep ~0%); criterion 1 holds (E15 metal:
+lease-300 128 against per-`Exec` 80). The miss went to the user, as sealed: on 2026-11-12 the user
+approved the plans 2–5 build (plan 2 is rossoctl/moca#763) with the revised design (rossoctl/moca#718,
+lease spec v0.2 and the ADR-0048 revision of 2026-11-12). This version records that decision:
+free-page reporting is in v1 and replaces the no-balloon assumption (§1 question 3, §2, §6); E17b's
+criterion 2 is re-scoped to level 1's revised targets, short and import-bound commands (§7.5); E17b
+measures free-page reporting and the page-cache headroom (§7.1, §7.3), the direct fixes for E17a's
+full-guest charge and its cold replacement VMs.
 Version: 0.5, 2026-11-12
 2026-11-12: predictions sealed (`e17/predictions.json`). User decision: E17a's latency rungs are cut to one pair,
 `pycache` N = 128, `sbx` and `lease-300`; criterion 1 reuses E15's metal `default` ladders when the driver, corpus
@@ -19,7 +29,8 @@ Version: 0.2 (draft for review), 2026-11-10
 2026-11-10: E16's final result folded in (§1.1). The `lowduty` capacity ladder is dropped: E16 already
 answers question 2 at low duty, so E17's rig time goes to the cache-heavy points instead (§7.2, §8). The
 level-1 lease guest (moca plan 1, rossoctl/moca#706) is merged, so E17b's guest side exists.
-Status: **Design. Approved by the user 2026-11-10.** Nothing is built.
+Status: **E17a complete (missed, §7.5). Plans 2–5 approved and in build (user, 2026-11-12); E17b not
+started.**
 Parents: E15 (`e15/SPEC.md`, metal procedure in its §13; results in `e15/results/metal/RESULTS-METAL.md`)
 and E16 (`e16/SPEC.md`, results under `e16/results/`). E17 reuses their instrument, rig scripts and
 metal host unchanged except where this document says so. "E15 §n" and "E16 §n" refer to those specs.
@@ -36,8 +47,10 @@ Rig: the E15/E16 metal host, AWS m7i.metal-24xl (96 vCPU, 377 GiB, bare metal).
 2. **Does it cost capacity?** Does lease mode (idle timeout 30 s, 120 s, 300 s) hold at least as many
    sessions per host as per-Exec at the default point (9.5%)? At low duty (about 1.5%) E16 already
    answers it (§1.1).
-3. **Does measured admission hold?** With lease VMs charged measured memory, does reclaim keep the
-   host safe when lease VMs grow toward their guest RAM (no balloon, lease spec §6)?
+3. **Does measured admission hold?** With lease VMs charged measured memory, and with virtio-balloon
+   free-page reporting returning the pages the guest has freed (lease spec §6; decision 7 as revised
+   2026-11-12), does reclaim keep the host safe when lease VMs grow toward their guest RAM? E17b
+   measures what the reporting leaves (§7.3).
 4. **Does the shipped lease mode behave as specified?** Reclaim order, fallback to per-Exec, and a
    notice for every lease end.
 
@@ -83,8 +96,11 @@ Rig: the E15/E16 metal host, AWS m7i.metal-24xl (96 vCPU, 377 GiB, bare metal).
 - Overhead of the level-1 end-of-Exec kill and fresh shell.
 
 **Non-goals**
-- Level 2 (tracked processes) capacity. E17b checks only that its gates pass on the rig (§7.4).
-- Balloon, suspend, snapshot of a lease.
+- Level 2 (tracked processes) capacity. E17b checks only that its gates pass on the rig (§7.4). Its
+  latency case is sized by the E17a follow-up spike (lease spec §16 item 6; `e17/results/followups/`).
+- Suspend and snapshot of a lease. The virtio-balloon free-page reporting device is in v1 (decision 7
+  as revised 2026-11-12) and is measured, not excluded (§7.1, §7.3); a target-driven balloon is out
+  of v1.
 - Agent Substrate, SPACE or E2B arms (the assessment's Phase 3a C–E). A later experiment.
 - Other hosts.
 
@@ -180,11 +196,17 @@ E16 §5 unchanged (admission and run cap never bind, physical guards kept), exce
 | setting | E16 | E17 | why |
 |---|---|---|---|
 | point | `lowduty` | `default`, `pycache`, `pycache-low`, `squeeze` (§7.3) | §4; `lowduty` not re-run (§7.2) |
-| lease admission (E17b only) | — | the lease spec's defaults: `SH_LEASE_START_MB` 192, `SH_LEASE_HEADROOM` 1.25, `SH_LEASE_RECLAIM_FREE_MB` 2 × `PerVMBytes` + 2 GiB | the thing under test |
+| lease admission (E17b only) | — | the lease spec v0.2 defaults: `SH_LEASE_START_MB` 192, `SH_LEASE_HEADROOM` 1.25, `SH_LEASE_RECLAIM_FREE_MB` 2 × `PerVMBytes` + max(2 GiB, 2 × (the lease charge bound − `SH_LEASE_START_MB`)) | the thing under test; the v0.2 headroom target is sized against the larger lease charge bound (decision 18) |
+| `SH_LEASE_PAGECACHE_MB` (E17b only) | — | 256 MiB (the lease spec's default) | decision 18: the lease cgroup's `memory.max` = `PerVMBytes` + this, so a full guest leaves room for the host's cache of its workspace |
+| balloon (E17b only) | — | virtio-balloon free-page reporting in the golden snapshot (`balloon-fpr-v1`, rossoctl/moca#763) | decision 7 as revised 2026-11-12; §7.3 measures what it returns |
 | `SH_MAX_COMMITTED_MB` (E17b lease arms) | 4 TiB | **host RAM − 8 GiB** (369 GiB on this host), the no-overcommit sizing a cohort host would use | question 3 needs the real admission path, against a budget the host can actually honour |
 
 The E17b per-Exec arm keeps E16's never-binding budget for the capacity ladders, so that its verdict is
 bound by the host and not by policy (anti-goal 2).
+
+The `pycache` latency rungs and the `squeeze` point also measure the page-cache headroom directly
+(§7.1, §7.3): E17a's replacement lease VM read its workspace from disk (about 2 s against 388 ms for
+per-`Exec`), and decisions 7 and 18 are the fix.
 
 ## 7. Measurements and verdicts
 
@@ -196,6 +218,9 @@ Points `pycache` and `pycache-low`, rungs N = 1, 32, 128.
 - **Gain** = 1 − (lease warm median ÷ sbx median), per command kind, per rung.
 - First-Exec-after-idle latency per lease arm (the cold start the user pays).
 - Share of Execs that ran warm, per lease arm (how often the idle timeout lost the guest).
+- **Replacement-VM read (decision 18):** the wall time of the first `py_grep` in a lease VM that
+  replaced one ended by the idle timeout, against the same command in `sbx`. E17a's replacement VM
+  took about 2 s where `sbx` took 388 ms; the page-cache headroom should close that gap.
 
 ### 7.2 Capacity (question 2)
 
@@ -209,6 +234,10 @@ and E16.
 
 - **Memory against age** per workload, per lease arm: E16's `vm_age.py`, plus the share of lease VMs
   above 50% and above 90% of guest RAM.
+- **Free-page reporting (decision 7):** the lease VM's `memory.current` at the end of each Exec and
+  15 s later, against its peak in the same Exec, from the same samples. E17a left every lease VM at
+  its 1024 MiB ceiling after one `analyze.py`; the reporting is validated when the freed peak returns
+  and the measured charge follows the working set.
 - **Guest tmpfs** (`/tmp`, `/var`): the guest's `Shmem` from `/proc/meminfo`, sampled by the agent at
   the end of each Exec. It is reported beside `memory.current`, because tmpfs files are guest RAM held
   until the lease ends (lease spec §3). `pycache` writes its dependency and dataset caches to
@@ -234,22 +263,36 @@ and E16.
   `per-exec` → `lease` switch.
 - The lease spec's §9 gates run on the rig's real launcher, level 1 and level 2. Pass or fail, reported.
 
-### 7.5 The pass criteria (from the lease spec §10, stated before any rung runs)
+### 7.5 The pass criteria (lease spec §10; E17b's set revised in v0.6 before any E17b rung runs)
 
 E17b passes if all hold:
 
 1. **Capacity:** `lease-300` `N_max` ≥ `sbx` `N_max` at `default` (primary verdict). At `lowduty`, E16
    stands.
-2. **Latency (per class, v0.4; user decision 2026-11-11):** at `pycache` N = 1 and N = 128, the median
-   warm `py_import`, `py_grep` and `py_short` are each at least 50% faster in `lease-300` than in `sbx`.
-   `py_analyze` and `py_test` (compute) are reported, not gated.
+2. **Latency (per class; revised for E17b after the E17a miss, user decision 2026-11-12):** at
+   `pycache` N = 1 and N = 128, the median warm `py_short` is at least 50% faster in `lease-300` than
+   in `sbx`, and the median warm `py_import` at least 30% faster. Level 1 is re-scoped to short and
+   import-bound commands (ADR-0048 decision 14 as revised): about 450 ms of a warm import is Python
+   unpacking that no cache removes, so E17a measured about 40% on the resident patch; the 30% bar
+   leaves room for the level-1 kill and fresh shell (§7.4). `py_grep`, `py_analyze` and `py_test` are
+   reported, not gated: per-`Exec` already reads the workspace through the host page cache, and level 1
+   is not a page-cache accelerator for compute. The sealed E17a criterion — 50% on each of
+   `py_import`, `py_grep` and `py_short` — stays the record of the miss; it is not E17b's gate, because
+   as written it would fail by construction.
 3. **Reclaim:** at `squeeze`, zero memory-guard events, zero refusals while an idle lease existed, and
    every reclaim of the idle-longest lease.
 4. **Notices:** every lease end has exactly one matching notice.
+5. **Memory returns and the workspace stays cached (decisions 7 and 18):** at `pycache`, a lease VM's
+   measured charge falls back toward its working set after a heavy command (E17a: pinned at its
+   1024 MiB ceiling), and a lease VM that replaces one ended by the idle timeout reads its workspace
+   from the host page cache (E17a: about 2 s against 388 ms for `sbx`).
 
-E17a passes (build the lease spec) if criterion 2 holds on the resident patch, and criterion 1 holds
-or misses by at most one ladder step. An E17a miss goes back to the user before the build, not into a
-rerun.
+E17a passed if criterion 1 held or missed by at most one ladder step, and the sealed criterion 2 held
+on the resident patch. It missed: criterion 2 failed on `py_import` (0.40/0.42) and `py_grep`
+(−0.02/0.01), while criterion 1 held (E15 metal: 128 against 80). The miss went to the user, as this
+section required. The user approved the plans 2–5 build on 2026-11-12 with the revised design
+(rossoctl/moca#718), and this version re-scopes E17b's criteria to it. E17a's results are final; they
+are not re-run.
 
 ## 8. Rungs and rig time
 
@@ -265,7 +308,7 @@ rerun.
 | v0.4: corpus and library with `py_import`/`py_grep`; rebuild both N = 1 baselines + probes | a | 9 |
 | v0.5 (sealed plan): `pycache` N = 128, `sbx` and `lease-300`; `default` ladders reused from E15 metal or re-run for those two arms. Replaces the latency, capacity and gain-against-D rows above for E17a | a | 2–8 |
 | **E17a report, build decision (user)** | a | — |
-| E17b: the same latency and capacity rungs, shipped lease | b | 18 |
+| E17b: the re-scoped latency and capacity rungs, plus the FPR and page-cache-headroom readings, shipped lease | b | 18 |
 | `squeeze` point | b | 3 |
 | §7.4 overhead probe and gates | b | 2 |
 | **Total** | | **about 37 h (a) + 23 h (b)** |
@@ -317,7 +360,7 @@ E15 and E16 procedures unchanged.
 |---|---|---|
 | A separate spec from the lease spec | yes | user, 2026-11-08 |
 | Cache-heavy Python as the target workload | yes | user, 2026-11-08 |
-| No balloon; measure growth | yes | user, 2026-11-08 |
+| ~~No balloon; measure growth~~ → free-page reporting in v1; no target-driven balloon | revised | user, 2026-11-08; superseded 2026-11-12 after E17a |
 | Two stages (resident patch, then the shipped lease) | yes | our call: an early answer before the build |
 | Idle timeouts 30, 120, 300 s | yes | our call: the assessment's Phase 3a arms B1–B3, with 300 s in place of 10 min after E15's resident-300 |
 | Per-Exec arm keeps the never-binding budget; lease arms use stock admission | yes | our call: question 3 needs the real admission path |
@@ -325,6 +368,9 @@ E15 and E16 procedures unchanged.
 | Add a cache-bound variant `pycache-io` (§4.3) after the calibration preview | yes | user, 2026-11-11 |
 | `pycache-io` at `D` = 768, `ANALYZE_WORK_SCALE` 1, its own corpus and baselines; a 10% feasibility gate before its calibration | gate failed (3.6%); dropped | our call, 2026-11-11 |
 | Add `py_import` and `py_grep` to every `pycache` turn; rebuild both baselines | yes | user, 2026-11-11 |
-| Criterion 2 per class: `py_import`, `py_grep`, `py_short` ≥ 50% faster warm; compute classes reported | yes | user, 2026-11-11 |
+| Criterion 2 per class: `py_import`, `py_grep`, `py_short` ≥ 50% faster warm; compute classes reported (E17a) | yes | user, 2026-11-11 |
 | Seal the predictions; cut E17a to `pycache` N = 128 (`sbx`, `lease-300`) and reuse E15's `default` ladders | yes | user, 2026-11-12 |
+| E17a misses criterion 2 (`py_import` 0.40/0.42, `py_grep` −0.02/0.01); criterion 1 holds (128 against 80) | reported | `e17/results/E17A-REPORT.md`, 2026-11-12 |
+| E17b criterion 2 re-scoped: `py_short` ≥ 50%, `py_import` ≥ 30%; `py_grep` and compute reported | yes | user, 2026-11-12, after the E17a miss |
+| Build plans 2–5 with the revised design (FPR, page-cache headroom, level 1 re-scoped) | yes | user, 2026-11-12, after the E17a miss; plan 2 is rossoctl/moca#763 |
 
