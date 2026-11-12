@@ -48,9 +48,9 @@ N = 128 than at N = 1, at about 15% host CPU. The lease's compute classes slowed
 - **Import:** about 450 ms of a warm import is Python unpacking and initialising the stack, which no
   cache removes. The lease saves only per-`Exec`'s fresh VM and cold guest cache, about 300 ms.
 - **Grep:**
-  - A per-`Exec` VM reads the workspace through the **host** page cache. Its second grep on a workspace
-    took about 390 ms, against about 2.2 s for the first touch of a freshly copied workspace. A warm
-    lease guest took about 115 ms.
+  - A per-`Exec` VM reads the workspace through the **host** page cache. Its later greps on a workspace
+    took 388 ms, against about 2.2 s for the first touch of a freshly copied workspace. A warm
+    lease guest took 112 ms (medians of the 20-call class probes).
   - A lease keeps a file set warm only while one guest lives from one grep to the next, which is a
     whole agent turn. On the corpus's gaps (median 18 s, p90 234 s), 32% of a session's greps would do
     so at 300 s (corpus calculation).
@@ -58,7 +58,7 @@ N = 128 than at N = 1, at about 15% host CPU. The lease's compute classes slowed
     fresh copies, and a session runs about one grep per 15-minute window. That puts both medians on the
     2 s cold read.
 - **Replaced lease VMs read cold.** In the calibration, a lease VM that replaced one ended by the idle
-  timeout took about 2 s for a grep that per-`Exec` served in 390 ms. A clean check where the ended VM
+  timeout took about 2 s for a grep that per-`Exec` served in 388 ms. A clean check where the ended VM
   had run only two greps gave 0.49 s. The probable cause, not measured directly, is the per-VM cgroup
   `memory.max` (`PerVMBytes`). The ended VM had filled it, so the host page cache charged to it was
   reclaimed. This is not specific to the patch: the shipped lease runs in the same cgroups.
