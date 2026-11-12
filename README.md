@@ -1,6 +1,6 @@
 # moca-experiments
 
-Reproducible experiments and benchmark drivers for [MOCA](https://github.com/rossoctl/moca),
+Reproducible experiments and benchmark drivers for [moca](https://github.com/rossoctl/moca),
 split out so people deploying MOCA are not exposed to research clutter in the main repo.
 Each experiment has a question, a sealed prediction where it applies, a driver, a result and
 the steps to repeat it.
