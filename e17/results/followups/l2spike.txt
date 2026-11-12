@@ -1,0 +1,35 @@
+== per-Exec (sbx): fresh VM and process each time
+warmup-first-touch     rc=0 wall_ms=  6770  pong query_ms=0 total_ms=6352
+light (fresh VM)       rc=0 wall_ms=  6728  light groups=100 median_x0=32.769 query_ms=258 total_ms=6431
+light (fresh VM)       rc=0 wall_ms=  6493  light groups=100 median_x0=32.769 query_ms=192 total_ms=6192
+light (fresh VM)       rc=0 wall_ms=  6508  light groups=100 median_x0=32.769 query_ms=190 total_ms=6195
+light (fresh VM)       rc=0 wall_ms=  6513  light groups=100 median_x0=32.769 query_ms=224 total_ms=6220
+fit (fresh VM)         rc=0 wall_ms= 17438  fit inertia=254957563.461 query_ms=11162 total_ms=17146
+fit (fresh VM)         rc=0 wall_ms= 17404  fit inertia=254957563.461 query_ms=11240 total_ms=17106
+== level 1 (resident-300): warm VM, fresh process each time
+warmup-first-touch     rc=0 wall_ms=  6604  pong query_ms=0 total_ms=6355
+light (warm VM)        rc=0 wall_ms=  5234  light groups=100 median_x0=32.769 query_ms=241 total_ms=4984
+light (warm VM)        rc=0 wall_ms=  5548  light groups=100 median_x0=32.769 query_ms=243 total_ms=5296
+light (warm VM)        rc=0 wall_ms=  5418  light groups=100 median_x0=32.769 query_ms=236 total_ms=5167
+light (warm VM)        rc=0 wall_ms=  5610  light groups=100 median_x0=32.769 query_ms=250 total_ms=5365
+fit (warm VM)          rc=0 wall_ms= 16533  fit inertia=254957563.461 query_ms=11156 total_ms=16286
+fit (warm VM)          rc=0 wall_ms= 16496  fit inertia=254957563.461 query_ms=11209 total_ms=16250
+== level 2 (same VM): one persistent process
+server start to ready: 5385 ms; ready load_ms=5209 rows=5965224
+ping (server)          rc=0 wall_ms=    64  pong server_ms=0
+ping (server)          rc=0 wall_ms=    59  pong server_ms=0
+ping (server)          rc=0 wall_ms=    58  pong server_ms=0
+ping (server)          rc=0 wall_ms=    58  pong server_ms=0
+ping (server)          rc=0 wall_ms=    59  pong server_ms=0
+light (server)         rc=0 wall_ms=   322  light groups=100 median_x0=32.769 server_ms=260
+light (server)         rc=0 wall_ms=   247  light groups=100 median_x0=32.769 server_ms=183
+light (server)         rc=0 wall_ms=   245  light groups=100 median_x0=32.769 server_ms=182
+light (server)         rc=0 wall_ms=   244  light groups=100 median_x0=32.769 server_ms=181
+light (server)         rc=0 wall_ms=   244  light groups=100 median_x0=32.769 server_ms=181
+light (server)         rc=0 wall_ms=   246  light groups=100 median_x0=32.769 server_ms=182
+light (server)         rc=0 wall_ms=   245  light groups=100 median_x0=32.769 server_ms=181
+light (server)         rc=0 wall_ms=   245  light groups=100 median_x0=32.769 server_ms=181
+fit (server)           rc=0 wall_ms= 11315  fit inertia=254957563.461 server_ms=11251
+fit (server)           rc=0 wall_ms= 11183  fit inertia=254957563.461 server_ms=11120
+fit (server)           rc=0 wall_ms= 11162  fit inertia=254957563.461 server_ms=11101
+guest after: MemAvailable: 341936 kB VmRSS:	  507872 kB 

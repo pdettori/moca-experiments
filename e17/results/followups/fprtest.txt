@@ -1,0 +1,22 @@
+== snapshot e15 (SH_SNAPSHOT_IMAGE=e15)
+guest balloon: 0 -1 
+before alloc:
+  /e15.slice/e15-vms.slice/pool-0 cur=13 MiB anon=7 file=3
+alloc: touched 700 MiB
+  /e15.slice/e15-vms.slice/pool-0 cur=734 MiB anon=725 file=3
+  /e15.slice/e15-vms.slice/pool-0 cur=734 MiB anon=725 file=3
+  /e15.slice/e15-vms.slice/pool-0 cur=734 MiB anon=725 file=3
+  /e15.slice/e15-vms.slice/pool-0 cur=734 MiB anon=725 file=3
+  /e15.slice/e15-vms.slice/pool-0 cur=734 MiB anon=725 file=3
+guest: MemFree: 911096 kB MemAvailable: 850624 kB 
+== snapshot e17-fpr (SH_SNAPSHOT_IMAGE=e17-fpr)
+guest balloon: 1 9 
+before alloc:
+  /e15.slice/e15-vms.slice/pool-0 cur=13 MiB anon=8 file=3
+alloc: touched 700 MiB
+  /e15.slice/e15-vms.slice/pool-0 cur=734 MiB anon=726 file=3
+  /e15.slice/e15-vms.slice/pool-0 cur=227 MiB anon=220 file=3
+  /e15.slice/e15-vms.slice/pool-0 cur=81 MiB anon=74 file=3
+  /e15.slice/e15-vms.slice/pool-0 cur=81 MiB anon=74 file=3
+  /e15.slice/e15-vms.slice/pool-0 cur=81 MiB anon=74 file=3
+guest: MemFree: 911068 kB MemAvailable: 850608 kB 
