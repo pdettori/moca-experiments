@@ -1,0 +1,1508 @@
+{
+  "baseline_arm": "sbx",
+  "groups": [
+    {
+      "arm": "sbx",
+      "classes": {
+        "py_analyze": {
+          "all": {
+            "median_ms": 18488.56,
+            "n": 211,
+            "p95_ms": 21239.116
+          },
+          "cold": {
+            "median_ms": 18488.56,
+            "n": 211,
+            "p95_ms": 21239.116
+          },
+          "unknown": 0,
+          "warm": {
+            "median_ms": null,
+            "n": 0,
+            "p95_ms": null
+          }
+        },
+        "py_grep": {
+          "all": {
+            "median_ms": 2013.3294999999998,
+            "n": 96,
+            "p95_ms": 2253.593
+          },
+          "cold": {
+            "median_ms": 2013.3294999999998,
+            "n": 96,
+            "p95_ms": 2253.593
+          },
+          "unknown": 0,
+          "warm": {
+            "median_ms": null,
+            "n": 0,
+            "p95_ms": null
+          }
+        },
+        "py_import": {
+          "all": {
+            "median_ms": 899.7035000000001,
+            "n": 90,
+            "p95_ms": 2154.357
+          },
+          "cold": {
+            "median_ms": 899.7035000000001,
+            "n": 90,
+            "p95_ms": 2154.357
+          },
+          "unknown": 0,
+          "warm": {
+            "median_ms": null,
+            "n": 0,
+            "p95_ms": null
+          }
+        },
+        "py_short": {
+          "all": {
+            "median_ms": 59.633,
+            "n": 391,
+            "p95_ms": 124.065
+          },
+          "cold": {
+            "median_ms": 59.633,
+            "n": 391,
+            "p95_ms": 124.065
+          },
+          "unknown": 0,
+          "warm": {
+            "median_ms": null,
+            "n": 0,
+            "p95_ms": null
+          }
+        },
+        "py_test": {
+          "all": {
+            "median_ms": 68641.952,
+            "n": 90,
+            "p95_ms": 72586.661
+          },
+          "cold": {
+            "median_ms": 68641.952,
+            "n": 90,
+            "p95_ms": 72586.661
+          },
+          "unknown": 0,
+          "warm": {
+            "median_ms": null,
+            "n": 0,
+            "p95_ms": null
+          }
+        }
+      },
+      "counts": {
+        "calls": 2345,
+        "not_in_window": 1467,
+        "not_ok": 0,
+        "unknown": 0,
+        "used": 878
+      },
+      "dataset_mib": 256,
+      "first_after_idle": {
+        "all": {
+          "median_ms": null,
+          "n": 0,
+          "p95_ms": null
+        },
+        "by_class": {}
+      },
+      "n": 128,
+      "point": "pycache",
+      "rungs": [
+        {
+          "dir": "/srv/e15/runs/pycache/sbx/N128",
+          "warmcold": {
+            "cold": 2345,
+            "dropped_end_session_execs": [],
+            "unknown": 0,
+            "unknown_keys": {},
+            "warm": 0
+          }
+        }
+      ],
+      "snapshot_guest_ram_mb": 1024,
+      "warm_share": 0.0
+    },
+    {
+      "arm": "resident-300",
+      "classes": {
+        "py_analyze": {
+          "all": {
+            "median_ms": 17146.3735,
+            "n": 212,
+            "p95_ms": 20641.386
+          },
+          "baseline_median_ms": 18488.56,
+          "cold": {
+            "median_ms": 19035.074,
+            "n": 29,
+            "p95_ms": 21225.67
+          },
+          "gain": 0.08981445823795908,
+          "unknown": 0,
+          "warm": {
+            "median_ms": 16828.02,
+            "n": 183,
+            "p95_ms": 20133.4
+          }
+        },
+        "py_grep": {
+          "all": {
+            "median_ms": 2039.078,
+            "n": 97,
+            "p95_ms": 2322.805
+          },
+          "baseline_median_ms": 2013.3294999999998,
+          "cold": {
+            "median_ms": 2247.4235,
+            "n": 8,
+            "p95_ms": 2298.847
+          },
+          "gain": 0.013114842851107977,
+          "unknown": 0,
+          "warm": {
+            "median_ms": 1986.925,
+            "n": 89,
+            "p95_ms": 2322.805
+          }
+        },
+        "py_import": {
+          "all": {
+            "median_ms": 528.2629999999999,
+            "n": 90,
+            "p95_ms": 2070.21
+          },
+          "baseline_median_ms": 899.7035000000001,
+          "cold": {
+            "median_ms": 2047.6395,
+            "n": 14,
+            "p95_ms": 2171.537
+          },
+          "gain": 0.42188343159718744,
+          "unknown": 0,
+          "warm": {
+            "median_ms": 520.1334999999999,
+            "n": 76,
+            "p95_ms": 588.73
+          }
+        },
+        "py_short": {
+          "all": {
+            "median_ms": 5.787,
+            "n": 395,
+            "p95_ms": 98.331
+          },
+          "baseline_median_ms": 59.633,
+          "cold": {
+            "median_ms": 94.173,
+            "n": 55,
+            "p95_ms": 111.37
+          },
+          "gain": 0.908708265557661,
+          "unknown": 0,
+          "warm": {
+            "median_ms": 5.444,
+            "n": 340,
+            "p95_ms": 23.635
+          }
+        },
+        "py_test": {
+          "all": {
+            "median_ms": 67196.466,
+            "n": 90,
+            "p95_ms": 70943.424
+          },
+          "baseline_median_ms": 68641.952,
+          "cold": {
+            "median_ms": 70400.658,
+            "n": 9,
+            "p95_ms": 72101.188
+          },
+          "gain": 0.024650712147579967,
+          "unknown": 0,
+          "warm": {
+            "median_ms": 66949.879,
+            "n": 81,
+            "p95_ms": 70086.402
+          }
+        }
+      },
+      "counts": {
+        "calls": 2354,
+        "not_in_window": 1470,
+        "not_ok": 0,
+        "unknown": 0,
+        "used": 884
+      },
+      "dataset_mib": 256,
+      "first_after_idle": {
+        "all": {
+          "median_ms": 111.37,
+          "n": 83,
+          "p95_ms": 21424.332
+        },
+        "by_class": {
+          "py_analyze": {
+            "median_ms": 18582.9865,
+            "n": 20,
+            "p95_ms": 20818.4
+          },
+          "py_grep": {
+            "median_ms": 2210.734,
+            "n": 4,
+            "p95_ms": 2298.847
+          },
+          "py_import": {
+            "median_ms": 1999.283,
+            "n": 11,
+            "p95_ms": 2139.884
+          },
+          "py_short": {
+            "median_ms": 96.67699999999999,
+            "n": 44,
+            "p95_ms": 111.37
+          },
+          "py_test": {
+            "median_ms": 70002.8155,
+            "n": 4,
+            "p95_ms": 70943.424
+          }
+        }
+      },
+      "n": 128,
+      "point": "pycache",
+      "rungs": [
+        {
+          "dir": "/srv/e15/runs/pycache/resident-300/N128",
+          "warmcold": {
+            "cold": 331,
+            "dropped_end_session_execs": [
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561052,
+                "session": "e15-pycache-resident-300-n128-1794450950-0-0",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561021,
+                "session": "e15-pycache-resident-300-n128-1794450950-1-0",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561122,
+                "session": "e15-pycache-resident-300-n128-1794450950-10-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561037,
+                "session": "e15-pycache-resident-300-n128-1794450950-100-0",
+                "vm": "vm-316"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561045,
+                "session": "e15-pycache-resident-300-n128-1794450950-101-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560961,
+                "session": "e15-pycache-resident-300-n128-1794450950-102-0",
+                "vm": "vm-302"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561082,
+                "session": "e15-pycache-resident-300-n128-1794450950-102-1",
+                "vm": "vm-322"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561078,
+                "session": "e15-pycache-resident-300-n128-1794450950-103-0",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561054,
+                "session": "e15-pycache-resident-300-n128-1794450950-104-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561025,
+                "session": "e15-pycache-resident-300-n128-1794450950-105-0",
+                "vm": "vm-250"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561086,
+                "session": "e15-pycache-resident-300-n128-1794450950-106-0",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561098,
+                "session": "e15-pycache-resident-300-n128-1794450950-107-0",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561027,
+                "session": "e15-pycache-resident-300-n128-1794450950-108-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559444,
+                "session": "e15-pycache-resident-300-n128-1794450950-109-0",
+                "vm": "vm-152"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560653,
+                "session": "e15-pycache-resident-300-n128-1794450950-109-1",
+                "vm": "vm-234"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561091,
+                "session": "e15-pycache-resident-300-n128-1794450950-109-2",
+                "vm": "vm-282"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559280,
+                "session": "e15-pycache-resident-300-n128-1794450950-11-0",
+                "vm": "vm-13"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561148,
+                "session": "e15-pycache-resident-300-n128-1794450950-11-1",
+                "vm": "vm-312"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559260,
+                "session": "e15-pycache-resident-300-n128-1794450950-110-0",
+                "vm": "vm-113"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560184,
+                "session": "e15-pycache-resident-300-n128-1794450950-110-1",
+                "vm": "vm-145"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561062,
+                "session": "e15-pycache-resident-300-n128-1794450950-110-2",
+                "vm": "vm-229"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920558938,
+                "session": "e15-pycache-resident-300-n128-1794450950-111-0",
+                "vm": "vm-114"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561109,
+                "session": "e15-pycache-resident-300-n128-1794450950-111-1",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561040,
+                "session": "e15-pycache-resident-300-n128-1794450950-112-0",
+                "vm": "vm-331"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559656,
+                "session": "e15-pycache-resident-300-n128-1794450950-113-0",
+                "vm": "vm-149"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560808,
+                "session": "e15-pycache-resident-300-n128-1794450950-113-1",
+                "vm": "vm-255"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561061,
+                "session": "e15-pycache-resident-300-n128-1794450950-113-2",
+                "vm": "vm-305"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561096,
+                "session": "e15-pycache-resident-300-n128-1794450950-114-0",
+                "vm": "vm-329"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559475,
+                "session": "e15-pycache-resident-300-n128-1794450950-115-0",
+                "vm": "vm-150"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559819,
+                "session": "e15-pycache-resident-300-n128-1794450950-115-1",
+                "vm": "vm-188"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559852,
+                "session": "e15-pycache-resident-300-n128-1794450950-115-2",
+                "vm": "vm-190"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560032,
+                "session": "e15-pycache-resident-300-n128-1794450950-115-3",
+                "vm": "vm-193"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561080,
+                "session": "e15-pycache-resident-300-n128-1794450950-115-4",
+                "vm": "vm-304"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561032,
+                "session": "e15-pycache-resident-300-n128-1794450950-116-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559921,
+                "session": "e15-pycache-resident-300-n128-1794450950-117-0",
+                "vm": "vm-163"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561070,
+                "session": "e15-pycache-resident-300-n128-1794450950-117-1",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561093,
+                "session": "e15-pycache-resident-300-n128-1794450950-118-0",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561029,
+                "session": "e15-pycache-resident-300-n128-1794450950-119-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561116,
+                "session": "e15-pycache-resident-300-n128-1794450950-12-0",
+                "vm": "vm-268"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559172,
+                "session": "e15-pycache-resident-300-n128-1794450950-120-0",
+                "vm": "vm-123"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561112,
+                "session": "e15-pycache-resident-300-n128-1794450950-120-1",
+                "vm": "vm-213"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561119,
+                "session": "e15-pycache-resident-300-n128-1794450950-121-0",
+                "vm": "vm-323"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561117,
+                "session": "e15-pycache-resident-300-n128-1794450950-122-0",
+                "vm": "vm-299"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559248,
+                "session": "e15-pycache-resident-300-n128-1794450950-123-0",
+                "vm": "vm-126"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561083,
+                "session": "e15-pycache-resident-300-n128-1794450950-123-1",
+                "vm": "vm-297"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561060,
+                "session": "e15-pycache-resident-300-n128-1794450950-124-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561069,
+                "session": "e15-pycache-resident-300-n128-1794450950-125-0",
+                "vm": "vm-233"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559568,
+                "session": "e15-pycache-resident-300-n128-1794450950-126-0",
+                "vm": "vm-129"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561023,
+                "session": "e15-pycache-resident-300-n128-1794450950-126-1",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561121,
+                "session": "e15-pycache-resident-300-n128-1794450950-127-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561066,
+                "session": "e15-pycache-resident-300-n128-1794450950-13-0",
+                "vm": "vm-15"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559687,
+                "session": "e15-pycache-resident-300-n128-1794450950-14-0",
+                "vm": "vm-170"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560658,
+                "session": "e15-pycache-resident-300-n128-1794450950-14-1",
+                "vm": "vm-279"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561146,
+                "session": "e15-pycache-resident-300-n128-1794450950-14-2",
+                "vm": "vm-283"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561123,
+                "session": "e15-pycache-resident-300-n128-1794450950-15-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561137,
+                "session": "e15-pycache-resident-300-n128-1794450950-16-0",
+                "vm": "vm-330"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561077,
+                "session": "e15-pycache-resident-300-n128-1794450950-17-0",
+                "vm": "vm-252"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561105,
+                "session": "e15-pycache-resident-300-n128-1794450950-18-0",
+                "vm": "vm-325"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560566,
+                "session": "e15-pycache-resident-300-n128-1794450950-19-0",
+                "vm": "vm-21"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561144,
+                "session": "e15-pycache-resident-300-n128-1794450950-19-1",
+                "vm": "vm-277"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920558779,
+                "session": "e15-pycache-resident-300-n128-1794450950-2-0",
+                "vm": "vm-4"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561043,
+                "session": "e15-pycache-resident-300-n128-1794450950-2-1",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561130,
+                "session": "e15-pycache-resident-300-n128-1794450950-20-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559364,
+                "session": "e15-pycache-resident-300-n128-1794450950-21-0",
+                "vm": "vm-23"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561084,
+                "session": "e15-pycache-resident-300-n128-1794450950-21-1",
+                "vm": "vm-148"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920558901,
+                "session": "e15-pycache-resident-300-n128-1794450950-22-0",
+                "vm": "vm-24"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561125,
+                "session": "e15-pycache-resident-300-n128-1794450950-22-1",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559235,
+                "session": "e15-pycache-resident-300-n128-1794450950-23-0",
+                "vm": "vm-25"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561058,
+                "session": "e15-pycache-resident-300-n128-1794450950-23-1",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560856,
+                "session": "e15-pycache-resident-300-n128-1794450950-24-0",
+                "vm": "vm-274"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561034,
+                "session": "e15-pycache-resident-300-n128-1794450950-24-1",
+                "vm": "vm-309"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561099,
+                "session": "e15-pycache-resident-300-n128-1794450950-25-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559672,
+                "session": "e15-pycache-resident-300-n128-1794450950-26-0",
+                "vm": "vm-168"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560291,
+                "session": "e15-pycache-resident-300-n128-1794450950-26-1",
+                "vm": "vm-174"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561072,
+                "session": "e15-pycache-resident-300-n128-1794450950-26-2",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561041,
+                "session": "e15-pycache-resident-300-n128-1794450950-27-0",
+                "vm": "vm-261"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560677,
+                "session": "e15-pycache-resident-300-n128-1794450950-28-0",
+                "vm": "vm-280"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561138,
+                "session": "e15-pycache-resident-300-n128-1794450950-28-1",
+                "vm": "vm-287"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560442,
+                "session": "e15-pycache-resident-300-n128-1794450950-29-0",
+                "vm": "vm-241"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561113,
+                "session": "e15-pycache-resident-300-n128-1794450950-29-1",
+                "vm": "vm-262"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559509,
+                "session": "e15-pycache-resident-300-n128-1794450950-3-0",
+                "vm": "vm-5"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560792,
+                "session": "e15-pycache-resident-300-n128-1794450950-3-1",
+                "vm": "vm-271"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561107,
+                "session": "e15-pycache-resident-300-n128-1794450950-3-2",
+                "vm": "vm-301"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560529,
+                "session": "e15-pycache-resident-300-n128-1794450950-30-0",
+                "vm": "vm-184"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561088,
+                "session": "e15-pycache-resident-300-n128-1794450950-30-1",
+                "vm": "vm-273"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559044,
+                "session": "e15-pycache-resident-300-n128-1794450950-31-0",
+                "vm": "vm-33"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559459,
+                "session": "e15-pycache-resident-300-n128-1794450950-31-1",
+                "vm": "vm-135"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561106,
+                "session": "e15-pycache-resident-300-n128-1794450950-31-2",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561102,
+                "session": "e15-pycache-resident-300-n128-1794450950-32-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560423,
+                "session": "e15-pycache-resident-300-n128-1794450950-33-0",
+                "vm": "vm-236"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561120,
+                "session": "e15-pycache-resident-300-n128-1794450950-33-1",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561129,
+                "session": "e15-pycache-resident-300-n128-1794450950-34-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561147,
+                "session": "e15-pycache-resident-300-n128-1794450950-35-0",
+                "vm": "vm-276"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559746,
+                "session": "e15-pycache-resident-300-n128-1794450950-36-0",
+                "vm": "vm-143"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561097,
+                "session": "e15-pycache-resident-300-n128-1794450950-36-1",
+                "vm": "vm-327"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561068,
+                "session": "e15-pycache-resident-300-n128-1794450950-37-0",
+                "vm": "vm-227"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561022,
+                "session": "e15-pycache-resident-300-n128-1794450950-38-0",
+                "vm": "vm-272"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561047,
+                "session": "e15-pycache-resident-300-n128-1794450950-39-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561079,
+                "session": "e15-pycache-resident-300-n128-1794450950-4-0",
+                "vm": "vm-324"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561071,
+                "session": "e15-pycache-resident-300-n128-1794450950-40-0",
+                "vm": "vm-220"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561053,
+                "session": "e15-pycache-resident-300-n128-1794450950-41-0",
+                "vm": "vm-259"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560160,
+                "session": "e15-pycache-resident-300-n128-1794450950-42-0",
+                "vm": "vm-44"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561024,
+                "session": "e15-pycache-resident-300-n128-1794450950-42-1",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560700,
+                "session": "e15-pycache-resident-300-n128-1794450950-43-0",
+                "vm": "vm-275"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561049,
+                "session": "e15-pycache-resident-300-n128-1794450950-43-1",
+                "vm": "vm-293"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561039,
+                "session": "e15-pycache-resident-300-n128-1794450950-44-0",
+                "vm": "vm-281"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561055,
+                "session": "e15-pycache-resident-300-n128-1794450950-45-0",
+                "vm": "vm-303"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561044,
+                "session": "e15-pycache-resident-300-n128-1794450950-46-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559937,
+                "session": "e15-pycache-resident-300-n128-1794450950-47-0",
+                "vm": "vm-173"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560143,
+                "session": "e15-pycache-resident-300-n128-1794450950-47-1",
+                "vm": "vm-201"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561065,
+                "session": "e15-pycache-resident-300-n128-1794450950-47-2",
+                "vm": "vm-317"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920558922,
+                "session": "e15-pycache-resident-300-n128-1794450950-48-0",
+                "vm": "vm-50"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561089,
+                "session": "e15-pycache-resident-300-n128-1794450950-48-1",
+                "vm": "vm-306"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561128,
+                "session": "e15-pycache-resident-300-n128-1794450950-49-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560413,
+                "session": "e15-pycache-resident-300-n128-1794450950-5-0",
+                "vm": "vm-239"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561110,
+                "session": "e15-pycache-resident-300-n128-1794450950-5-1",
+                "vm": "vm-258"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560886,
+                "session": "e15-pycache-resident-300-n128-1794450950-50-0",
+                "vm": "vm-310"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561103,
+                "session": "e15-pycache-resident-300-n128-1794450950-50-1",
+                "vm": "vm-314"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561038,
+                "session": "e15-pycache-resident-300-n128-1794450950-51-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560014,
+                "session": "e15-pycache-resident-300-n128-1794450950-52-0",
+                "vm": "vm-197"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560349,
+                "session": "e15-pycache-resident-300-n128-1794450950-52-1",
+                "vm": "vm-209"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561134,
+                "session": "e15-pycache-resident-300-n128-1794450950-52-2",
+                "vm": "vm-249"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561074,
+                "session": "e15-pycache-resident-300-n128-1794450950-53-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561092,
+                "session": "e15-pycache-resident-300-n128-1794450950-54-0",
+                "vm": "vm-291"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560020,
+                "session": "e15-pycache-resident-300-n128-1794450950-55-0",
+                "vm": "vm-57"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561140,
+                "session": "e15-pycache-resident-300-n128-1794450950-55-1",
+                "vm": "vm-332"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559103,
+                "session": "e15-pycache-resident-300-n128-1794450950-56-0",
+                "vm": "vm-58"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561075,
+                "session": "e15-pycache-resident-300-n128-1794450950-56-1",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561124,
+                "session": "e15-pycache-resident-300-n128-1794450950-57-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560505,
+                "session": "e15-pycache-resident-300-n128-1794450950-58-0",
+                "vm": "vm-60"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561145,
+                "session": "e15-pycache-resident-300-n128-1794450950-58-1",
+                "vm": "vm-318"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560942,
+                "session": "e15-pycache-resident-300-n128-1794450950-59-0",
+                "vm": "vm-294"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561095,
+                "session": "e15-pycache-resident-300-n128-1794450950-59-1",
+                "vm": "vm-319"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560662,
+                "session": "e15-pycache-resident-300-n128-1794450950-6-0",
+                "vm": "vm-264"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561139,
+                "session": "e15-pycache-resident-300-n128-1794450950-6-1",
+                "vm": "vm-285"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561085,
+                "session": "e15-pycache-resident-300-n128-1794450950-60-0",
+                "vm": "vm-62"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559694,
+                "session": "e15-pycache-resident-300-n128-1794450950-61-0",
+                "vm": "vm-172"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561059,
+                "session": "e15-pycache-resident-300-n128-1794450950-61-1",
+                "vm": "vm-247"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561141,
+                "session": "e15-pycache-resident-300-n128-1794450950-62-0",
+                "vm": "vm-308"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561114,
+                "session": "e15-pycache-resident-300-n128-1794450950-63-0",
+                "vm": "vm-326"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561133,
+                "session": "e15-pycache-resident-300-n128-1794450950-64-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561076,
+                "session": "e15-pycache-resident-300-n128-1794450950-65-0",
+                "vm": "vm-216"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561094,
+                "session": "e15-pycache-resident-300-n128-1794450950-66-0",
+                "vm": "vm-321"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561131,
+                "session": "e15-pycache-resident-300-n128-1794450950-67-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561036,
+                "session": "e15-pycache-resident-300-n128-1794450950-68-0",
+                "vm": "vm-228"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559238,
+                "session": "e15-pycache-resident-300-n128-1794450950-69-0",
+                "vm": "vm-71"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560817,
+                "session": "e15-pycache-resident-300-n128-1794450950-69-1",
+                "vm": "vm-253"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561108,
+                "session": "e15-pycache-resident-300-n128-1794450950-69-2",
+                "vm": "vm-307"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560724,
+                "session": "e15-pycache-resident-300-n128-1794450950-7-0",
+                "vm": "vm-292"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561104,
+                "session": "e15-pycache-resident-300-n128-1794450950-7-1",
+                "vm": "vm-298"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559101,
+                "session": "e15-pycache-resident-300-n128-1794450950-70-0",
+                "vm": "vm-72"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560055,
+                "session": "e15-pycache-resident-300-n128-1794450950-70-1",
+                "vm": "vm-207"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561132,
+                "session": "e15-pycache-resident-300-n128-1794450950-70-2",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561087,
+                "session": "e15-pycache-resident-300-n128-1794450950-71-0",
+                "vm": "vm-205"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561101,
+                "session": "e15-pycache-resident-300-n128-1794450950-72-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559072,
+                "session": "e15-pycache-resident-300-n128-1794450950-73-0",
+                "vm": "vm-75"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559442,
+                "session": "e15-pycache-resident-300-n128-1794450950-73-1",
+                "vm": "vm-136"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559707,
+                "session": "e15-pycache-resident-300-n128-1794450950-73-2",
+                "vm": "vm-153"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561028,
+                "session": "e15-pycache-resident-300-n128-1794450950-73-3",
+                "vm": "vm-288"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561118,
+                "session": "e15-pycache-resident-300-n128-1794450950-74-0",
+                "vm": "vm-267"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561026,
+                "session": "e15-pycache-resident-300-n128-1794450950-75-0",
+                "vm": "vm-295"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561031,
+                "session": "e15-pycache-resident-300-n128-1794450950-76-0",
+                "vm": "vm-78"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561048,
+                "session": "e15-pycache-resident-300-n128-1794450950-77-0",
+                "vm": "vm-313"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559898,
+                "session": "e15-pycache-resident-300-n128-1794450950-78-0",
+                "vm": "vm-169"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560716,
+                "session": "e15-pycache-resident-300-n128-1794450950-78-1",
+                "vm": "vm-289"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561136,
+                "session": "e15-pycache-resident-300-n128-1794450950-78-2",
+                "vm": "vm-296"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559161,
+                "session": "e15-pycache-resident-300-n128-1794450950-79-0",
+                "vm": "vm-81"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561111,
+                "session": "e15-pycache-resident-300-n128-1794450950-79-1",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561081,
+                "session": "e15-pycache-resident-300-n128-1794450950-8-0",
+                "vm": "vm-290"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560997,
+                "session": "e15-pycache-resident-300-n128-1794450950-80-0",
+                "vm": "vm-300"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561042,
+                "session": "e15-pycache-resident-300-n128-1794450950-80-1",
+                "vm": "vm-328"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560664,
+                "session": "e15-pycache-resident-300-n128-1794450950-81-0",
+                "vm": "vm-265"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561073,
+                "session": "e15-pycache-resident-300-n128-1794450950-81-1",
+                "vm": "vm-286"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561064,
+                "session": "e15-pycache-resident-300-n128-1794450950-82-0",
+                "vm": "vm-230"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559935,
+                "session": "e15-pycache-resident-300-n128-1794450950-83-0",
+                "vm": "vm-191"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561135,
+                "session": "e15-pycache-resident-300-n128-1794450950-83-1",
+                "vm": "vm-200"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561035,
+                "session": "e15-pycache-resident-300-n128-1794450950-84-0",
+                "vm": "vm-311"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561051,
+                "session": "e15-pycache-resident-300-n128-1794450950-85-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561046,
+                "session": "e15-pycache-resident-300-n128-1794450950-86-0",
+                "vm": "vm-320"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561090,
+                "session": "e15-pycache-resident-300-n128-1794450950-87-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561050,
+                "session": "e15-pycache-resident-300-n128-1794450950-88-0",
+                "vm": "vm-238"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559928,
+                "session": "e15-pycache-resident-300-n128-1794450950-89-0",
+                "vm": "vm-192"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560140,
+                "session": "e15-pycache-resident-300-n128-1794450950-89-1",
+                "vm": "vm-199"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560295,
+                "session": "e15-pycache-resident-300-n128-1794450950-89-2",
+                "vm": "vm-223"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561063,
+                "session": "e15-pycache-resident-300-n128-1794450950-89-3",
+                "vm": "vm-243"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561100,
+                "session": "e15-pycache-resident-300-n128-1794450950-9-0",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561127,
+                "session": "e15-pycache-resident-300-n128-1794450950-90-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559756,
+                "session": "e15-pycache-resident-300-n128-1794450950-91-0",
+                "vm": "vm-93"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561067,
+                "session": "e15-pycache-resident-300-n128-1794450950-91-1",
+                "vm": null
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561033,
+                "session": "e15-pycache-resident-300-n128-1794450950-92-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559026,
+                "session": "e15-pycache-resident-300-n128-1794450950-93-0",
+                "vm": "vm-95"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920559351,
+                "session": "e15-pycache-resident-300-n128-1794450950-93-1",
+                "vm": "vm-134"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561056,
+                "session": "e15-pycache-resident-300-n128-1794450950-93-2",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560397,
+                "session": "e15-pycache-resident-300-n128-1794450950-94-0",
+                "vm": "vm-232"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561030,
+                "session": "e15-pycache-resident-300-n128-1794450950-94-1",
+                "vm": "vm-257"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561126,
+                "session": "e15-pycache-resident-300-n128-1794450950-95-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561115,
+                "session": "e15-pycache-resident-300-n128-1794450950-96-0",
+                "vm": "vm-222"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560568,
+                "session": "e15-pycache-resident-300-n128-1794450950-97-0",
+                "vm": "vm-218"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920560901,
+                "session": "e15-pycache-resident-300-n128-1794450950-97-1",
+                "vm": "vm-278"
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561143,
+                "session": "e15-pycache-resident-300-n128-1794450950-97-2",
+                "vm": "vm-315"
+              },
+              {
+                "reason": "no-vm-no-error",
+                "req": 8000458920561057,
+                "session": "e15-pycache-resident-300-n128-1794450950-98-0",
+                "vm": null
+              },
+              {
+                "reason": "after-end-session-line",
+                "req": 8000458920561142,
+                "session": "e15-pycache-resident-300-n128-1794450950-99-0",
+                "vm": "vm-284"
+              }
+            ],
+            "unknown": 0,
+            "unknown_keys": {},
+            "warm": 2023
+          }
+        }
+      ],
+      "snapshot_guest_ram_mb": 1024,
+      "warm_share": 0.8699095022624435
+    }
+  ]
+}
