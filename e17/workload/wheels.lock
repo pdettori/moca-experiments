@@ -1,0 +1,14 @@
+# E17 pycache venv wheels (PLAN Task 2): sha256sum format, "<sha256>  <wheel filename>".
+# cp39 manylinux x86_64 wheels for the guest's Python 3.9 (pip download on the laptop, as E15's
+# pytest wheels); not committed. build_pycache_workspace.sh --wheels DIR refuses a missing wheel
+# or a hash mismatch, and pip installs them in hash-checking mode.
+5fc3c5039fc5ca8c0276333a188bbd59d6b7ab37fe6632daa76bc7f9ec18e713  joblib-1.5.3-py3-none-any.whl
+f26b258c385842546006213344c50655ff1555a9338e2e5e02a0756dc3e803dd  numpy-2.0.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+99df71520d25fade9db7c1076ac94eb994f4d2673ef2aa2e86ee039b6746d20c  pandas-2.2.3-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+3c79630202e4152c6add678446984236efe4f57e84d8e892aab0637bab82e9fd  python_dateutil-3.0.0-py2.py3-none-any.whl
+7fed3fee8fd6bd4a2b7b75a8d56021d0624127bf69bd5691f115db929ac570b3  pytz-2026.6-py2.py3-none-any.whl
+b8b7a3b86e411e4bce21186e1c180d792f3d99223dcfa3b4f597ecc92fa1a422  scikit_learn-1.6.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+637e98dcf185ba7f8e663e122ebf908c4702420477ae52a04f9908707456ba4d  scipy-1.13.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274  six-1.17.0-py2.py3-none-any.whl
+cd8b60b5641b45c67bbf73c64c843235fc2d8a480c87389f52f5dbee893b86be  threadpoolctl-3.7.0-py3-none-any.whl
+0a10eec6e13ef16b627fabed9a5f2ba61a62b1c67f327305f4e7e412a70b4aec  tzdata-2026.6-py2.py3-none-any.whl

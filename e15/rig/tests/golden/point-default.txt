@@ -1,0 +1,13 @@
+E15_P_ARMS=sbx resident-inf resident-300 control
+E15_P_CORPUS=default
+E15_P_LIBRARY=<ROOT>/src/e15/commands/library.json
+E15_P_TEMPLATE=<ROOT>/template/workspace.img
+E15_P_TEMPLATE_STAMP=template
+E15_P_IMAGE_MB=256
+E15_P_DATASET_MIB=0
+E15_P_DATASET_SEED=1
+E15_P_SCAN_CLASSES=
+E15_P_SCAN_CMD=
+E15_P_FALLBACK=0
+E15_P_SETTINGS=point=default corpus=default library=src/e15/commands/library.json template=template/workspace.img image_mb=256 dataset_mib=0 dataset_seed=1 scan_classes= scan_cmd=
+point_sig=0124f0509c32954356a90c6e5d9e7975069e2de4c0ccbb44e994cf829bc16db8

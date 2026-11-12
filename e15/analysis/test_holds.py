@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import sys
@@ -140,6 +141,10 @@ def test_footprint_drift(tmp_path):
     assert abs(r["footprint_drift_pct"] - 12.5) < 1e-9 and r["repeat_required"]
     r = _rung(tmp_path, s, arm="sbx")
     assert "footprint_drift_pct" not in r
+    # E17: the lease arms run the resident worker (lib.sh), so their footprint is judged too
+    for arm in ("resident-300", "lease-30", "lease-120"):
+        r = _rung(tmp_path, s, arm=arm)
+        assert abs(r["footprint_drift_pct"] - 12.5) < 1e-9 and r["repeat_required"], arm
 
 
 import pytest
@@ -611,6 +616,55 @@ def test_make_probe_caps_durations(tmp_path):
     MP.main([str(corpus), str(lib), str(tmp_path / "o"), "--per-class", "4"])
     for x in json.loads((tmp_path / "o" / "read" / "corpus.jsonl").read_text())["calls"]:
         assert x["dur_ms"] == 30000 and x["work_ms"] == 30000
+
+
+def _cap_fixture(tmp_path):
+    """read: pairs below, at and above the 30 000 ms cap (one chain, excluded); test: library only."""
+    calls = [{"class": "read", "work_ms": w, "dur_ms": u, "chain": False}
+             for w, u in ((10, 20), (58000, 60000), (90000, 120000), (25000, 31000))]
+    calls.append({"class": "read", "work_ms": 99999, "dur_ms": 99999, "chain": True})
+    corpus = tmp_path / "c.jsonl"
+    corpus.write_text(json.dumps({"calls": calls}) + "\n")
+    lib = tmp_path / "l.json"
+    lib.write_text(json.dumps({"classes": {
+        "read": [{"id": "r", "cmd": "x", "nominal_ms": 3}],
+        "test": [{"id": "t", "cmd": "y", "nominal_ms": 45000, "run_ms": None}]}}))
+    return str(corpus), str(lib)
+
+
+def _tree_sha(out):
+    h = hashlib.sha256()
+    for root, _, files in sorted(os.walk(out)):
+        for f in sorted(files):
+            p = os.path.join(root, f)
+            h.update(os.path.relpath(p, out).encode() + b"\0" + open(p, "rb").read() + b"\0")
+    return h.hexdigest()
+
+
+def test_make_probe_cap_ms_default_is_todays_output(tmp_path):
+    # The digest is make_probe.py's output for this fixture at 56bb03a, before --cap-ms existed
+    # (E17 Task 5b): without the option, and with --cap-ms 30000, the probe corpora are unchanged.
+    c, lib = _cap_fixture(tmp_path)
+    MP.main([c, lib, str(tmp_path / "a"), "--per-class", "8", "--seed", "4"])
+    MP.main([c, lib, str(tmp_path / "b"), "--per-class", "8", "--seed", "4", "--cap-ms", "30000"])
+    today = "dd0b0951579985fc706f4ef0590f884b9e5f5c3b3a3b7e1df68d60fc4ee5a6ee"
+    assert _tree_sha(str(tmp_path / "a")) == today
+    assert _tree_sha(str(tmp_path / "b")) == today
+
+
+def test_make_probe_cap_ms_120000_keeps_a_60000_call(tmp_path):
+    corpus = tmp_path / "c.jsonl"
+    corpus.write_text(json.dumps({"calls": [{"class": "py_test", "work_ms": 58000, "dur_ms": 60000, "chain": False}]}) + "\n")
+    lib = tmp_path / "l.json"
+    lib.write_text(json.dumps({"classes": {"py_test": [{"id": "t", "cmd": "x", "nominal_ms": 60000}]}}))
+    MP.main([str(corpus), str(lib), str(tmp_path / "o"), "--per-class", "4", "--cap-ms", "120000"])
+    calls = json.loads((tmp_path / "o" / "py_test" / "corpus.jsonl").read_text())["calls"]
+    assert [(x["dur_ms"], x["work_ms"]) for x in calls] == [(60000, 58000)] * 4
+    # the cap still applies above it: a 150 000 ms call is planned at 120 000
+    corpus.write_text(json.dumps({"calls": [{"class": "py_test", "work_ms": 150000, "dur_ms": 150000, "chain": False}]}) + "\n")
+    MP.main([str(corpus), str(lib), str(tmp_path / "p"), "--per-class", "2", "--cap-ms", "120000"])
+    calls = json.loads((tmp_path / "p" / "py_test" / "corpus.jsonl").read_text())["calls"]
+    assert [(x["dur_ms"], x["work_ms"]) for x in calls] == [(120000, 120000)] * 2
 
 
 def test_overhead_weighted_by_corpus_share(tmp_path, monkeypatch):

@@ -2,10 +2,11 @@
 # e15/rig/rung.sh ARM N POINT -- one rung (SPEC §10.2): fresh worker, fresh workspaces, driver,
 # sampler, record.
 #
-#   ARM    sbx | resident-inf | resident-300 | control
+#   ARM    sbx | resident-inf | resident-300 | control | lease-30 | lease-120   (lease-*: E17, fresh-metal)
 #   N      session population (>= 1)
 #   POINT  default | short | long | no-infra | no-chains | smoke | mem512 | lowduty   (points.sh: corpus
 #          /srv/e15/corpora/<its corpus>, library, workspace template, image size)
+#          | pycache | pycache-low | pycache-d64 | pycache-d768   (E17, fresh-metal)
 #
 # Environment (defaults are SPEC §10.2's):
 #   E15_WARMUP_S 600 (fresh-metal resident arms 1200; lib.sh e15_default_warmup)   E15_WINDOW_S 900   E15_SPREAD_S 60   E15_GRACE_S 300   E15_SEED 1
@@ -310,7 +311,7 @@ fi
 
 # --- 4. driver + sampler ---------------------------------------------------------------------
 end_flag=()
-case "$ARM" in resident-inf | resident-300) end_flag=(--end-session-exec) ;; esac
+case "$ARM" in resident-inf | resident-300 | lease-30 | lease-120) end_flag=(--end-session-exec) ;; esac
 # E16 supplementary (fresh-metal only, default off): E15_END_SESSION_DEFER=1 sends the end-session
 # Execs of sessions the run's end stopped after the grace deadline, paced (driver
 # --end-session-defer, --end-session-rate E15_END_SESSION_RATE, default 50/s). Natural ends unchanged.
@@ -453,7 +454,8 @@ except (OSError, ValueError):
     pass
 arm = "$ARM"
 wbin = {"sbx": "$E15_BIN/microvm-worker", "resident-inf": "$E15_BIN/microvm-worker-resident",
-        "resident-300": "$E15_BIN/microvm-worker-resident"}.get(arm)
+        "resident-300": "$E15_BIN/microvm-worker-resident",
+        "lease-30": "$E15_BIN/microvm-worker-resident", "lease-120": "$E15_BIN/microvm-worker-resident"}.get(arm)
 baseline_path = json.loads('$baseline_path')
 p = {
     "arm": arm, "n": $N, "point": "$POINT", "seed": $SEED, "run_id": run,
@@ -482,13 +484,13 @@ p = {
     "library": "$LIBRARY",
     "moca_commit": "$E15_MOCA_PIN",
     "moca_experiments_commit": readf("$commit_file"),
-    "resident_patch_sha256": sha("$E15_SRC/resident/resident.patch") if arm.startswith("resident") else None,
+    "resident_patch_sha256": sha("$E15_SRC/resident/resident.patch") if arm.startswith(("resident", "lease-")) else None,
     "worker_bin_sha256": sha(wbin) if wbin else None,
     "driver_bin_sha256": sha("$DRIVER"),
     **({"baseline_driver_bin_sha256": sha("$BASE_DRIVER"), "driver_bin": "$DRIVER"} if "$DRIVER" != "$BASE_DRIVER" else {}),
     "snapshot_hash": snap and snap.get("hash"), "snapshot_guest_ram_mb": snap and snap.get("guest_ram_mb"),
     "worker_env": env,
-    "end_session_exec": arm in ("resident-inf", "resident-300"),
+    "end_session_exec": arm in ("resident-inf", "resident-300", "lease-30", "lease-120"),
     **({"end_session_defer": True, "end_session_rate": int("${E15_END_SESSION_RATE:-50}"),
         "end_session_defer_note": "E16 supplementary (not the sealed procedure): run-end end-session Execs sent after end+grace, paced"}
        if "$END_DEFER" == "1" else {}),

@@ -16,7 +16,7 @@
 set -uo pipefail
 
 RIG="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SCRIPTS=(lib.sh points.sh setup.sh teardown.sh rung.sh ladder.sh sample.sh baseline.sh classprobe.sh tests/rig.test.sh)
+SCRIPTS=(lib.sh points.sh setup.sh teardown.sh rung.sh ladder.sh sample.sh baseline.sh classprobe.sh tests/rig.test.sh tests/golden/dump.sh)
 fails=0
 check() {
   if [ "$2" = "$3" ]; then
@@ -1873,6 +1873,845 @@ check "rung.sh: E15_END_SESSION_DEFER runs e15-driver-defer, the baseline is mat
   "$(grep -c 'DRIVER=\$E15_BIN/e15-driver-defer' "$RIG/rung.sh")/$(grep -c 'drv_sha=\$(sha_of "\$BASE_DRIVER")' "$RIG/rung.sh")" "1/1"
 check "rung.sh: params.json records end_session_defer only when on" "$(grep -c 'if "\$END_DEFER" == "1" else {}' "$RIG/rung.sh")" "1"
 
+# --- E17 Task 3: points pycache*, arms lease-30/lease-120 (fresh-metal only) -----------------
+# The pre-existing points and arms are compared byte for byte against golden dumps written from
+# the tree before E17 (tests/golden/, dump.sh); the new ones are checked for their exact values.
+GOLD="$RIG/tests/golden"
+gdump() { # PROFILE BODY: lib.sh, points.sh and golden/dump.sh sourced under the test root
+  E15_HOST_PROFILE="$1" E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; source "$2"; source "$3"; eval "$4"' \
+    _ "$RIG/lib.sh" "$RIG/points.sh" "$GOLD/dump.sh" "$2" 2>&1
+}
+gsame() { # GOLDEN: "same" when $TMP/gold.out equals it, else the first diff lines and "differs"
+  if cmp -s "$TMP/gold.out" "$1"; then echo same; else
+    diff "$1" "$TMP/gold.out" | head -5
+    echo differs
+  fi
+}
+rm -rf "$TROOT/state"
+for prof in aws-prelim fresh-metal; do
+  for p in default lowduty mem512; do
+    gdump "$prof" "e15_golden_point $p" >"$TMP/gold.out"
+    check "E17 golden: e15_point $p on $prof is byte-identical to before" "$(gsame "$GOLD/point-$p.txt")" "same"
+  done
+  gdump "$prof" "e15_golden_arms '$TMP/gold.env'" >"$TMP/gold.out"
+  check "E17 golden: warm-up, binary and worker env of sbx resident-inf resident-300 control on $prof unchanged" \
+    "$(gsame "$GOLD/arms.$prof.txt")" "same"
+done
+check "E17: E15_ARMS on aws-prelim unchanged (no lease arms)" "$(gdump aws-prelim 'echo ${E15_ARMS[*]}')" "sbx resident-inf resident-300 control"
+check "E17: E15_ARMS on fresh-metal: the E15 arms in order, then lease-30 lease-120" "$(gdump fresh-metal 'echo ${E15_ARMS[*]}')" \
+  "sbx resident-inf resident-300 control lease-30 lease-120"
+check "E17: aws-prelim refuses the lease arms" "$(gdump aws-prelim 'e15_is_arm lease-30 || echo no30; e15_is_arm lease-120 || echo no120' | tr '\n' ' ')" "no30 no120 "
+
+# the pycache points: fresh-metal only, the brief's exact values
+fpt() { # PROFILE POINT
+  E15_HOST_PROFILE="$1" E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; source "$2"; e15_point "$3" || { echo refused; exit 0; }
+    echo "$E15_P_ARMS|$E15_P_CORPUS|${E15_P_LIBRARY#"$E15_ROOT"/}|${E15_P_TEMPLATE#"$E15_ROOT"/}|$E15_P_TEMPLATE_STAMP|$E15_P_IMAGE_MB|$E15_P_DATASET_MIB|$E15_P_DATASET_SEED|$E15_P_SCAN_CLASSES|$E15_P_SCAN_CMD|$E15_P_FALLBACK|${E15_P_PROBE_CAP_MS-unset}"' \
+    _ "$RIG/lib.sh" "$RIG/points.sh" "$2" 2>&1
+}
+parms="sbx resident-300 lease-30 lease-120"
+check "E17 points: pycache" "$(fpt fresh-metal pycache)" "$parms|pycache|src/e17/workload/library.json|template-pycache-d256/workspace.img|template-pycache-d256|1536|256|1|||0|120000"
+check "E17 points: pycache-low (its own corpus, the D=256 template)" "$(fpt fresh-metal pycache-low)" "$parms|pycache-low|src/e17/workload/library.json|template-pycache-d256/workspace.img|template-pycache-d256|1536|256|1|||0|120000"
+check "E17 points: pycache-d64 (pycache corpus, D=64 template)" "$(fpt fresh-metal pycache-d64)" "$parms|pycache|src/e17/workload/library.json|template-pycache-d64/workspace.img|template-pycache-d64|1536|64|1|||0|120000"
+check "E17 points: pycache-d768 (pycache corpus, D=768 template)" "$(fpt fresh-metal pycache-d768)" "$parms|pycache|src/e17/workload/library.json|template-pycache-d768/workspace.img|template-pycache-d768|1536|768|1|||0|120000"
+check "E17 points: the library is /srv/e15/src/e17/workload/library.json on the rig root" \
+  "$(E15_HOST_PROFILE=fresh-metal E15_ROOT=/srv/e15 bash -c 'source "$1"; source "$2"; e15_point pycache; echo "$E15_P_LIBRARY $E15_P_TEMPLATE"' _ "$RIG/lib.sh" "$RIG/points.sh" 2>&1)" \
+  "/srv/e15/src/e17/workload/library.json /srv/e15/template-pycache-d256/workspace.img"
+for p in pycache pycache-low pycache-d64 pycache-d768; do
+  check "E17 points: $p refused on aws-prelim" "$(fpt aws-prelim "$p")" "refused"
+done
+check "E17 points: e15_point_arms pycache (fresh-metal)" "$(gdump fresh-metal 'e15_point_arms pycache')" "$parms"
+fsig() { E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; source "$2"; e15_point_sig "$3"' _ "$RIG/lib.sh" "$RIG/points.sh" "$1"; }
+check "E17 point_sig: the four pycache points and default, lowduty, mem512 all apart" \
+  "$(for p in pycache pycache-low pycache-d64 pycache-d768 default lowduty mem512; do fsig "$p"; echo; done | sort -u | grep -cE '^[0-9a-f]{64}$')" "7"
+check "E17 points: setup.sh's template list unchanged (pycache templates are bringup.sh's)" "$(gdump fresh-metal 'e15_templates' | tr '\n' ' ')" "default mem512 "
+
+# the lease arms: the resident binary, standby depth 0, E15_RESIDENT=1 with their idle, warm-up 1200
+lenv() { E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; worker_env "$3" "$2"; grep -E "^(E15_RESIDENT|E15_RESIDENT_IDLE_S|SH_STANDBY_DEPTH)=" "$2" | tr "\n" " "' _ "$RIG/lib.sh" "$TMP/wenv" "$1" 2>&1; }
+check "E17 worker_env lease-30" "$(lenv lease-30)" "SH_STANDBY_DEPTH=0 E15_RESIDENT=1 E15_RESIDENT_IDLE_S=30 "
+check "E17 worker_env lease-120" "$(lenv lease-120)" "SH_STANDBY_DEPTH=0 E15_RESIDENT=1 E15_RESIDENT_IDLE_S=120 "
+check "E17 worker_env: lease-30 equals resident-300 but for the idle line" \
+  "$(diff <(E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; worker_env resident-300 "$2"; cat "$2"' _ "$RIG/lib.sh" "$TMP/wa") \
+    <(E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; worker_env lease-30 "$2"; cat "$2"' _ "$RIG/lib.sh" "$TMP/wb") | grep -c '^[<>]')" "2"
+check "E17 worker_bin: lease-30, lease-120 run the resident binary" \
+  "$(gdump fresh-metal 'worker_bin lease-30; worker_bin lease-120' | sed "s#^$TROOT/##" | tr '\n' ' ')" "bin/microvm-worker-resident bin/microvm-worker-resident "
+check "E17 warm-up: lease-30, lease-120 1200 s on fresh-metal" "$(gdump fresh-metal 'e15_default_warmup lease-30; e15_default_warmup lease-120' | tr '\n' ' ')" "1200 1200 "
+
+# rung.sh: end-session Exec for the lease arms, the record's binary, patch sha and end_session_exec
+for spec in "fresh-metal lease-30 0:--end-session-exec" "fresh-metal lease-120 0:--end-session-exec" \
+  "fresh-metal lease-30 1:--end-session-exec --end-session-defer --end-session-rate 50"; do
+  read -r p_ a_ d_ <<<"${spec%%:*}"
+  got=$(E15_HOST_PROFILE=$p_ ARM=$a_ E15_END_SESSION_DEFER=$d_ bash -c "$endflag_snip"$'\n''echo "${end_flag[*]}"')
+  check "E17 rung.sh end flag: arm=$a_ E15_END_SESSION_DEFER=$d_" "$got" "${spec#*:}"
+done
+check "E17 rung.sh: the record maps lease-30, lease-120 to the resident binary" \
+  "$(grep -c '"lease-30": "\$E15_BIN/microvm-worker-resident", "lease-120": "\$E15_BIN/microvm-worker-resident"' "$RIG/rung.sh")" "1"
+check "E17 rung.sh: end_session_exec true for the lease arms" \
+  "$(grep -c '"end_session_exec": arm in ("resident-inf", "resident-300", "lease-30", "lease-120"),' "$RIG/rung.sh")" "1"
+check "E17 rung.sh: resident_patch_sha256 recorded for the lease arms" \
+  "$(grep -c 'if arm.startswith(("resident", "lease-")) else None' "$RIG/rung.sh")" "1"
+check "E17 rung.sh: usage names the lease arms and pycache points" \
+  "$(grep -c '^#   ARM    sbx | resident-inf | resident-300 | control | lease-30 | lease-120' "$RIG/rung.sh")/$(grep -c 'pycache | pycache-low | pycache-d64 | pycache-d768' "$RIG/rung.sh")" "1/1"
+: >"$CALLS"
+E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" PATH="$SPATH" E15_MANIFEST="$TMP/m.md" bash "$RIG/rung.sh" lease-30 8 default >"$TMP/r.out" 2>&1
+check "E17 rung.sh: default does not run lease-30 (exit 2)" "$?/$(grep -c 'does not run ARM lease-30' "$TMP/r.out")" "2/1"
+E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" PATH="$SPATH" E15_MANIFEST="$TMP/m.md" bash "$RIG/rung.sh" resident-inf 8 pycache >"$TMP/r.out" 2>&1
+check "E17 rung.sh: pycache does not run resident-inf (exit 2)" "$?/$(grep -c 'does not run ARM resident-inf' "$TMP/r.out")" "2/1"
+E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" PATH="$SPATH" E15_MANIFEST="$TMP/m.md" bash "$RIG/rung.sh" lease-30 8 pycache >"$TMP/r.out" 2>&1
+check "E17 rung.sh: aws-prelim refuses lease-30 (unknown ARM, exit 2)" "$?/$(grep -c "unknown ARM 'lease-30'" "$TMP/r.out")" "2/1"
+check "E17 rung.sh: none of these touched systemctl, sudo or podman" "$(wc -l <"$CALLS" | tr -d ' ')" "0"
+
+# setup.sh: the template loop and the lowduty block are byte-identical to before (sha256 of the
+# sed ranges at 6364d0f); the pycache corpora block is fresh-metal only, checked and recorded
+check "E17 setup.sh: template loop (step 8) byte-identical" \
+  "$(sed -n '/^# --- 8. workspace templates/,/^done < <(e15_templates)$/p' "$RIG/setup.sh" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')" \
+  "cef55bb0313966edadff8bd0d8f8c54ad9d9be8b56738e4a60326f4547982563"
+check "E17 setup.sh: lowduty block (step 8a) byte-identical" \
+  "$(sed -n '/^# --- 8a. the lowduty corpus/,/^fi$/p' "$RIG/setup.sh" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')" \
+  "cd7034e7629fd3a102a72d458ec6b08bc870a7b0d41610a4e691f840b31347d0"
+pcsnip=$(sed -n '/^# --- 8c. the pycache corpora/,/^# end pycache corpora$/p' "$RIG/setup.sh")
+check "E17 setup.sh: the pycache corpora block exists" "$([ -n "$pcsnip" ] && echo present || echo missing)" "present"
+pcrun() { # METAL: run the block under the test root; prints rc, then state/artifacts
+  rm -rf "$TROOT/state/artifacts"
+  E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" E15_MANIFEST="$TMP/pcm.md" METAL=$1 bash -c 'source "$1"; set -e; eval "$2"' \
+    _ "$RIG/lib.sh" "$pcsnip" >"$TMP/pc.out" 2>&1
+  echo "rc=$?"
+  sed "s#$TROOT/##g" "$TROOT/state/artifacts" 2>/dev/null | cut -d' ' -f1,3
+}
+mkpc() { # POINT [WRONG]: stage a corpus and a report whose corpus_sha256 matches (or not)
+  mkdir -p "$TROOT/corpora/$1"
+  printf '{"session": "%s"}\n' "$1" >"$TROOT/corpora/$1/corpus.jsonl"
+  python3 -c 'import hashlib,json,sys; d=open(sys.argv[1],"rb").read(); json.dump({"corpus_sha256": sys.argv[2] or hashlib.sha256(d).hexdigest()}, open(sys.argv[3],"w"))' \
+    "$TROOT/corpora/$1/corpus.jsonl" "${2:-}" "$TROOT/corpora/$1/corpus-report.json"
+}
+rm -rf "$TROOT/corpora/pycache" "$TROOT/corpora/pycache-low"
+check "E17 setup.sh pycache corpora: none staged -> notes only, no artifact" "$(pcrun 1 | tr '\n' ' ')/$(grep -c 'note: no .*pycache.*/corpus.jsonl staged' "$TMP/pc.out")" "rc=0 /2"
+mkpc pycache
+mkpc pycache-low
+check "E17 setup.sh pycache corpora: both staged -> both recorded" "$(pcrun 1 | tr '\n' ' ')" \
+  "rc=0 corpus-pycache corpora/pycache/corpus.jsonl corpus-pycache-low corpora/pycache-low/corpus.jsonl "
+check "E17 setup.sh pycache corpora: aws-prelim (METAL=0) does nothing" "$(pcrun 0 | tr '\n' ' ')/$(wc -c <"$TMP/pc.out" | tr -d ' ')" "rc=0 /0"
+mkpc pycache-low 0000000000000000000000000000000000000000000000000000000000000000
+check "E17 setup.sh pycache corpora: a sha256 mismatch dies" "$(pcrun 1 | head -1)/$(grep -c 'is not its report.s corpus_sha256' "$TMP/pc.out")" "rc=1/1"
+rm -f "$TROOT/corpora/pycache-low/corpus-report.json"
+check "E17 setup.sh pycache corpora: corpus without a report dies" "$(pcrun 1 | head -1)/$(grep -c 'has corpus.jsonl but no corpus-report.json' "$TMP/pc.out")" "rc=1/1"
+rm -rf "$TROOT/corpora/pycache" "$TROOT/corpora/pycache-low" "$TROOT/state/artifacts"
+
+# e17/rig/sync.sh: the laptop sync (never run by the tests: it reaches the rig)
+SYNC17="$RIG/../../e17/rig/sync.sh"
+if [ -f "$SYNC17" ]; then
+  bash -n "$SYNC17" 2>"$TMP/n.out"
+  check "bash -n e17/rig/sync.sh" "$([ -s "$TMP/n.out" ] && echo FAIL || echo clean)" "clean"
+  if [ -n "$SC" ]; then
+    "$SC" -x "$SYNC17" >"$TMP/sc.out" 2>&1
+    check "shellcheck e17/rig/sync.sh" "$([ -s "$TMP/sc.out" ] && echo FAIL || echo clean)" "clean"
+    [ -s "$TMP/sc.out" ] && sed 's/^/    /' "$TMP/sc.out" | head -20
+  fi
+  check "e17 sync.sh: rsyncs e15/, e16/, e17/ with e16's excludes" \
+    "$(grep -c '^X=(--exclude results/ --exclude predictions.json --exclude predictions-metal.json --exclude __pycache__ --exclude .pytest_cache)$' "$SYNC17")/$(grep -cE 'rsync -a --delete "\$\{X\[@\]\}" -e "\$S" (e15|e16|e17)/ "\$H:/srv/e15/src/(e15|e16|e17)/"' "$SYNC17")" "1/3"
+  check "e17 sync.sh: corpora to /srv/e15/corpora/<point>/, wheels to /srv/e15/wheels-pycache/ (not E15's wheels)" \
+    "$(grep -c '"\$H:/srv/e15/corpora/\$p/"' "$SYNC17")/$(grep -c '"\$H:/srv/e15/wheels-pycache/"' "$SYNC17")/$(grep -c '/srv/e15/wheels/' "$SYNC17")" "1/1/0"
+  check "e17 sync.sh: defaults E17_CORPORA, E17_WHEELS" \
+    "$(grep -c 'E17_CORPORA:-/tmp/kagenti/e17-corpora' "$SYNC17")/$(grep -c 'E17_WHEELS:-/tmp/kagenti/e17-wheels-probe' "$SYNC17")" "1/1"
+else
+  check "e17/rig/sync.sh exists" "missing" "present"
+fi
+
+
+# --- E17 Task 5: e17/rig bringup.sh, gen_corpora.sh, smoke.sh -----------------------------------
+# bringup.sh runs against a staged test root with every host tool a stub: sudo runs the command,
+# mount/umount/mountpoint keep a mount table in a file, debugfs reads the fake image (the stub
+# builder writes its BUILD lines as the image), stat/findmnt/xfs_info report one XFS reflink=1
+# device, cp drops --reflink. The builder is a stub that logs each call and refuses an existing
+# OUT_IMG, as the real one does.
+E17D="$RIG/../../e17"
+for s in rig/bringup.sh rig/smoke.sh rig/gen_corpora.sh rig/reprobe.sh; do
+  if [ ! -f "$E17D/$s" ]; then
+    check "e17/$s exists" "missing" "present"
+    continue
+  fi
+  bash -n "$E17D/$s" 2>"$TMP/n.out"
+  check "bash -n e17/$s" "$([ -s "$TMP/n.out" ] && echo FAIL || echo clean)" "clean"
+  if [ -n "$SC" ]; then
+    "$SC" -x "$E17D/$s" >"$TMP/sc.out" 2>&1
+    check "shellcheck e17/$s" "$([ -s "$TMP/sc.out" ] && echo FAIL || echo clean)" "clean"
+    [ -s "$TMP/sc.out" ] && sed 's/^/    /' "$TMP/sc.out" | head -20
+  fi
+done
+if [ -f "$E17D/rig/bringup.sh" ]; then
+  BU="$TMP/bustub"
+  rm -rf "$BU"
+  mkdir -p "$BU"
+  printf '#!/usr/bin/env bash\n[ "$1" = -n ] && shift\n[ $# -eq 0 ] && exit 0\nexec "$@"\n' >"$BU/sudo"
+  # mount -o OPTS SRC MNT: one "MNT SRC OPTS" line in $BU_MOUNTS; umount [-d] MNT drops it
+  printf '#!/usr/bin/env bash\necho "mount $*" >>"$BU_LOG"\necho "$4 $3 $2" >>"$BU_MOUNTS"\n' >"$BU/mount"
+  # umount [-d] MNT drops MNT's line, unless BU_UMOUNT_STUCK=1 (the mount survives, umount exits 32)
+  printf '#!/usr/bin/env bash\necho "umount $*" >>"$BU_LOG"\n[ "${BU_UMOUNT_STUCK:-0}" = 1 ] && exit 32\nm=${!#}\ngrep -v "^$m " "$BU_MOUNTS" >"$BU_MOUNTS.n" || true\nmv "$BU_MOUNTS.n" "$BU_MOUNTS"\n' >"$BU/umount"
+  # systemctl is-active e15-worker.service: active when BU_WORKER_UP=1 (a rung is running)
+  printf '#!/usr/bin/env bash\ncase "$1 ${!#}" in "is-active e15-worker.service") [ "${BU_WORKER_UP:-0}" = 1 ] ;; *) exit 1 ;; esac\n' >"$BU/systemctl"
+  printf '#!/usr/bin/env bash\ngrep -q "^${!#} " "$BU_MOUNTS"\n' >"$BU/mountpoint"
+  printf '#!/usr/bin/env bash\ncat "$3"\n' >"$BU/debugfs"
+  printf '#!/usr/bin/env bash\necho 100\n' >"$BU/stat"
+  printf '#!/usr/bin/env bash\ncase "$*" in *FSTYPE*) echo xfs ;; *TARGET*) echo /srv/e15 ;; *SOURCE*) echo /dev/nvme1n1 ;; esac\n' >"$BU/findmnt"
+  printf '#!/usr/bin/env bash\necho "meta-data=$1 reflink=1"\n' >"$BU/xfs_info"
+  printf '#!/usr/bin/env bash\nargs=(); for a; do [ "$a" = --reflink=always ] || args+=("$a"); done\nexec /bin/cp "${args[@]}"\n' >"$BU/cp"
+  chmod +x "$BU"/*
+  # The stub builder (bash 3.2-safe: it runs under e15_path's /bin/bash on a laptop).
+  cat >"$TMP/stub-builder.sh" <<'SH'
+#!/usr/bin/env bash
+# stub build_pycache_workspace.sh
+while [ $# -gt 1 ]; do
+  case "$1" in
+  --image-mb) M=$2; shift 2 ;;
+  --dataset-mib) D=$2; shift 2 ;;
+  --dataset-seed) S=$2; shift 2 ;;
+  --wheels) WH=$2; shift 2 ;;
+  --rootfs-tree) R=$2; shift 2 ;;
+  *) break ;;
+  esac
+done
+OUT=$1
+echo "build D=$D S=$S M=$M wheels=$WH rootfs=$R out=$OUT mounted=$(grep -c "^$R " "$BU_MOUNTS")" >>"$BU_BUILDS"
+[ "${BU_FAIL:-0}" = 1 ] && { echo "stub builder: failing on purpose" >&2; exit 1; }
+[ ! -e "$OUT" ] || { echo "stub builder: $OUT exists" >&2; exit 1; }
+printf 'template: pycache\ndataset_mib: %s\ndataset_seed: %s\ndataset_shards: 1\ndataset_rows: 9\ndataset_sha256: %s\nwheels: 2 verified\nvenv: python 3.9.25, stub %s\n' \
+  "$D" "$S" "$(printf 'data-%s-%s' "$D" "$S" | sha256sum | cut -d' ' -f1)" "${BU_GEN:-1}" >"$OUT"
+echo "built $OUT (stub)"
+SH
+  BR17="$TMP/e15-rig-test.e17"
+  bu_stage() { # a fresh test root: staged e15/rig and e17/{rig,workload}, wheels, corpora, rootfs
+    rm -rf "$BR17"
+    mkdir -p "$BR17/src/e15" "$BR17/src/e17/workload" "$BR17/state" "$BR17/workspaces" "$BR17/logs" \
+      "$BR17/snapshots/e15" "$BR17/wheels-pycache"
+    cp -R "$RIG" "$BR17/src/e15/rig"
+    cp -R "$E17D/rig" "$BR17/src/e17/rig"
+    cp -R "$E17D/workload/project" "$BR17/src/e17/workload/project"
+    cp "$TMP/stub-builder.sh" "$BR17/src/e17/workload/build_pycache_workspace.sh"
+    printf 'wheel-a\n' >"$BR17/wheels-pycache/a-1.0-py3-none-any.whl"
+    printf 'wheel-b\n' >"$BR17/wheels-pycache/b-2.0-py3-none-any.whl"
+    { echo "# E17 pycache venv wheels (test)"
+      (cd "$BR17/wheels-pycache" && sha256sum a-1.0-py3-none-any.whl b-2.0-py3-none-any.whl); } >"$BR17/src/e17/workload/wheels.lock"
+    printf 'fake ext4 rootfs\n' >"$BR17/snapshots/e15/rootfs"
+    printf 'snapshot-agent sha256:%s %s\nsnapshot-rootfs sha256:%s %s\n' "$(printf x | sha256sum | cut -d' ' -f1)" \
+      "$BR17/snapshots/e15/agent" "$(sha256sum "$BR17/snapshots/e15/rootfs" | cut -d' ' -f1)" "$BR17/snapshots/e15/rootfs" >"$BR17/state/artifacts"
+    for p in pycache pycache-low; do
+      mkdir -p "$BR17/corpora/$p"
+      printf '{"session": "%s"}\n' "$p" >"$BR17/corpora/$p/corpus.jsonl"
+      python3 -c 'import hashlib,json,sys; json.dump({"corpus_sha256": hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest()}, open(sys.argv[2],"w"))' \
+        "$BR17/corpora/$p/corpus.jsonl" "$BR17/corpora/$p/corpus-report.json"
+    done
+    : >"$TMP/bu.mounts"
+    : >"$TMP/bu.builds"
+    : >"$TMP/bu.log"
+    rm -f "$TMP/bu-m.md"
+  }
+  bu() { # run the staged bringup.sh; prints its exit code
+    env E15_HOST_PROFILE=fresh-metal E15_ROOT="$BR17" E15_TEST_ROOT="$BR17" E15_MANIFEST="$TMP/bu-m.md" \
+      BU_MOUNTS="$TMP/bu.mounts" BU_BUILDS="$TMP/bu.builds" BU_LOG="$TMP/bu.log" PATH="$BU:$PATH" "$@" \
+      bash "$BR17/src/e17/rig/bringup.sh" >"$TMP/bu.out" 2>&1
+    echo $?
+  }
+  nb() { grep -c '^build ' "$TMP/bu.builds"; }
+  tsha() { sha256sum "$BR17/template-pycache-d$1/workspace.img" | cut -d' ' -f1; }
+
+  bu_stage
+  check "E17 bringup: first run exits 0, builds d64 d256 d768 once each" \
+    "$(bu)/$(sed 's/ S=.*//' "$TMP/bu.builds" | tr '\n' ' ')" "0/build D=64 build D=256 build D=768 "
+  grep -q 'bringup.sh:' "$TMP/bu.out" && sed 's/^/    /' "$TMP/bu.out" | tail -5
+  check "E17 bringup: the builder's arguments (1536 MiB, seed 1, the staged wheels, exact OUT paths)" \
+    "$(grep -c "S=1 M=1536 wheels=$BR17/wheels-pycache rootfs=$BR17/rootfs-ro.mnt.[A-Za-z0-9]* out=$BR17/template-pycache-d\(64\|256\|768\)/workspace.img mounted=1\$" "$TMP/bu.builds")" "3"
+  check "E17 bringup: the rootfs is state/artifacts' snapshot-rootfs, loop-mounted read-only, once" \
+    "$(grep -c "^mount -o loop,ro $BR17/snapshots/e15/rootfs $BR17/rootfs-ro.mnt" "$TMP/bu.log")/$(grep -c '^mount ' "$TMP/bu.log")" "1/1"
+  check "E17 bringup: unmounted (umount -d) and the mount point removed" \
+    "$(grep -c '^umount -d ' "$TMP/bu.log")/$(grep -c . "$TMP/bu.mounts")/$(find "$BR17" -maxdepth 1 -name 'rootfs-ro.mnt.*' | grep -c .)" "1/0/0"
+  check "E17 bringup: state/template-pycache-d<D> is each image's sha256 (rung.sh's template_sha256)" \
+    "$(for d in 64 256 768; do [ "$(cat "$BR17/state/template-pycache-d$d")" = "$(tsha "$d")" ] && printf y || printf n; done)" "yyy"
+  check "E17 bringup: BUILD beside each image (smoke.sh's dataset_sha256), artifacts recorded" \
+    "$(for d in 64 256 768; do cmp -s "$BR17/template-pycache-d$d/BUILD" "$BR17/template-pycache-d$d/workspace.img" && printf y || printf n; done)/$(awk '{print $1}' "$BR17/state/artifacts" | grep -c '^template-pycache-d\(64\|256\|768\)$')/$(awk '{print $1}' "$BR17/state/artifacts" | grep -c '^corpus-pycache\(-low\)\?$')" "yyy/3/2"
+  check "E17 bringup: one manifest note per template with its leaf undo line" \
+    "$(for d in 64 256 768; do grep -c "E17 built $BR17/template-pycache-d$d/workspace.img (sha256 $(tsha "$d");.* -- undo: sudo -n rm -rf $BR17/template-pycache-d$d; rm -f $BR17/state/template-pycache-d$d $BR17/state/template-pycache-d$d.inputs\$" "$TMP/bu-m.md"; done | tr '\n' ' ')" "1 1 1 "
+  # the stamp skip
+  cp "$TMP/bu-m.md" "$TMP/bu-m.1"
+  check "E17 bringup: a second run builds nothing and mounts nothing (inputs stamps match)" \
+    "$(bu)/$(nb)/$(grep -c '^mount ' "$TMP/bu.log")/$(grep -c 'inputs unchanged.*(skipped)' "$TMP/bu.out")" "0/3/1/3"
+  check "E17 bringup: the second run's manifest has no new build note" \
+    "$(grep -c '^- .* E17 built ' "$TMP/bu-m.md")" "3"
+  touch "$BR17/template-pycache-d256/keep"
+  printf 'tampered\n' >>"$BR17/template-pycache-d256/workspace.img"
+  check "E17 bringup: an image whose sha256 is not its stamp's is rebuilt, alone" \
+    "$(bu)/$(tail -1 "$TMP/bu.builds" | sed 's/ S=.*//')/$(nb)" "0/build D=256/4"
+  check "E17 bringup: the rebuild removed only the old workspace.img (a sibling file is kept)" \
+    "$([ -f "$BR17/template-pycache-d256/keep" ] && echo kept)/$([ "$(cat "$BR17/state/template-pycache-d256")" = "$(tsha 256)" ] && echo restamped)" "kept/restamped"
+  printf '# changed\n' >>"$BR17/src/e17/workload/build_pycache_workspace.sh"
+  check "E17 bringup: a changed builder rebuilds all three" "$(bu)/$(nb)" "0/7"
+  printf '# changed\n' >>"$BR17/src/e17/workload/project/analyze.py"
+  check "E17 bringup: a changed project source rebuilds all three" "$(bu)/$(nb)" "0/10"
+  printf '# a comment line\n' >>"$BR17/src/e17/workload/wheels.lock"
+  check "E17 bringup: a changed wheels.lock rebuilds all three" "$(bu)/$(nb)" "0/13"
+  mkdir -p "$BR17/src/e17/workload/project/__pycache__"
+  printf 'x\n' >"$BR17/src/e17/workload/project/__pycache__/a.pyc"
+  check "E17 bringup: bytecode caches in the project do not count as sources" "$(bu)/$(nb)" "0/13"
+  rm -f "$BR17/state/template-pycache-d768.inputs"
+  check "E17 bringup: a missing inputs stamp rebuilds that template" "$(bu)/$(tail -1 "$TMP/bu.builds" | sed 's/ S=.*//')/$(nb)" "0/build D=768/14"
+  # always unmounted: a failing build leaves no mount, no mount point, no stamp, no image
+  rm -f "$BR17/state/template-pycache-d64.inputs"
+  check "E17 bringup: a failing build exits 1, unmounted by the trap, no stamp for it" \
+    "$(bu BU_FAIL=1)/$(grep -c . "$TMP/bu.mounts")/$(find "$BR17" -maxdepth 1 -name 'rootfs-ro.mnt.*' | grep -c .)/$([ -e "$BR17/state/template-pycache-d64" ] && echo stamp || echo nostamp)/$([ -e "$BR17/template-pycache-d64/workspace.img" ] && echo img || echo noimg)" \
+    "1/0/0/nostamp/noimg"
+  # a running rung is never preempted: no template removed or rebuilt while e15-worker.service runs
+  check "E17 bringup: (rebuild the failed d64 first)" "$(bu)/$(nb)" "0/16"
+  check "E17 bringup: all stamps match, a rung running -> exit 0 (nothing removed or rebuilt)" "$(bu BU_WORKER_UP=1)/$(nb)" "0/16"
+  printf 'tampered\n' >>"$BR17/template-pycache-d256/workspace.img"
+  cp "$BR17/template-pycache-d256/workspace.img" "$TMP/bu-tampered.img"
+  : >"$TMP/bu.log"
+  check "E17 bringup: a template to rebuild while a rung runs -> refused, the old image untouched, nothing mounted" \
+    "$(bu BU_WORKER_UP=1)/$(grep -c "a rung's worker (e15-worker.service) is running; refusing to preempt it" "$TMP/bu.out")/$(nb)/$(cmp -s "$TMP/bu-tampered.img" "$BR17/template-pycache-d256/workspace.img" && echo untouched)/$(grep -c '^mount ' "$TMP/bu.log")" \
+    "1/1/16/untouched/0"
+  # a failed unmount is loud: the trap warns, the explicit unmount after the builds is fatal
+  : >"$TMP/bu.log"
+  check "E17 bringup: an unmount that fails after the builds is fatal, with a WARNING naming the mount" \
+    "$(bu BU_UMOUNT_STUCK=1)/$(grep -c "^bringup.sh: WARNING: $BR17/rootfs-ro.mnt.[A-Za-z0-9]* still mounted\$" "$TMP/bu.out")/$(grep -c "is still mounted after umount .*unmount it by hand" "$TMP/bu.out")/$(grep -c "^$BR17/rootfs-ro.mnt" "$TMP/bu.mounts")/$(find "$BR17" -maxdepth 1 -name 'rootfs-ro.mnt.*' | grep -c .)" \
+    "1/2/1/1/1"
+  : >"$TMP/bu.mounts"
+  find "$BR17" -maxdepth 1 -name 'rootfs-ro.mnt.*' -exec rmdir {} +
+  rm -f "$BR17/state/template-pycache-d64.inputs"
+  check "E17 bringup: a failing build whose unmount also fails -> the trap's WARNING on stderr" \
+    "$(bu BU_FAIL=1 BU_UMOUNT_STUCK=1)/$(grep -c "^bringup.sh: WARNING: $BR17/rootfs-ro.mnt.[A-Za-z0-9]* still mounted\$" "$TMP/bu.out")/$(grep -c 'build_pycache_workspace.sh (D=64) failed' "$TMP/bu.out")" "1/1/1"
+  : >"$TMP/bu.mounts"
+  find "$BR17" -maxdepth 1 -name 'rootfs-ro.mnt.*' -exec rmdir {} +
+  # the wheel check (before any mount or build)
+  bu_stage
+  rm -f "$BR17/wheels-pycache/b-2.0-py3-none-any.whl"
+  check "E17 bringup: a wheel missing from wheels-pycache is refused, nothing mounted or built" \
+    "$(bu)/$(grep -c 'b-2.0-py3-none-any.whl: missing from' "$TMP/bu.out")/$(grep -c . "$TMP/bu.log")/$(nb)" "1/1/0/0"
+  printf 'wheel-b tampered\n' >"$BR17/wheels-pycache/b-2.0-py3-none-any.whl"
+  check "E17 bringup: a wheel whose sha256 is not the lock's is refused, nothing built" \
+    "$(bu)/$(grep -c 'b-2.0-py3-none-any.whl: sha256 [0-9a-f]*, wheels.lock pins' "$TMP/bu.out")/$(nb)" "1/1/0"
+  printf 'wheel-b\n' >"$BR17/wheels-pycache/b-2.0-py3-none-any.whl"
+  printf 'unlocked\n' >"$BR17/wheels-pycache/extra-0.1-py3-none-any.whl"
+  check "E17 bringup: an extra unlocked wheel does not fail the check (the lock decides)" "$(bu)/$(nb)" "0/3"
+  # the rootfs from E15's state
+  bu_stage
+  printf 'other bytes\n' >"$BR17/snapshots/e15/rootfs"
+  check "E17 bringup: a rootfs whose sha256 is not the recorded snapshot-rootfs is refused before any mount" \
+    "$(bu)/$(grep -c 'is not the recorded snapshot-rootfs' "$TMP/bu.out")/$(grep -c '^mount ' "$TMP/bu.log")" "1/1/0"
+  bu_stage
+  grep -v '^snapshot-rootfs ' "$BR17/state/artifacts" >"$TMP/art" && mv "$TMP/art" "$BR17/state/artifacts"
+  check "E17 bringup: no snapshot-rootfs artifact -> refused (run setup.sh first)" \
+    "$(bu)/$(grep -c 'no snapshot-rootfs line' "$TMP/bu.out")" "1/1"
+  bu_stage
+  printf 'snapshot-rootfs sha256:%s /tmp/elsewhere/rootfs\n' "$(sha256sum "$BR17/snapshots/e15/rootfs" | cut -d' ' -f1)" >"$BR17/state/artifacts"
+  check "E17 bringup: a recorded rootfs outside the E15 root is refused" "$(bu)/$(grep -c 'refuse_outside_root: /tmp/elsewhere/rootfs' "$TMP/bu.out")" "3/1"
+  bu_stage
+  rm -f "$BR17/state/artifacts"
+  check "E17 bringup: no state/artifacts -> refused by name (not a silent exit), nothing recorded or built" \
+    "$(bu)/$(grep -c "bringup.sh: no $BR17/state/artifacts (run e15/rig/setup.sh first" "$TMP/bu.out")/$([ -e "$BR17/state/artifacts" ] && echo created || echo absent)/$(nb)" "1/1/absent/0"
+  # refusals before anything: profile, staged copy, corpora
+  bu_stage
+  check "E17 bringup: aws-prelim refused" "$(bu E15_HOST_PROFILE=aws-prelim)/$(grep -c 'E17 runs on fresh-metal only' "$TMP/bu.out")" "1/1"
+  (env E15_HOST_PROFILE=fresh-metal E15_ROOT="$BR17" E15_TEST_ROOT="$BR17" E15_MANIFEST="$TMP/bu-m.md" PATH="$BU:$PATH" \
+    bash "$E17D/rig/bringup.sh" >"$TMP/bu.out" 2>&1)
+  check "E17 bringup: only the staged copy runs" "$?/$(grep -c 'run the staged copy' "$TMP/bu.out")" "1/1"
+  printf 'x\n' >>"$BR17/corpora/pycache-low/corpus.jsonl"
+  check "E17 bringup: a corpus whose sha256 is not its report's is refused" "$(bu)/$(grep -c 'is not its report.s corpus_sha256' "$TMP/bu.out")/$(nb)" "1/1/0"
+
+  # the path guard: e17_check_target, and a points.sh that would hand bringup.sh a parent path
+  ctg() { # PATH D -> pass|refused (message in $TMP/ctg.out)
+    (E15_HOST_PROFILE=fresh-metal E15_ROOT="$BR17" E15_TEST_ROOT="$BR17" E15_MANIFEST="$TMP/bu-m.md" bash -c \
+      'source "$1"; eval "$(sed -n "/^e17_check_target() {/,/^}/p" "$2")"; e17_check_target "$3" "$4"' \
+      _ "$RIG/lib.sh" "$E17D/rig/bringup.sh" "$1" "$2" >"$TMP/ctg.out" 2>&1) && echo pass || echo refused
+  }
+  bu_stage
+  mkdir -p "$BR17/template-pycache-d256" "$BR17/template-pycache-d64" "$BR17/elsewhere"
+  check "E17 path guard: the exact template path passes" "$(ctg "$BR17/template-pycache-d256/workspace.img" 256)" "pass"
+  check "E17 path guard: the template's directory is refused" "$(ctg "$BR17/template-pycache-d256" 256)" "refused"
+  check "E17 path guard: the E15 root is refused" "$(ctg "$BR17" 256)" "refused"
+  check "E17 path guard: the snapshot directory is refused" "$(ctg "$BR17/snapshots/e15" 256)" "refused"
+  check "E17 path guard: another D's image is refused" "$(ctg "$BR17/template-pycache-d64/workspace.img" 256)" "refused"
+  check "E17 path guard: a D that is not a template is refused" "$(ctg "$BR17/template-pycache-d512/workspace.img" 512)" "refused"
+  check "E17 path guard: a .. spelling is refused" "$(ctg "$BR17/template-pycache-d256/../template-pycache-d256/workspace.img" 256)" "refused"
+  check "E17 path guard: a // spelling is refused" "$(ctg "$BR17//template-pycache-d256/workspace.img" 256)" "refused"
+  check "E17 path guard: E15's own template is refused" "$(ctg "$BR17/template/workspace.img" 256)" "refused"
+  check "E17 path guard: the /srv/e15 path under a test root is refused" "$(ctg /srv/e15/template-pycache-d256/workspace.img 256)" "refused"
+  mkdir -p "$BR17/template-pycache-d256/workspace.img"
+  check "E17 path guard: an image path that is a directory is refused" "$(ctg "$BR17/template-pycache-d256/workspace.img" 256)" "refused"
+  rmdir "$BR17/template-pycache-d256/workspace.img"
+  rmdir "$BR17/template-pycache-d64"
+  ln -s "$BR17/elsewhere" "$BR17/template-pycache-d64"
+  check "E17 path guard: a template directory that is a symlink is refused" "$(ctg "$BR17/template-pycache-d64/workspace.img" 64)" "refused"
+  ln -s "$BR17/elsewhere/x.img" "$BR17/template-pycache-d256/workspace.img"
+  check "E17 path guard: an image that is a symlink is refused" "$(ctg "$BR17/template-pycache-d256/workspace.img" 256)" "refused"
+  rm -f "$BR17/template-pycache-d256/workspace.img" "$BR17/template-pycache-d64"
+  # the whole script: a points.sh whose pycache template is the directory, not the image
+  bu_stage
+  sed -i.orig 's#^    E15_P_TEMPLATE=\$E15_ROOT/\$E15_P_TEMPLATE_STAMP/workspace.img$#    E15_P_TEMPLATE=$E15_ROOT/$E15_P_TEMPLATE_STAMP#' "$BR17/src/e15/rig/points.sh"
+  check "E17 path guard test: the staged points.sh was changed" "$(cmp -s "$BR17/src/e15/rig/points.sh" "$RIG/points.sh" && echo same || echo changed)" "changed"
+  mkdir -p "$BR17/template-pycache-d64"
+  touch "$BR17/template-pycache-d64/sentinel"
+  check "E17 bringup: a parent-path target from points.sh is refused (exit 3), nothing removed or built" \
+    "$(bu)/$(grep -c "is not exactly $BR17/template-pycache-d64/workspace.img" "$TMP/bu.out")/$([ -f "$BR17/template-pycache-d64/sentinel" ] && echo kept)/$(nb)/$(grep -c '^mount ' "$TMP/bu.log")" "3/1/kept/0/0"
+  check "E17 bringup: its only rm is rm -f of the checked image (rm -rf only in the manifest's undo text)" \
+    "$(grep -v '^ *#' "$E17D/rig/bringup.sh" | grep 'rm -rf' | grep -vc 'm_note "E17 .* -- undo: \(sudo -n \)\?rm -rf \$')/$(grep -c '^    sudo -n rm -f -- "\$T"$' "$E17D/rig/bringup.sh")/$(grep -B1 '^    sudo -n rm -f -- "\$T"$' "$E17D/rig/bringup.sh" | grep -c '^    e17_check_target "\$T" "\$D"$')" "0/1/1"
+  rm -rf "$BR17"
+fi
+
+# gen_corpora.sh: both corpora, the brief's arguments, and --durations-from
+if [ -f "$E17D/rig/gen_corpora.sh" ]; then
+  GC="$TMP/gc"
+  rm -rf "$GC"
+  gc() { E17_CORPORA="$GC" E17_GAPS="$E17D/extract/testdata/gaps-20.jsonl" bash "$E17D/rig/gen_corpora.sh" "$@" >"$TMP/gc.out" 2>&1; echo $?; }
+  gcr() { python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print(eval(sys.argv[2], {"r": r}))' "$GC/$1/corpus-report.json" "$2"; }
+  gcd() { # POINT -> "class=dur_ms/work_ms" for every distinct pair in the corpus
+    python3 -c 'import json,sys
+s=set()
+for l in open(sys.argv[1]):
+    for c in json.loads(l)["calls"]: s.add("%s=%d/%d" % (c["class"], c["dur_ms"], c["work_ms"]))
+print(" ".join(sorted(s)))' "$GC/$1/corpus.jsonl"
+  }
+  check "E17 gen_corpora: placeholders without --durations-from, and it says so" \
+    "$(gc)/$(gcd pycache)/$(grep -c 'placeholder durations' "$TMP/gc.out")" "0/py_analyze=15000/15000 py_grep=2200/2200 py_import=2000/2000 py_short=300/300 py_test=60000/60000/1"
+  check "E17 gen_corpora: pycache at duty 0.095, pycache-low at 0.015; 400 sessions, seed 1, min-turns 4" \
+    "$(gcr pycache '(r["duty_target"], r["sessions"], r["seed"], r["min_turns"])')/$(gcr pycache-low '(r["duty_target"], r["sessions"], r["seed"], r["min_turns"])')" \
+    "(0.095, 400, 1, 4)/(0.015, 400, 1, 4)"
+  check "E17 gen_corpora: same as pycache_corpus.py run directly (byte-identical)" \
+    "$(python3 "$E17D/extract/pycache_corpus.py" --gaps-from "$E17D/extract/testdata/gaps-20.jsonl" --duty 0.015 --sessions 400 --seed 1 --min-turns 4 --out "$TMP/gc-direct" >/dev/null 2>&1; cmp -s "$TMP/gc-direct/corpus.jsonl" "$GC/pycache-low/corpus.jsonl" && echo same)" "same"
+  cp "$GC/pycache/corpus.jsonl" "$TMP/gc-placeholder.jsonl"
+  printf '{"py_analyze": 18250.6, "py_test": 57100, "py_import": 1980.6, "py_grep": 2150, "py_short": 412}\n' >"$TMP/cal.json"
+  check "E17 gen_corpora --durations-from: every call carries the measured durations, both corpora" \
+    "$(gc --durations-from "$TMP/cal.json")/$(gcd pycache)/$(gcd pycache-low)" \
+    "0/py_analyze=18251/18251 py_grep=2150/2150 py_import=1981/1981 py_short=412/412 py_test=57100/57100/py_analyze=18251/18251 py_grep=2150/2150 py_import=1981/1981 py_short=412/412 py_test=57100/57100"
+  check "E17 gen_corpora --durations-from: the reports record them and the file, and no placeholder note" \
+    "$(gcr pycache 'r["durations_ms"]')/$(gcr pycache-low 'r["durations_from"]["file"]')/$(grep -c 'placeholder durations' "$TMP/gc.out")" \
+    "{'py_analyze': 18251, 'py_test': 57100, 'py_import': 1981, 'py_grep': 2150, 'py_short': 412}/cal.json/0"
+  check "E17 gen_corpora --durations-from: the duty is still met with the measured durations" \
+    "$(gcr pycache 'r["duty_achieved"]["mean"] <= 0.095 * 1.2')/$(gcr pycache-low 'r["duty_achieved"]["mean"] <= 0.015 * 1.2')" "True/True"
+  check "E17 gen_corpora --durations-from: the corpus changed, the report's corpus_sha256 is its file's" \
+    "$(cmp -s "$TMP/gc-placeholder.jsonl" "$GC/pycache/corpus.jsonl" && echo same || echo changed)/$([ "$(gcr pycache 'r["corpus_sha256"]')" = "$(sha256sum "$GC/pycache/corpus.jsonl" | cut -d' ' -f1)" ] && echo match)" "changed/match"
+  cp "$GC/pycache/corpus.jsonl" "$TMP/gc-cal.jsonl"
+  printf '{"py_analyze": 18250, "py_test": 57100, "py_import": 1980, "py_short": 412}\n' >"$TMP/cal-bad.json"
+  check "E17 gen_corpora --durations-from: a file missing a class fails, the corpora stay as they were" \
+    "$(gc --durations-from "$TMP/cal-bad.json")/$(grep -c 'pycache_corpus.py: --durations-from' "$TMP/gc.out")/$(cmp -s "$TMP/gc-cal.jsonl" "$GC/pycache/corpus.jsonl" && echo kept)/$(find "$GC" -maxdepth 1 -name '.pycache*' | grep -c .)" "1/1/kept/0"
+  check "E17 gen_corpora: a missing CAL.json, or another argument, is a usage error" \
+    "$(gc --durations-from "$TMP/nope.json")/$(gc --bogus)" "2/2"
+  check "E17 gen_corpora: the brief's gap source and corpora root are the defaults" \
+    "$(grep -c 'E17_GAPS:-/tmp/kagenti/e16-corpus-default/corpus.jsonl' "$E17D/rig/gen_corpora.sh")/$(grep -c 'E17_CORPORA:-/tmp/kagenti/e17-corpora' "$E17D/rig/gen_corpora.sh")" "1/1"
+  rm -rf "$GC" "$TMP/gc-direct"
+fi
+
+# smoke.sh: the rung line per arm, and its refusals (it is never run here: it starts workers)
+if [ -f "$E17D/rig/smoke.sh" ]; then
+  check "E17 smoke: one rung.sh ARM 1 pycache per arm, 60 s warm-up, 120 s window, tag smoke" \
+    "$(grep -c '^ARMS=(sbx resident-300 lease-30 lease-120)$' "$E17D/rig/smoke.sh")/$(grep -c 'E15_WARMUP_S=60 E15_WINDOW_S=120 E15_TAG=smoke E15_START_ZERO=\$START_ZERO bash "\$RUNG" "\$arm" 1 "\$POINT"' "$E17D/rig/smoke.sh")/$(grep -c '^POINT=pycache$' "$E17D/rig/smoke.sh")" "1/1/1"
+  check "E17 smoke: the sha256 is checked against the D=256 template's BUILD, warmcold.py on each rung" \
+    "$(grep -c '^BUILD=\${E15_P_TEMPLATE%/\*}/BUILD$' "$E17D/rig/smoke.sh")/$(grep -c 'python3 "\$E17_SRC/analysis/warmcold.py" "\$d"' "$E17D/rig/smoke.sh")" "1/1"
+  (E15_HOST_PROFILE=aws-prelim E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" E15_MANIFEST="$TMP/m.md" PATH="$SPATH" bash "$E17D/rig/smoke.sh" >"$TMP/sm.out" 2>&1)
+  check "E17 smoke: aws-prelim refused" "$?/$(grep -c 'E17 runs on fresh-metal only' "$TMP/sm.out")" "1/1"
+  (E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" E15_MANIFEST="$TMP/m.md" PATH="$SPATH" bash "$E17D/rig/smoke.sh" >"$TMP/sm.out" 2>&1)
+  check "E17 smoke: only the staged copy runs" "$?/$(grep -c 'run the staged copy' "$TMP/sm.out")" "1/1"
+  # smoke.sh end to end against stubs: a rung.sh stub (E15_RUNG) writing canned rung files, and
+  # sudo/systemctl/systemd-run/ss/grpcurl/cp stubs for its relay Exec of analyze
+  SM="$TMP/e15-rig-test.smoke"
+  SS5="$TMP/smstub"
+  rm -rf "$SM" "$SS5"
+  mkdir -p "$SM/src/e15" "$SM/src/e17/workload" "$SM/state" "$SM/logs" "$SM/bin" "$SM/workspaces" "$SM/secrets" \
+    "$SM/template-pycache-d256" "$SS5"
+  cp -R "$RIG" "$SM/src/e15/rig"
+  cp -R "$E17D/rig" "$SM/src/e17/rig"
+  cp -R "$E17D/analysis" "$SM/src/e17/analysis"
+  cp "$E17D/workload/library.json" "$SM/src/e17/workload/library.json"
+  printf 'tok\n' >"$SM/secrets/exec.token"
+  printf '#!/bin/sh\n' >"$SM/bin/microvm-worker"
+  chmod +x "$SM/bin/microvm-worker"
+  printf 'image\n' >"$SM/template-pycache-d256/workspace.img"
+  SMSHA=$(printf 'smoke-dataset' | sha256sum | cut -d' ' -f1)
+  printf 'template: pycache\ndataset_mib: 256\ndataset_seed: 1\ndataset_sha256: %s\nvenv: python 3.9\n' "$SMSHA" >"$SM/template-pycache-d256/BUILD"
+  printf '#!/usr/bin/env bash\n[ "$1" = -n ] && shift\n[ $# -eq 0 ] && exit 0\nexec "$@"\n' >"$SS5/sudo"
+  printf '#!/usr/bin/env bash\ncase "$1 ${!#}" in "is-active e15-relay.service") [ -e "$SM_FLAG" ] ;; "stop e15-relay.service") rm -f "$SM_FLAG" ;; "is-active e15-worker.service") [ -e "$SM_WFLAG" ] ;; is-active*|is-failed*) exit 1 ;; esac\n' >"$SS5/systemctl"
+  printf '#!/usr/bin/env bash\nfor a; do case "$a" in --unit=e15-relay.service) touch "$SM_FLAG" ;; StandardOutput=file:*) echo "microvm-worker: attached, serving execs" >"${a#StandardOutput=file:}" ;; esac; done\n' >"$SS5/systemd-run"
+  printf '#!/usr/bin/env bash\n[ -e "$SM_FLAG" ] && printf "LISTEN 0 511 127.0.0.1:9643 0.0.0.0:*\\nLISTEN 0 511 127.0.0.1:9644 0.0.0.0:*\\n"\nexit 0\n' >"$SS5/ss"
+  printf '#!/usr/bin/env bash\nargs=(); for a; do [ "$a" = --reflink=always ] || args+=("$a"); done\nexec /bin/cp "${args[@]}"\n' >"$SS5/cp"
+  # grpcurl: the probe key gets the worker's refusal; any other key "runs" analyze
+  cat >"$SS5/grpcurl" <<'SH'
+#!/usr/bin/env bash
+while [ $# -gt 0 ]; do [ "$1" = -d ] && req=$2; shift; done
+echo "grpcurl $req" >>"$SM_GLOG"
+case "$req" in
+*_e15-attach-probe*) echo '{"error": {"message": "invalid-workspace-key: _e15-attach-probe"}}' ;;
+*) python3 -c 'import base64,json,sys; print(json.dumps({"chunk": {"data": base64.b64encode(sys.argv[1].encode()).decode()}})); print(json.dumps({"end": {"exitCode": int(sys.argv[2])}}))' \
+     "rows=9 sha256=${SM_PRINT_SHA} clusters=1.000"$'\n' "${SM_ANALYZE_RC:-0}" ;;
+esac
+SH
+  # the rung stub: record.json, a calls.jsonl with the classes in SM_CLASSES (exit SM_EXIT), worker.log
+  cat >"$TMP/smoke-rung.sh" <<'SH'
+#!/usr/bin/env bash
+echo "rung $* w=$E15_WARMUP_S win=$E15_WINDOW_S tag=$E15_TAG zero=${E15_START_ZERO:-unset}" >>"$SM_RLOG"
+# SM_WORKER_AFTER=1: someone else's rung worker comes up after this smoke's last rung
+[ "${SM_WORKER_AFTER:-0}" = 1 ] && [ "$1" = lease-120 ] && touch "$SM_WFLAG"
+d=$E15_ROOT/runs/$3/$1/N$2-$E15_TAG
+mkdir -p "$d"
+echo '{"holds": true}' >"$d/record.json"
+: >"$d/calls.jsonl"
+i=0
+set -- ${SM_CLASSES:-py_analyze py_test py_analyze}
+for c; do
+  st='"status": "ok", "cause": "ok", "exit": '"${SM_EXIT:-0}"
+  # SM_CUT_LAST=1: the last call was cut at the run's end (the driver: status err, no exit)
+  [ "${SM_CUT_LAST:-0}" = 1 ] && [ "$i" = $(($# - 1)) ] && st='"status": "err", "cause": "cut_at_end", "exit": null'
+  printf '{"session": "e15-k-0-0", "call": %d, "class": "%s", %s, "execs": 1, "in_window": true, "ts": "2026-11-10T00:00:0%dZ", "observed_ms": 10}\n' "$i" "$c" "$st" "$i" >>"$d/calls.jsonl"
+  i=$((i + 1))
+done
+: >"$d/worker.log"
+SH
+  chmod +x "$SS5"/* "$TMP/smoke-rung.sh"
+  smoke() { # VAR=... -> exit code; output in $TMP/sm.out
+    rm -rf "$SM/runs" "$SM/workspaces/e17-smoke-analyze" "$TMP/sm.flag" "$TMP/sm.wflag"
+    : >"$TMP/sm.rlog"
+    : >"$TMP/sm.glog"
+    env E15_HOST_PROFILE=fresh-metal E15_ROOT="$SM" E15_TEST_ROOT="$SM" E15_MANIFEST="$TMP/sm-m.md" E15_RUNG="$TMP/smoke-rung.sh" \
+      SM_FLAG="$TMP/sm.flag" SM_WFLAG="$TMP/sm.wflag" SM_RLOG="$TMP/sm.rlog" SM_GLOG="$TMP/sm.glog" SM_PRINT_SHA="$SMSHA" PATH="$SS5:$PATH" "$@" \
+      bash "$SM/src/e17/rig/smoke.sh" >"$TMP/sm.out" 2>&1
+    echo $?
+  }
+  check "E17 smoke (stubbed): passes; one rung per arm with the brief's settings, starting at zero" \
+    "$(smoke)/$(cut -d' ' -f2- "$TMP/sm.rlog" | tr '\n' ';')" \
+    "0/sbx 1 pycache w=60 win=120 tag=smoke zero=1;resident-300 1 pycache w=60 win=120 tag=smoke zero=1;lease-30 1 pycache w=60 win=120 tag=smoke zero=1;lease-120 1 pycache w=60 win=120 tag=smoke zero=1;"
+  grep -q 'FAILED\|smoke.sh:' "$TMP/sm.out" && sed 's/^/    /' "$TMP/sm.out" | tail -5
+  check "E17 smoke (stubbed): warmcold counts printed per rung, the pass line names the BUILD sha256" \
+    "$(grep -c '^smoke pycache/[a-z0-9-]*/N1-smoke: warm [0-9]* cold [0-9]* unknown [0-9]* (holds=True)$' "$TMP/sm.out")/$(grep -c "analyze sha256 = BUILD dataset_sha256 ($SMSHA)" "$TMP/sm.out")" "4/1"
+  check "E17 smoke (stubbed): analyze ran on its own key with the library's command; the copy removed after" \
+    "$(grep -c '"workspace_key": "e17-smoke-analyze"' "$TMP/sm.glog")/$(grep -c 'cd project && ../venv/bin/python analyze.py' "$TMP/sm.glog")/$([ -e "$SM/workspaces/e17-smoke-analyze" ] && echo left || echo removed)" "1/1/removed"
+  check "E17 smoke (stubbed): a printed sha256 that is not BUILD's fails" \
+    "$(smoke SM_PRINT_SHA="$(printf other | sha256sum | cut -d' ' -f1)")/$(grep -c "analyze printed sha256=[0-9a-f]*, .*BUILD has dataset_sha256 $SMSHA" "$TMP/sm.out")" "1/1"
+  check "E17 smoke (stubbed): analyze exiting non-zero through the relay fails" \
+    "$(smoke SM_ANALYZE_RC=1)/$(grep -c 'analyze through the relay exited 1' "$TMP/sm.out")" "1/1"
+  check "E17 smoke (stubbed): an sbx py_analyze call with exit 1 fails" \
+    "$(smoke SM_EXIT=1)/$(grep -c 'sbx py_analyze: .*status ok cause ok exit 1' "$TMP/sm.out")" "1/1"
+  check "E17 smoke (stubbed): no py_analyze call in the sbx rung fails, naming E15_START_ZERO" \
+    "$(smoke SM_CLASSES='py_test py_short')/$(grep -c 'no completed py_analyze call among the rung.s 2 calls (0 cut at the end; E15_START_ZERO=1)' "$TMP/sm.out")" "1/1"
+  check "E17 smoke (stubbed): E15_START_ZERO=0 from the environment is passed through" \
+    "$(smoke E15_START_ZERO=0)/$(grep -c ' zero=0$' "$TMP/sm.rlog")" "0/4"
+  check "E17 smoke (stubbed): a py_analyze call cut at the run's end (cut_at_end) is not a failure" \
+    "$(smoke SM_CUT_LAST=1)/$(grep -c 'sbx py_analyze: 2 py_analyze call(s), 0 not ok/exit 0, 1 cut at the end' "$TMP/sm.out")" "0/1"
+  check "E17 smoke (stubbed): a cut py_analyze call is not a completed one (the only one, cut -> fails)" \
+    "$(smoke SM_CLASSES='py_test py_analyze' SM_CUT_LAST=1)/$(grep -c 'no completed py_analyze call among the rung.s 2 calls (1 cut at the end' "$TMP/sm.out")" "1/1"
+  touch "$TMP/sm.wflag.pre"
+  check "E17 smoke (stubbed): a rung's worker already running -> refused before any rung" \
+    "$(smoke SM_WFLAG="$TMP/sm.wflag.pre")/$(grep -c "a rung's worker (e15-worker.service) is running; refusing to preempt it" "$TMP/sm.out")/$(grep -c . "$TMP/sm.rlog")" "1/1/0"
+  rm -f "$TMP/sm.wflag.pre"
+  check "E17 smoke (stubbed): a rung's worker up before the analyze check -> refused, no relay restart or Exec" \
+    "$(smoke SM_WORKER_AFTER=1)/$(grep -c "a rung's worker (e15-worker.service) is running; refusing to preempt it" "$TMP/sm.out")/$(grep -c . "$TMP/sm.rlog")/$(grep -c . "$TMP/sm.glog")/$([ -e "$SM/workspaces/e17-smoke-analyze" ] && echo copied || echo none)" "1/1/4/0/none"
+  rm -rf "$SM"
+fi
+
+# --- E17 Task 5b: the pycache probe cap (points.sh, classprobe.sh) and e17/rig/reprobe.sh -------
+# E15's probe caps planned durations at 30 s; pycache's py_test runs ~62 s whatever it is planned
+# at, so its class median came out +31 s. The pycache points set E15_P_PROBE_CAP_MS=120000, which
+# classprobe.sh passes to make_probe.py; no other point sets it, and it enters only the pycache
+# points' signature (the goldens above stay byte-identical).
+pcap() { # BODY under fresh-metal, lib.sh and points.sh sourced
+  E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; source "$2"; eval "$3"' \
+    _ "$RIG/lib.sh" "$RIG/points.sh" "$1" 2>&1
+}
+E15PTS="default short lowduty long no-infra no-chains smoke mem512"
+check "E17 5b points: the four pycache points set E15_P_PROBE_CAP_MS=120000" \
+  "$(pcap 'for p in pycache pycache-low pycache-d64 pycache-d768; do e15_point $p; printf "%s " "$E15_P_PROBE_CAP_MS"; done')" \
+  "120000 120000 120000 120000 "
+check "E17 5b points: no E15 point sets it" \
+  "$(pcap "for p in $E15PTS; do e15_point \$p; printf '%s ' \"\${E15_P_PROBE_CAP_MS-unset}\"; done")" \
+  "unset unset unset unset unset unset unset unset "
+check "E17 5b points: it does not leak from pycache into the next point in the same shell" \
+  "$(pcap "for p in $E15PTS; do e15_point pycache; e15_point \$p; printf '%s ' \"\${E15_P_PROBE_CAP_MS-unset}\"; done")" \
+  "unset unset unset unset unset unset unset unset "
+for p in default lowduty mem512; do
+  check "E17 5b point_sig: $p after pycache in one shell is its golden signature" \
+    "$(pcap "e15_point_sig pycache >/dev/null; e15_point_sig $p")" "$(sed -n 's/^point_sig=//p' "$GOLD/point-$p.txt")"
+done
+check "E17 5b points: the pycache settings end with the probe cap" \
+  "$(pcap 'for p in pycache pycache-low pycache-d64 pycache-d768; do e15_point $p; case "$E15_P_SETTINGS" in *" scan_cmd= probe_cap_ms=120000") printf y ;; *) printf n ;; esac; done')" "yyyy"
+sha_s() { printf '%s' "$1" | python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())'; }
+pc_set=$(pcap 'e15_point pycache; echo "$E15_P_SETTINGS"')
+check "E17 5b point_sig: the probe cap is part of pycache's identity (not the settings without it)" \
+  "$([ "$(pcap 'e15_point_sig pycache')" = "$(sha_s "$pc_set")" ] && echo sig-of-settings)/$([ "$(pcap 'e15_point_sig pycache')" != "$(sha_s "${pc_set% probe_cap_ms=120000}")" ] && echo apart)" \
+  "sig-of-settings/apart"
+sed 's/E15_P_PROBE_CAP_MS=120000/E15_P_PROBE_CAP_MS=90000/' "$RIG/points.sh" >"$TMP/points-cap90k.sh"
+check "E17 5b point_sig: another probe cap is another pycache signature" \
+  "$([ "$(E15_HOST_PROFILE=fresh-metal E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; source "$2"; e15_point_sig pycache' _ "$RIG/lib.sh" "$TMP/points-cap90k.sh" 2>&1)" != "$(pcap 'e15_point_sig pycache')" ] && echo apart)" "apart"
+
+# classprobe.sh: make_probe.py gets --cap-ms 30000 at an E15 point, the point's cap at pycache
+# (a make_probe.py stub logs its argv, then runs the real one)
+CP5="$TMP/e15-rig-test.cp5b"
+rm -rf "$CP5"
+mkdir -p "$CP5/src/e15/analysis" "$CP5/src/e15/commands" "$CP5/src/e17/workload" "$CP5/corpora/default" "$CP5/corpora/pycache"
+cat >"$CP5/src/e15/analysis/make_probe.py" <<'PY'
+import os, runpy, sys
+with open(os.environ["MP_LOG"], "a") as f:
+    f.write(" ".join(sys.argv[1:]) + "\n")
+sys.argv[0] = os.environ["MP_REAL"]
+runpy.run_path(sys.argv[0], run_name="__main__")
+PY
+printf '%s\n' '{"session":"s","user":"u","provider":"claude","calls":[{"i":0,"class":"read","work_ms":5,"dur_ms":50,"chain":false}]}' >"$CP5/corpora/default/corpus.jsonl"
+printf '%s\n' '{"version":1,"classes":{"read":[{"id":"r","cmd":"x","exit":0,"nominal_ms":30,"run_ms":3}]},"standin":{}}' >"$CP5/src/e15/commands/library.json"
+cp "$RIG/../../e17/workload/library.json" "$CP5/src/e17/workload/library.json"
+printf '%s\n' '{"session":"s","user":"u","provider":"claude","calls":[{"i":0,"class":"py_analyze","work_ms":15000,"dur_ms":15000,"chain":false},{"i":1,"class":"py_test","work_ms":60000,"dur_ms":60000,"chain":false},{"i":2,"class":"py_short","work_ms":300,"dur_ms":300,"chain":false}]}' \
+  >"$CP5/corpora/pycache/corpus.jsonl"
+cprobe() { # PROFILE POINT -> exit code; make_probe argv in $TMP/mp.log
+  : >"$TMP/mp.log"
+  : >"$TMP/pcalls"
+  env E15_HOST_PROFILE="$1" E15_ROOT="$CP5" E15_TEST_ROOT="$CP5" E15_RUNG="$PRUNG" P_SHORT=none P_CALLS="$TMP/pcalls" MP_LOG="$TMP/mp.log" \
+    MP_REAL="$RIG/../analysis/make_probe.py" PATH="$SPATH" E15_MANIFEST="$TMP/m.md" bash "$RIG/classprobe.sh" "$2" sbx >"$TMP/cp5.out" 2>&1
+  echo $?
+}
+check "E17 5b classprobe: an E15 point passes --cap-ms 30000 (aws-prelim and fresh-metal)" \
+  "$(cprobe aws-prelim default)/$(grep -c ' --cap-ms 30000$' "$TMP/mp.log")/$(cprobe fresh-metal default)/$(grep -c ' --cap-ms 30000$' "$TMP/mp.log")" "0/1/0/1"
+check "E17 5b classprobe: pycache passes --cap-ms 120000, after the per-class and seed options" \
+  "$(cprobe fresh-metal pycache)/$(sed "s#$CP5#<R>#g" "$TMP/mp.log")" \
+  "0/<R>/corpora/pycache/corpus.jsonl <R>/src/e17/workload/library.json <R>/runs/pycache/sbx/probe-corpora --per-class 20 --seed 1 --cap-ms 120000"
+check "E17 5b classprobe: the pycache py_test probe plans 60000 ms, not 30000" \
+  "$(python3 -c 'import json,sys; print(sorted({c["dur_ms"] for c in json.loads(open(sys.argv[1]).readline())["calls"]}))' "$CP5/runs/pycache/sbx/probe-corpora/py_test/corpus.jsonl")" "[60000]"
+rm -rf "$CP5"
+
+# reprobe.sh ARM: the staged copy against a staged root; classprobe.sh (E15_CLASSPROBE) and
+# analysis/baseline.py are stubs that log their argv and environment; the seeded runs and the old
+# probe are fixtures. Seeds: s1 ok, s2 empty_window (skipped), s3 ok, s4 ok -> 3 evaluable, 36
+# calls, so baseline.sh stopped at s4; s5 is a stale extra dir that must not be counted.
+RP="$TMP/e15-rig-test.reprobe"
+RPS="$TMP/rpstub"
+RE17="$RIG/../../e17"
+if [ -f "$RE17/rig/reprobe.sh" ]; then
+  rm -rf "$RP" "$RPS"
+  mkdir -p "$RP/src/e15" "$RP/src/e17/workload" "$RP/corpora/pycache" "$RP/bin" "$RP/state" "$RPS"
+  cp -R "$RIG" "$RP/src/e15/rig"
+  cp -R "$RIG/../analysis" "$RP/src/e15/analysis"
+  cp -R "$RE17/rig" "$RP/src/e17/rig"
+  cp "$RE17/workload/library.json" "$RP/src/e17/workload/library.json"
+  printf 'pycache corpus\n' >"$RP/corpora/pycache/corpus.jsonl"
+  printf '#!/bin/sh\n' >"$RP/bin/e15-driver"
+  chmod +x "$RP/bin/e15-driver"
+  printf '#!/usr/bin/env bash\ncase "$1 ${!#}" in "is-active e15-worker.service") [ -e "$RP_WFLAG" ] ;; *) exit 1 ;; esac\n' >"$RPS/systemctl"
+  chmod +x "$RPS/systemctl"
+  cat >"$RP/src/e15/analysis/baseline.py" <<'PY'
+import json, os, sys
+argv = sys.argv[1:]
+with open(os.environ["RP_BLOG"], "a") as f:
+    f.write("argv %s\n" % " ".join(argv))
+    for k in ("E15_BASELINE_CORPUS", "E15_BASELINE_ARM", "E15_BASELINE_SEEDS", "E15_BASELINE_SKIPPED"):
+        f.write("%s=%s\n" % (k, os.environ.get(k)))
+if os.environ.get("RP_BFAIL") == "1":
+    sys.exit("baseline.py: stub failure")
+rec = json.load(open(os.path.join(argv[1], "record.json")))
+b = {k: rec[k] for k in ("library_sha256", "driver_bin_sha256", "corpus_sha256", "point_sig")}
+b.update({"class_medians": {"py_test": 1900, "py_analyze": 400}, "global_median_ms": 500, "excess_p95_ms": 300,
+          "n1_median_pace": 0.01, "probe_failed": {}, "baseline_p95_ms": 700})
+json.dump(b, open(argv[0], "w"), indent=2, sort_keys=True)
+print(700)
+PY
+  cat >"$RPS/classprobe.sh" <<'SH'
+#!/usr/bin/env bash
+echo "classprobe $*" >>"$RP_CLOG"
+[ "${RP_CPFAIL:-0}" = 1 ] && exit 1
+mkdir -p "$E15_ROOT/runs/$1/$2/probe-corpora"
+for c in py_analyze py_short py_test; do
+  d=$E15_ROOT/runs/$1/$2/N1-probe-$c
+  mkdir -p "$d"
+  echo new >"$d/marker"
+  echo '{"in_window": true, "status": "ok"}' >"$d/calls.jsonl"
+  python3 -c 'import json,sys; e=json.loads(sys.argv[2]); e.update(json.loads(sys.argv[3] or "{}")); json.dump(e, open(sys.argv[1], "w"))' \
+    "$d/record.json" "$RP_ENV" "${RP_PENV:-}"
+  # RP_CPPARTIAL=1: a rig error after the first probe (its dir and probe-corpora are left)
+  [ "${RP_CPPARTIAL:-0}" = 1 ] && exit 1
+  echo "$d"
+done
+SH
+  chmod +x "$RPS/classprobe.sh"
+  # the rung environment every seeded record and (by default) every new probe record carries; an
+  # sbx-like record: no resident_patch_sha256 key at all
+  RP_ENV='{"template_sha256": "t1", "worker_bin_sha256": "w1", "snapshot_hash": "h1", "snapshot_guest_ram_mb": 1024}'
+  rp_cur=$(E15_HOST_PROFILE=fresh-metal E15_ROOT="$RP" E15_TEST_ROOT="$RP" bash -c 'source "$1"; source "$2"; e15_point pycache; echo "$E15_P_SETTINGS"' _ "$RIG/lib.sh" "$RIG/points.sh")
+  rp_old=${rp_cur% probe_cap_ms=120000}
+  rp_oldsig=$(sha_s "$rp_old")
+  rp_cursig=$(sha_s "$rp_cur")
+  rp_stage() { # ARM [SETTINGS]: seeded runs, old probe dirs and the old baseline.json
+    local a=$1 st=${2:-$rp_old} R=$RP/runs/pycache/$1
+    rm -rf "$RP/runs"
+    mkdir -p "$R/N1" "$R/probe-corpora"
+    echo old >"$R/probe-corpora/marker"
+    for c in py_analyze py_short py_test; do
+      mkdir -p "$R/N1-probe-$c"
+      echo old >"$R/N1-probe-$c/marker"
+    done
+    python3 - "$R" "$st" "$(sha_s "$st")" "$(sha_f "$RP/src/e17/workload/library.json")" "$(sha_f "$RP/bin/e15-driver")" \
+      "$(sha_f "$RP/corpora/pycache/corpus.jsonl")" "${RP_S3:-ok}" "$RP_ENV" <<'PY'
+import json, os, sys
+R, st, sig, lib, drv, corpus, s3, env = sys.argv[1:9]
+ok = {"holds": True, "reason": None}
+kinds = {1: ok, 2: {"holds": False, "reason": "empty_window"}, 3: ok if s3 == "ok" else {"holds": False, "reason": "p95"},
+         4: ok, 5: ok}
+for s, v in kinds.items():
+    d = os.path.join(R, "N1-s%d" % s)
+    os.makedirs(d)
+    rec = dict(v, library_sha256=lib, driver_bin_sha256=drv, corpus_sha256=corpus, point_sig=sig, point_settings=st)
+    rec.update(json.loads(env))
+    json.dump(rec, open(os.path.join(d, "record.json"), "w"))
+    n = 0 if s == 2 else 12
+    with open(os.path.join(d, "calls.jsonl"), "w") as f:
+        for i in range(n):
+            f.write(json.dumps({"in_window": True, "status": "ok", "observed_ms": 1100, "planned_dur_ms": 1000, "class": "py_short"}) + "\n")
+d = lambda s: os.path.join(R, "N1-s%d" % s)
+b = {"point_sig": sig, "library_sha256": lib, "driver_bin_sha256": drv, "corpus_sha256": corpus,
+     "class_medians": {"py_test": 31412, "py_analyze": 420}, "global_median_ms": 600, "excess_p95_ms": 310,
+     "n1_median_pace": 0.01, "evaluable": [{"seed": s, "dir": d(s)} for s in (1, 3, 4)],
+     "skipped": [{"seed": 2, "tag": "s2", "reason": "empty_window"}]}
+json.dump(b, open(os.path.join(R, "N1", "baseline.json"), "w"), indent=2, sort_keys=True)
+PY
+    cp "$R/N1/baseline.json" "$TMP/rp-old-baseline.json"
+  }
+  rp() { # ARM [VAR=...] -> exit code; output in $TMP/rp.out
+    local a=$1
+    shift
+    : >"$TMP/rp.clog"
+    : >"$TMP/rp.blog"
+    env E15_HOST_PROFILE=fresh-metal E15_ROOT="$RP" E15_TEST_ROOT="$RP" E15_MANIFEST="$TMP/rp-m.md" E15_CLASSPROBE="$RPS/classprobe.sh" \
+      RP_ENV="$RP_ENV" RP_CLOG="$TMP/rp.clog" RP_BLOG="$TMP/rp.blog" RP_WFLAG="$TMP/rp.wflag" PATH="$RPS:$PATH" "$@" \
+      bash "$RP/src/e17/rig/reprobe.sh" "$a" >"$TMP/rp.out" 2>&1
+    echo $?
+  }
+  rp_unmoved() { # ARM: "unmoved" when the old probe and baseline are where they were and nothing ran
+    local R=$RP/runs/pycache/$1
+    if [ "$(cat "$R/N1-probe-py_test/marker" "$R/probe-corpora/marker" 2>/dev/null | tr '\n' ' ')" = "old old " ] &&
+      cmp -s "$R/N1/baseline.json" "$TMP/rp-old-baseline.json" && [ -z "$(find "$R" -name '_cap30k-*' -o -name 'baseline.cap30k.json')" ] &&
+      [ ! -s "$TMP/rp.clog" ] && [ ! -s "$TMP/rp.blog" ]; then echo unmoved; else echo moved; fi
+  }
+  RPR=$RP/runs/pycache/sbx
+  rp_stage sbx
+  check "E17 5b reprobe: sbx passes" "$(rp sbx)" "0"
+  grep -q 'reprobe.sh:' "$TMP/rp.out" && sed 's/^/    /' "$TMP/rp.out" | tail -5
+  check "E17 5b reprobe: the old probe dirs and probe-corpora are renamed aside, contents kept" \
+    "$(for c in py_analyze py_short py_test; do cat "$RPR/_cap30k-N1-probe-$c/marker"; done | tr '\n' ' ')/$(cat "$RPR/_cap30k-probe-corpora/marker")" "old old old /old"
+  check "E17 5b reprobe: the old baseline.json is kept as baseline.cap30k.json" \
+    "$(cmp -s "$RPR/N1/baseline.cap30k.json" "$TMP/rp-old-baseline.json" && echo kept)" "kept"
+  check "E17 5b reprobe: classprobe.sh pycache ARM ran once; its probe dirs are new" \
+    "$(tr '\n' ';' <"$TMP/rp.clog")/$(cat "$RPR/N1-probe-py_test/marker")" "classprobe pycache sbx;/new"
+  check "E17 5b reprobe: baseline.py gets exactly the evaluable seeded dirs, then --probe the new probes" \
+    "$(sed -n 's/^argv //p' "$TMP/rp.blog" | sed "s#$RPR#<A>#g")" \
+    "<A>/N1/baseline.json <A>/N1-s1 <A>/N1-s3 <A>/N1-s4 --probe <A>/N1-probe-py_analyze <A>/N1-probe-py_short <A>/N1-probe-py_test"
+  check "E17 5b reprobe: baseline.py's environment is baseline.sh's (corpus, arm, seeds, skipped)" \
+    "$(grep '^E15_BASELINE_' "$TMP/rp.blog" | sed "s#$RP#<R>#g" | tr '\n' ';')" \
+    "E15_BASELINE_CORPUS=<R>/corpora/pycache/corpus.jsonl;E15_BASELINE_ARM=sbx;E15_BASELINE_SEEDS=1 3 4;E15_BASELINE_SKIPPED=2:s2:empty_window;"
+  rpj() { python3 -c 'import json,sys; print(eval(sys.argv[2], {"b": json.load(open(sys.argv[1]))}))' "$RPR/N1/baseline.json" "$1"; }
+  check "E17 5b reprobe: the new baseline carries the pycache point's current signature, the seeded one recorded" \
+    "$(rpj 'b["point_sig"]')/$(rpj 'b["reprobe"]["seeded_point_sig"]')/$(rpj 'b["reprobe"]["probe_cap_ms"]')/$(rpj 'b["class_medians"]["py_test"]')" \
+    "$rp_cursig/$rp_oldsig/120000/1900"
+  rp_lookup() { # ARM BASELINE: rung.sh's baseline resolution at pycache N=8 on fresh-metal
+    E15_HOST_PROFILE=fresh-metal E15_ROOT="$RP" E15_TEST_ROOT="$RP" PATH="$SPATH" E15_MANIFEST="$TMP/rp-m.md" bash -c '
+      set -e; source "$1"; source "${1%/lib.sh}/points.sh"; E15_PROG=t
+      N=8 POINT=pycache ARM=$3; e15_point "$POINT"
+      eval "$(sed -n "/^WINDOW=\${E15_WINDOW_S:-900}/,/^# end baseline resolution/p" "$2")"
+      echo ok' _ "$RIG/lib.sh" "$RIG/rung.sh" "$1" 2>"$TMP/rpl.err"
+  }
+  check "E17 5b reprobe: rung.sh accepts the new baseline at pycache N=8" "$(rp_lookup sbx)" "ok"
+  cp "$RPR/N1/baseline.cap30k.json" "$RPR/N1/baseline.json"
+  check "E17 5b reprobe: rung.sh refuses the cap30k baseline (old point_sig)" \
+    "$(rp_lookup sbx)/$(grep -c 'stale N=1 baseline .*point_sig' "$TMP/rpl.err")" "/1"
+  check "E17 5b reprobe: a second reprobe is refused (the aside targets exist), nothing run" \
+    "$(rp sbx)/$(grep -c 'already exists' "$TMP/rp.out")/$(grep -c . "$TMP/rp.clog")" "1/1/0"
+
+  rp_stage lease-30
+  check "E17 5b reprobe: lease-30 passes; its arm in the paths and the environment" \
+    "$(rp lease-30)/$(tr -d '\n' <"$TMP/rp.clog")/$(grep -c '^E15_BASELINE_ARM=lease-30$' "$TMP/rp.blog")" "0/classprobe pycache lease-30/1"
+  rp_stage sbx "$rp_cur"
+  check "E17 5b reprobe: seeded runs already at the current signature pass too" "$(rp sbx)/$(rpj 'b["point_sig"]')" "0/$rp_cursig"
+
+  # refusals: each leaves the old probe and baseline where they were and runs nothing
+  rp_stage sbx
+  touch "$TMP/rp.wflag"
+  check "E17 5b reprobe: a rung's worker running -> refused" \
+    "$(rp sbx)/$(grep -c "a rung's worker (e15-worker.service) is running; refusing to preempt it" "$TMP/rp.out")/$(rp_unmoved sbx)" "1/1/unmoved"
+  rm -f "$TMP/rp.wflag"
+  check "E17 5b reprobe: aws-prelim refused" "$(rp sbx E15_HOST_PROFILE=aws-prelim)/$(grep -c 'E17 runs on fresh-metal only' "$TMP/rp.out")/$(rp_unmoved sbx)" "1/1/unmoved"
+  check "E17 5b reprobe: an arm pycache does not run, or none, is a usage error" "$(rp resident-inf)/$(rp control)/$(rp '')/$(rp_unmoved sbx)" "2/2/2/unmoved"
+  check "E17 5b reprobe: only the staged copy runs" \
+    "$(env E15_HOST_PROFILE=fresh-metal E15_ROOT="$RP" E15_TEST_ROOT="$RP" E15_MANIFEST="$TMP/rp-m.md" PATH="$RPS:$PATH" bash "$RE17/rig/reprobe.sh" sbx >"$TMP/rp.out" 2>&1; echo $?)/$(grep -c 'run the staged copy' "$TMP/rp.out")" "1/1"
+  RP_S3=fail rp_stage sbx
+  check "E17 5b reprobe: a seeded run that does not hold -> refused (baseline.sh would have died)" \
+    "$(rp sbx)/$(grep -c 'N1-s3 does not hold' "$TMP/rp.out")/$(rp_unmoved sbx)" "1/1/unmoved"
+  rp_stage sbx
+  python3 -c 'import json,sys; b=json.load(open(sys.argv[1])); b["evaluable"]=b["evaluable"][:2]; json.dump(b, open(sys.argv[1],"w"))' "$RPR/N1/baseline.json"
+  cp "$RPR/N1/baseline.json" "$TMP/rp-old-baseline.json"
+  check "E17 5b reprobe: re-derived seeds that are not the old baseline's -> refused" \
+    "$(rp sbx)/$(grep -c 'evaluable seeds 1 3 4 .*the old baseline.json has 1 3' "$TMP/rp.out")/$(rp_unmoved sbx)" "1/1/unmoved"
+  rp_stage sbx
+  rm "$RPR/N1-s4/record.json"
+  check "E17 5b reprobe: a seeded run baseline.sh counted is missing -> refused" \
+    "$(rp sbx)/$(grep -c "no $RPR/N1-s4/record.json" "$TMP/rp.out")/$(rp_unmoved sbx)" "1/1/unmoved"
+  rp_stage sbx "${rp_old/dataset_mib=256/dataset_mib=64}"
+  check "E17 5b reprobe: seeded runs of other point settings -> refused" \
+    "$(rp sbx)/$(grep -c 'N1-s1 was recorded with point settings' "$TMP/rp.out")/$(rp_unmoved sbx)" "1/1/unmoved"
+  rp_stage sbx
+  printf 'changed\n' >>"$RP/src/e17/workload/library.json"
+  check "E17 5b reprobe: seeded runs of another library -> refused (rung.sh would refuse the baseline)" \
+    "$(rp sbx)/$(grep -c 'library_sha256' "$TMP/rp.out")/$(rp_unmoved sbx)" "1/1/unmoved"
+  cp "$RE17/workload/library.json" "$RP/src/e17/workload/library.json"
+  rp_stage sbx
+  rm "$RPR/N1/baseline.json" "$TMP/rp-old-baseline.json"
+  check "E17 5b reprobe: no old baseline.json -> refused (run baseline.sh)" "$(rp sbx)/$(grep -c 'no .*/N1/baseline.json' "$TMP/rp.out")/$(grep -c . "$TMP/rp.clog")" "1/1/0"
+  # the path guard: a symlinked probe dir, or an existing aside target, refuses before any move
+  rp_stage sbx
+  mkdir -p "$TMP/rp-elsewhere"
+  ln -s "$TMP/rp-elsewhere" "$RPR/N1-probe-build"
+  check "E17 5b reprobe path guard: a probe dir that is a symlink -> refused, nothing moved" \
+    "$(rp sbx)/$(grep -c "refusing $RPR/N1-probe-build: a symlink" "$TMP/rp.out")/$(rp_unmoved sbx)" "1/1/unmoved"
+  rm "$RPR/N1-probe-build"
+  mkdir "$RPR/_cap30k-N1-probe-py_short"
+  check "E17 5b reprobe path guard: an existing aside target -> refused, nothing moved" \
+    "$(rp sbx)/$(grep -c "_cap30k-N1-probe-py_short already exists" "$TMP/rp.out")/$(rmdir "$RPR/_cap30k-N1-probe-py_short"; rp_unmoved sbx)" "1/1/unmoved"
+  rp_stage sbx
+  rm -rf "$RPR"
+  mkdir -p "$TMP/rp-arm-elsewhere"
+  ln -s "$TMP/rp-arm-elsewhere" "$RPR"
+  check "E17 5b reprobe path guard: an arm directory that is a symlink -> refused" \
+    "$(rp sbx)/$(grep -c "refusing $RPR: a symlink" "$TMP/rp.out")/$(grep -c . "$TMP/rp.clog")" "1/1/0"
+  rm -f "$RPR"
+  # failures after the moves: the old probe stays aside, no baseline.json is left
+  rp_stage sbx
+  check "E17 5b reprobe: a classprobe.sh failure dies, no baseline.json, the old one kept aside" \
+    "$(rp sbx RP_CPFAIL=1)/$(grep -c 'classprobe.sh pycache sbx failed' "$TMP/rp.out")/$([ -e "$RPR/N1/baseline.json" ] && echo left || echo none)/$(cmp -s "$RPR/N1/baseline.cap30k.json" "$TMP/rp-old-baseline.json" && echo kept)" \
+    "1/1/none/kept"
+  rp_stage sbx
+  check "E17 5b reprobe: a baseline.py failure dies, no baseline.json" \
+    "$(rp sbx RP_BFAIL=1)/$(grep -c 'baseline.py failed' "$TMP/rp.out")/$([ -e "$RPR/N1/baseline.json" ] && echo left || echo none)" "1/1/none"
+  # fix round 1: the environment check (new probes vs the counted seeded runs)
+  rp_stage sbx
+  check "E17 5b reprobe env: a template re-stamp since the seeded runs -> dies naming the field, both values and dirs; no baseline" \
+    "$(rp sbx RP_PENV='{"template_sha256": "t2"}')/$(grep -c "template_sha256 differs: the new probe $RPR/N1-probe-py_analyze has \"t2\", the seeded run $RPR/N1-s1 has \"t1\"" "$TMP/rp.out")/$(grep -c . "$TMP/rp.blog")/$([ -e "$RPR/N1/baseline.json" ] && echo left || echo none)" \
+    "1/1/0/none"
+  rp_stage sbx
+  check "E17 5b reprobe env: another snapshot guest RAM -> dies" \
+    "$(rp sbx RP_PENV='{"snapshot_guest_ram_mb": 256}')/$(grep -c 'snapshot_guest_ram_mb differs: .* has 256, the seeded run .* has 1024' "$TMP/rp.out")" "1/1"
+  rp_stage sbx
+  check "E17 5b reprobe env: a worker rebuild -> dies" \
+    "$(rp sbx RP_PENV='{"worker_bin_sha256": "w2"}')/$(grep -c 'worker_bin_sha256 differs' "$TMP/rp.out")" "1/1"
+  rp_stage sbx
+  check "E17 5b reprobe env: a field on one side only (even null) is a mismatch" \
+    "$(rp sbx RP_PENV='{"resident_patch_sha256": null}')/$(grep -c 'resident_patch_sha256 differs: .* has null, the seeded run .* has (absent)' "$TMP/rp.out")" "1/1"
+  rp_stage sbx
+  check "E17 5b reprobe env: a field absent from both sides is equal (the sbx happy path has no resident_patch_sha256)" \
+    "$(rp sbx)/$(grep -c 'differs' "$TMP/rp.out")" "0/0"
+  # fix round 1: a run that failed after the moves names itself and prints the restore commands
+  rp_stage sbx
+  check "E17 5b reprobe recovery: step 3 fails after one probe (a partial N1-probe-py_analyze and probe-corpora left)" \
+    "$(rp sbx RP_CPPARTIAL=1)/$([ -d "$RPR/N1-probe-py_analyze" ] && [ -d "$RPR/probe-corpora" ] && echo partial)" "1/partial"
+  check "E17 5b reprobe recovery: the re-run is refused as a failed previous reprobe, nothing run" \
+    "$(rp sbx)/$(grep -c 'a previous reprobe failed after the moves' "$TMP/rp.out")/$(grep -c 'no .*/N1/baseline.json (run baseline.sh' "$TMP/rp.out")/$(grep -c . "$TMP/rp.clog")" "1/1/0/0"
+  check "E17 5b reprobe recovery: the partial new probe goes to _failed-<ts>-* first, then each _cap30k-* back, then the baseline" \
+    "$(grep '^  mv -- ' "$TMP/rp.out" | sed "s#$RPR#<A>#g; s#_failed-[0-9TZ]*-#_failed-<ts>-#" | tr '\n' ';')" \
+    "  mv -- <A>/N1-probe-py_analyze <A>/_failed-<ts>-N1-probe-py_analyze;  mv -- <A>/probe-corpora <A>/_failed-<ts>-probe-corpora;  mv -- <A>/_cap30k-N1-probe-py_analyze <A>/N1-probe-py_analyze;  mv -- <A>/_cap30k-N1-probe-py_short <A>/N1-probe-py_short;  mv -- <A>/_cap30k-N1-probe-py_test <A>/N1-probe-py_test;  mv -- <A>/_cap30k-probe-corpora <A>/probe-corpora;  mv -- <A>/N1/baseline.cap30k.json <A>/N1/baseline.json;"
+  grep '^  mv -- ' "$TMP/rp.out" >"$TMP/rp-restore.sh"
+  bash "$TMP/rp-restore.sh"
+  check "E17 5b reprobe recovery: the printed commands restore the arm exactly; the re-run then passes" \
+    "$(rp_unmoved sbx)/$(rp sbx)/$(cat "$RPR/N1-probe-py_test/marker")/$(cmp -s "$RPR/N1/baseline.cap30k.json" "$TMP/rp-old-baseline.json" && echo kept)" "unmoved/0/new/kept"
+  check "E17 5b reprobe: its only removal is rm -f of the half-written baseline.json; no rm -rf" \
+    "$(grep -v '^ *#' "$RE17/rig/reprobe.sh" | grep -c 'rm -rf')/$(grep -v '^ *#' "$RE17/rig/reprobe.sh" | grep -cE '(^|[^a-z])rm ')" "0/1"
+  rm -rf "$RP" "$RPS" "$TMP/rp-elsewhere" "$TMP/rp-arm-elsewhere"
+fi
 echo
 if [ "$fails" -eq 0 ]; then
   echo "rig.test.sh: all checks passed"

@@ -1,17 +1,23 @@
 """Per-class N=1 probe corpora (SPEC §8 condition 4, §10.1 step 3).
 
-    python3 make_probe.py CORPUS LIBRARY OUT_DIR [--per-class 20] [--seed S]
+    python3 make_probe.py CORPUS LIBRARY OUT_DIR [--per-class 20] [--seed S] [--cap-ms 30000]
 
 For every class in LIBRARY plus the stand-in classes (opaque, build, host_infra) writes
 OUT_DIR/<class>/corpus.jsonl: ONE session (id probe-<class>, user probe, provider probe) of
 --per-class calls of that class. Each call's (work_ms, dur_ms) pair is drawn, seeded, from that
 class's non-chain calls in CORPUS (chains excluded: their duration is mostly idle tail), dur_ms
-capped at 30 000 ms and work_ms at dur_ms; a class
+capped at --cap-ms (default 30 000 ms) and work_ms at dur_ms; a class
 CORPUS has none of falls back to the library's invocation times. gap_ms is 2000 and offset_ms is
 the previous call's dur_ms + gap_ms (0 for the first), so the class is measured alone on an idle
 worker. Also writes OUT_DIR/<class>/corpus-report.json (the fields rung.sh reads) and
 OUT_DIR/classes.txt. The driver's validatePlans accepts a session with >= 3 calls whose class is in
 the library or a stand-in class: exactly what is written here.
+
+--cap-ms (E17 Task 5b): the cap is harmless where the driver picks a shorter invocation to match a
+capped work_ms (E15's library), but a class whose one invocation has a fixed runtime runs it
+whatever it is planned at, so a capped plan turns into added latency. classprobe.sh passes the
+point's E15_P_PROBE_CAP_MS (points.sh: 120 000 for the pycache points, whose py_test runs ~62 s),
+or 30 000; without the option the output is byte-identical to before it existed.
 """
 import argparse
 import json
@@ -42,11 +48,11 @@ def library_pairs(lib, cls):
     return [(m, m) for m in ms] or [(100, 100)]
 
 
-def probe_session(cls, pairs, per_class, rng):
+def probe_session(cls, pairs, per_class, rng, cap_ms=CAP_MS):
     calls, prev_dur = [], 0
     for i in range(per_class):
         work, dur = rng.choice(pairs)
-        dur = min(max(dur, work), CAP_MS)
+        dur = min(max(dur, work), cap_ms)
         work = min(work, dur)
         calls.append({"i": i, "class": cls, "skeleton": "probe", "dur_ms": dur, "work_ms": work,
                       "gap_ms": GAP_MS, "offset_ms": 0 if i == 0 else prev_dur + GAP_MS,
@@ -67,6 +73,7 @@ def main(argv=None):
     ap.add_argument("out_dir")
     ap.add_argument("--per-class", type=int, default=20)
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--cap-ms", type=int, default=CAP_MS)
     a = ap.parse_args(argv)
     with open(a.library) as f:
         lib = json.load(f)
@@ -74,7 +81,7 @@ def main(argv=None):
     classes = sorted(set(lib["classes"]) | set(STANDIN))
     for cls in classes:
         rng = random.Random("%d/%s" % (a.seed, cls))
-        s = probe_session(cls, seen.get(cls) or library_pairs(lib, cls), a.per_class, rng)
+        s = probe_session(cls, seen.get(cls) or library_pairs(lib, cls), a.per_class, rng, a.cap_ms)
         d = os.path.join(a.out_dir, cls)
         os.makedirs(d, exist_ok=True)
         with open(os.path.join(d, "corpus.jsonl"), "w") as f:

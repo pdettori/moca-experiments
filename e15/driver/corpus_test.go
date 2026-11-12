@@ -674,3 +674,73 @@ func TestGuestFrameBytes(t *testing.T) {
 		t.Fatalf("escaped command added %d bytes, want >= 2200 (500 raw, escaped)", got-base)
 	}
 }
+
+// E17's pycache generator (e17/extract/pycache_corpus.py) writes E15's corpus schema; the fixture
+// is its output for --sessions 3 --seed 1 on e17/extract/testdata/gaps-20.jsonl.
+func TestLoadCorpusAcceptsPycache(t *testing.T) {
+	ss, err := LoadCorpus("testdata/pycache-corpus.jsonl")
+	if err != nil || len(ss) != 3 {
+		t.Fatalf("%v %d", err, len(ss))
+	}
+	for _, s := range ss {
+		if s.ID == "" || s.User == "" || s.Provider != "synthetic" || len(s.Calls) < minCalls {
+			t.Fatalf("session %+v", s)
+		}
+		for n, c := range s.Calls {
+			if c.I != n || c.Chain || c.DurMs <= 0 || c.WorkMs != c.DurMs || !strings.HasPrefix(c.Class, "py_") {
+				t.Fatalf("%s call %d: %+v", s.ID, n, c)
+			}
+		}
+	}
+	if _, err := NewSampler(ss, 1, 0.15); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// E17's pycache library (e17/workload/library.json) must plan every py_analyze, py_test, py_import
+// and py_grep call of the pycache corpus as ONE invocation with no sleep: a chained second analyze
+// or test run would double the call's work, and a padded import or grep (spec v0.4 §4.3) would
+// not be the cache-bound command alone. fill picks a second copy of an invocation of Ms() m only
+// while the remainder work_ms - m is >= 50 and >= m, so one invocation per call holds while
+// Ms() > work_ms/2; the boundary cases pin that for Task 5's measured run_ms.
+func TestPlanPycacheOneInvocationPerHeavyCall(t *testing.T) {
+	l, err := LoadLibrary("../../e17/workload/library.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ss, err := LoadCorpus("testdata/pycache-corpus.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	single := map[string]bool{"py_analyze": true, "py_test": true, "py_import": true, "py_grep": true}
+	seen := map[string]int{}
+	for _, s := range ss {
+		for _, c := range s.Calls {
+			if !single[c.Class] {
+				continue
+			}
+			seen[c.Class]++
+			p := plan(t, l, c, 1, s.ID)
+			if len(p) != 1 || p[0].Cmd != l.Classes[c.Class][0].Cmd || p[0].Exit != 0 || p[0].SleepAfterMs != 0 {
+				t.Fatalf("%s call %d (%s, work %d ms): plan %+v, want the one library invocation", s.ID, c.I, c.Class, c.WorkMs, p)
+			}
+		}
+	}
+	for cls := range single {
+		if seen[cls] == 0 {
+			t.Fatalf("fixture has no %s calls", cls)
+		}
+	}
+	if err := validatePlans(ss, l, 1, Scan{}); err != nil {
+		t.Fatal(err)
+	}
+	// One invocation iff its Ms() > work_ms/2 (or it is longer than work_ms: the fallback runs once).
+	c := Call{Class: "py_test", WorkMs: 60000, DurMs: 60000}
+	for _, tc := range []struct{ runMs, want int64 }{{30001, 1}, {30000, 2}, {90000, 1}} {
+		ml := &Library{Classes: map[string][]Invocation{"py_test": {l.Classes["py_test"][0]}}}
+		ml.Classes["py_test"][0].RunMs = &tc.runMs
+		if p := plan(t, ml, c, 1, "s"); int64(len(p)) != tc.want {
+			t.Fatalf("run_ms %d, work_ms 60000: %d invocations, want %d", tc.runMs, len(p), tc.want)
+		}
+	}
+}

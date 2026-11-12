@@ -1,0 +1,141 @@
+{
+  "baseline_p95_ms": 2199.398000000001,
+  "calls": 43,
+  "class_counts": {
+    "build": 20,
+    "host_infra": 20,
+    "opaque": 20,
+    "py_analyze": 20,
+    "py_grep": 20,
+    "py_import": 20,
+    "py_short": 20,
+    "py_test": 20
+  },
+  "class_medians": {
+    "build": -95.49799999999999,
+    "host_infra": 5.3315000000000055,
+    "opaque": -95.4635,
+    "py_analyze": -851.0969999999998,
+    "py_grep": -2088.1594999999998,
+    "py_import": -1547.3995,
+    "py_short": -295.1125,
+    "py_test": -612.4035000000003
+  },
+  "corpus_class_counts": {
+    "py_analyze": 3200,
+    "py_grep": 1600,
+    "py_import": 1600,
+    "py_short": 5662,
+    "py_test": 1600
+  },
+  "corpus_sha256": "16337509ea7e82c5b9fc10b2e609212c70b302720609f6fc0ce2a446342438bf",
+  "driver_bin_sha256": "4971f732ec037686f65b6f97ef5f3c06911d0eae8139b4624bbc82552fd3ff9d",
+  "evaluable": [
+    {
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-s2",
+      "seed": 2
+    },
+    {
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-s3",
+      "seed": 3
+    },
+    {
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-s6",
+      "seed": 6
+    },
+    {
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-s7",
+      "seed": 7
+    }
+  ],
+  "excess_p95_ms": 111.59049999999843,
+  "global_median_ms": -295.586,
+  "library_sha256": "c1768b225c2db38e35ba417b9d9747e080ff0c9fdb839fbdb32b085559628467",
+  "n1_median_pace": -0.0026556800321648755,
+  "n1_pace_sessions": 5,
+  "overhead_ms": -612.4035000000003,
+  "point_sig": "39b898b7f22a5215b1adb902d8f0e62eb67825bc90d33970e06a63740fbe2d10",
+  "probe_failed": {},
+  "probe_runs": [
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-probe-build",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-probe-host_infra",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-probe-opaque",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-probe-py_analyze",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-probe-py_grep",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-probe-py_import",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-probe-py_short",
+      "ok": 20
+    },
+    {
+      "calls": 20,
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-probe-py_test",
+      "ok": 20
+    }
+  ],
+  "runs": [
+    {
+      "calls": 6,
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-s2",
+      "p95_added_ms": 1796.3329999999987
+    },
+    {
+      "calls": 6,
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-s3",
+      "p95_added_ms": -277.517
+    },
+    {
+      "calls": 16,
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-s6",
+      "p95_added_ms": 990.3369999999995
+    },
+    {
+      "calls": 15,
+      "dir": "/srv/e15/runs/pycache/resident-300/N1-s7",
+      "p95_added_ms": 2361.4079999999994
+    }
+  ],
+  "skipped": [
+    {
+      "reason": "empty_window",
+      "seed": 1,
+      "tag": "s1"
+    },
+    {
+      "reason": "empty_window",
+      "seed": 4,
+      "tag": "s4"
+    },
+    {
+      "reason": "empty_window",
+      "seed": 5,
+      "tag": "s5"
+    }
+  ],
+  "undercovered": []
+}

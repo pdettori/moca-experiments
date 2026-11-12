@@ -1,0 +1,8 @@
+== round 1 e15 (SH_SNAPSHOT_IMAGE=e15)
+== round 2 e17-fpr (SH_SNAPSHOT_IMAGE=e17-fpr)
+== round 3 e15 (SH_SNAPSHOT_IMAGE=e15)
+== round 4 e17-fpr (SH_SNAPSHOT_IMAGE=e17-fpr)
+true      e15 n=80 median 83 p95 96 | e17-fpr n=80 median 85 p95 107 | delta median +1 ms
+pypass    e15 n=40 median 103 p95 150 | e17-fpr n=40 median 103 p95 150 | delta median +0 ms
+touch256  e15 n=20 median 403 p95 412 | e17-fpr n=20 median 403 p95 415 | delta median +0 ms
+non-zero exits: 0

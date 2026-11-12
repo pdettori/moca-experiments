@@ -9,7 +9,8 @@
 #   /srv/e15/src/e15/              this repo's e15/ directory
 #   /srv/e15/corpora/<point>/      corpus.jsonl + corpus-report.json per point
 #                                  (default short long no-infra no-chains smoke; lowduty for E16,
-#                                  fresh-metal: its sha256 is checked and recorded, step 8a)
+#                                  fresh-metal: its sha256 is checked and recorded, step 8a;
+#                                  pycache, pycache-low for E17, the same, step 8c)
 #   /srv/e15/wheels/*.whl          pytest and its py3.9 dependencies (pip download on the laptop)
 #   /srv/e15/project-src/          optional: a clone holding project.lock's commit (E15_PROJECT_SRC)
 #
@@ -390,6 +391,28 @@ if [ "$METAL" = 1 ]; then
     log "note: no $ld/corpus.jsonl staged; point lowduty cannot run"
   fi
 fi
+
+# --- 8c. the pycache corpora (E17, fresh-metal) ------------------------------------------------
+# Staged by e17/rig/sync.sh (e17/extract/pycache_corpus.py's corpus.jsonl + corpus-report.json in
+# $E15_CORPORA/pycache/ and pycache-low/). Checked and recorded as the lowduty corpus above. Absent:
+# a note only. The pycache templates are e17/rig/bringup.sh's, not built here.
+if [ "$METAL" = 1 ]; then
+  for pc in pycache pycache-low; do
+    pd=$E15_CORPORA/$pc
+    if [ -f "$pd/corpus.jsonl" ]; then
+      [ -f "$pd/corpus-report.json" ] || die "$pd has corpus.jsonl but no corpus-report.json"
+      pcsha=$(sha256_of "$pd/corpus.jsonl")
+      pcwant=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("corpus_sha256") or "")' "$pd/corpus-report.json")
+      [ "$pcsha" = "$pcwant" ] || die "$pd/corpus.jsonl sha256 $pcsha is not its report's corpus_sha256 ${pcwant:-(none)}"
+      e15_artifact "corpus-$pc" "$pcsha" "$pd/corpus.jsonl"
+      log "$pc corpus sha256 $pcsha"
+      m_note "$pc corpus $pd/corpus.jsonl sha256 $pcsha (staged; nothing to undo)"
+    else
+      log "note: no $pd/corpus.jsonl staged; the E17 points on corpus $pc cannot run"
+    fi
+  done
+fi
+# end pycache corpora
 
 # --- 7b. workspace disk estimate (fresh-metal: reflinked copies, the per-session delta) -------
 # aws-prelim is XFS with reflink (rung.sh's default); it has no estimate. fresh-metal: reflink was
