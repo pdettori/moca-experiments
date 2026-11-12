@@ -61,7 +61,7 @@ main repo each result was measured against is recorded in that experiment's resu
 - `experiments/e10-e13-microvm/` — E10 (lifecycle), E11 (density/replenishment), E12 (vsock egress), E13 (restore
   capacity/telemetry): bare-metal microVM experiments, their `EXPERIMENTS.md`/`METAL-RUNBOOK.md`
   write-ups, `predictions.json`, and their tests. **Start at
-  [`experiments/e10-e13-microvm/RESULTS-SUMMARY.md`](experiments/e10-e13-microvm/RESULTS-SUMMARY.md)** — the acceptance bar and the
+  [`../experiments/e10-e13-microvm/RESULTS-SUMMARY.md`](../experiments/e10-e13-microvm/RESULTS-SUMMARY.md)** — the acceptance bar and the
   decision it produced, the latency decomposition, the instrument defects the density
   conclusions rested on, and which published numbers were retracted. `EXPERIMENTS.md`
   remains the source of truth.
@@ -84,7 +84,7 @@ Go seam-closure check specifically skips gracefully (like its "no go on PATH" ch
 - `experiments/e14-sbx/` — E14: stock coding agents (Claude Code, OpenCode) whose every command runs in a fresh
   microVM, reached through the sandbox-service prototype (SBX1 wave 0). Three rounds, ending in
   a 40-run SWE-bench Verified comparison of stock against remote. **Start at
-  [`experiments/e14-sbx/RESULTS-SUMMARY.md`](experiments/e14-sbx/RESULTS-SUMMARY.md)**; `EXPERIMENTS.md` is the record,
+  [`../experiments/e14-sbx/RESULTS-SUMMARY.md`](../experiments/e14-sbx/RESULTS-SUMMARY.md)**; `EXPERIMENTS.md` is the record,
   `RUNBOOK.md` the replication steps, and `HARNESS.md` every script and config used, embedded
   as markdown.
 - `experiments/e02-e05-harness/` — the original `@sh/experiments` workspace package: M6's E2/E5 in-process

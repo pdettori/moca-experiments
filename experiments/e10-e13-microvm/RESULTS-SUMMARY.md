@@ -146,7 +146,7 @@ The microVM tier did not ship. MOCA kept pod-level brain/hands isolation — the
 executes tools in its own process — and the effort went to scale-to-zero, where an
 idle-heavy workload measured a **0.25 pod-seconds ratio against a pre-set 0.6 gate**
 (`E1_RESULT persistent=380 serverless=95 ratio=0.25 pass=yes`).
-→ [`experiments/e01-e07-knative/EXPERIMENTS.md`](../experiments/e01-e07-knative/EXPERIMENTS.md)
+→ [`experiments/e01-e07-knative/EXPERIMENTS.md`](../e01-e07-knative/EXPERIMENTS.md)
 
 ---
 
