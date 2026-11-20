@@ -15,7 +15,9 @@
 # chain REFUSES to start (exit 1, each named) while any other stage-changing knob is set, even to "": the list is
 # STAGE_KNOBS below (everything lib.sh, rung.sh, ladder.sh, baseline.sh, classprobe.sh and sample.sh read from the
 # environment that changes a measurement, e.g. E15_RUNG, E15_MAX_COMMITTED_MB, E15_LADDER_EXTRA, as an E16 shell
-# leaves them). The operator's own inputs are E17B_OPTIONAL, E17B_SQUEEZE_MEMMAX_MB, E17B_SQUEEZE256_MEMMAX_MB,
+# leaves them). The operator's own inputs are E17B_OPTIONAL, E17B_RAM256, E17B_SQUEEZE_START_N (E17B-R51: resume a
+# squeeze climb that a rig error stopped, at the rung that failed; its ladder.json is then assembled from both parts),
+# E17B_SQUEEZE_MEMMAX_MB, E17B_SQUEEZE256_MEMMAX_MB,
 # E17B_OVERHEAD_REF and E15_MANIFEST.
 #
 # THE SEAL. No measured rung runs before the predictions are sealed (spec §9): a stage marked "seal" runs only
@@ -28,7 +30,9 @@
 # --from the chain starts at the first selected stage that has no .done; --from STAGE starts there whatever is done
 # (a re-run rung is moved aside by rung.sh, never deleted); --to STAGE stops after it. The first failing stage stops
 # the chain with "resume with --from <stage>". Optional stages ("opt") run only with E17B_OPTIONAL=1 (Task 14 Step 2:
-# the ship-30/ship-120 ladders, if the rig time allows), else SKIP.
+# the ship-30/ship-120 ladders, if the rig time allows), else SKIP. The 256 MiB stages ("ram256") run only with
+# E17B_RAM256=1, else SKIP (ruling E17B-R45: the workload's py_analyze is OOM-killed in a 256 MiB guest in both arms,
+# so they are cut from the sealed E17b run; predictions-e17b.json calibration.smoke_256).
 #
 # Before a stage, its run directories ($E15_RUNS/POINT/ARM) must hold no params.json from another moca commit than
 # E17B_MOCA_PIN (a result that mixes commits is not one arm; under E17B=1 nothing sealed is overwritten, E17B-R3).
@@ -108,7 +112,8 @@ OWNWALK=${E17B_OWNWALK:-$E17_SRC/rig/ownwalk.sh}
 ANALYSIS=${E17B_ANALYSIS:-$E17_SRC/analysis}
 L=$E15_ROOT/e17b
 
-# name|needs|command: needs is "-" (allowed before the seal), "seal", or "opt" (seal, and E17B_OPTIONAL=1).
+# name|needs|command: needs is "-" (allowed before the seal), "seal", "opt" (seal, and E17B_OPTIONAL=1) or "ram256"
+# (seal, and E17B_RAM256=1; E17B-R45).
 STAGES=(
   # Task 12 Step 3: the smoke (sbx + the ship arms at pycache N=1, smoke.sh under E17B=1)
   "smoke|-|smoke"
@@ -133,8 +138,10 @@ STAGES=(
   "lat-pycache-ship-30-n128|seal|rung ship-30 128 pycache"
   "lat-pycache-ship-120-n128|seal|rung ship-120 128 pycache"
   # Task 14 Step 2: capacity ladders at default, both arms at the new pin
-  "ladder-default-sbx|seal|ladder default sbx"
-  "ladder-default-ship-300|seal|ladder default ship-300"
+  # E17B-R50 (user, 2026-11-18): each starts two ladder steps below E15 metal's default N_max (sbx 80, resident-300
+  # 128), as E15 SPEC 10.3 does for its other points; the rungs below are assumed held (ladder.json says so)
+  "ladder-default-sbx|seal|ladder default sbx 56"
+  "ladder-default-ship-300|seal|ladder default ship-300 80"
   # Task 14 Step 3: squeeze (its own baselines, then the ship-300 climb, then sbx at its stop N). Every arm's committed
   # budget there is MemoryMax - 8192 (E17B-R20); the host-MemAvailable reclaim trigger is not exercised by the squeeze.
   "base-squeeze-sbx|seal|baseline squeeze sbx"
@@ -150,14 +157,14 @@ STAGES=(
   "ladder-default-ship-30|opt|ladder default ship-30"
   "ladder-default-ship-120|opt|ladder default ship-120"
   # Task 14 Steps 1 and 3 at 256 MiB guests (spec §5), D scaled to the same dataset-to-RAM ratio
-  "ram256-pycache-sbx-n1|seal|rung256 sbx 1 pycache-d64"
-  "ram256-pycache-ship-300-n1|seal|rung256 ship-300 1 pycache-d64"
+  "ram256-pycache-sbx-n1|ram256|rung256 sbx 1 pycache-d64"
+  "ram256-pycache-ship-300-n1|ram256|rung256 ship-300 1 pycache-d64"
   # the 256 MiB squeeze (E17B-R21): point squeeze-256 (D = 768 x 256/1024 = 192), its own baselines and its own
   # MemoryMax (E17B_SQUEEZE256_MEMMAX_MB, from its own short climb), sbx at its climb's stop N
-  "ram256-base-squeeze-sbx|seal|baseline256 squeeze-256 sbx"
-  "ram256-base-squeeze-ship-300|seal|baseline256 squeeze-256 ship-300"
-  "ram256-squeeze-ship-300|seal|squeeze-ladder squeeze-256 ship-300|budget = MemoryMax - 8192 (its own E17B_SQUEEZE256_MEMMAX_MB)"
-  "ram256-squeeze-sbx|seal|squeeze-rung squeeze-256 sbx"
+  "ram256-base-squeeze-sbx|ram256|baseline256 squeeze-256 sbx"
+  "ram256-base-squeeze-ship-300|ram256|baseline256 squeeze-256 ship-300"
+  "ram256-squeeze-ship-300|ram256|squeeze-ladder squeeze-256 ship-300|budget = MemoryMax - 8192 (its own E17B_SQUEEZE256_MEMMAX_MB)"
+  "ram256-squeeze-sbx|ram256|squeeze-rung squeeze-256 sbx"
   # the criteria's inputs, computed by code from every rung (final review M1): $L/verdict.json, pass null per criterion
   "verdict|seal|verdict|analysis/verdict.py over the runs: criteria 1-5 values and inputs; 1-4 judged on SPEC 7.5's fixed bars, 5 after Task 13 seals it"
 )
@@ -229,7 +236,7 @@ if [ -n "$TO" ]; then stage_index "$TO" >/dev/null || {
 }; fi
 
 if [ "$LIST" = 1 ]; then
-  echo "E17B stages (predictions: $(seal_state)); needs: - before the seal, seal, opt (E17B_OPTIONAL=1)"
+  echo "E17B stages (predictions: $(seal_state)); needs: - before the seal, seal, opt (E17B_OPTIONAL=1), ram256 (E17B_RAM256=1)"
   for st in "${STAGES[@]}"; do
     n=$(s_name "$st")
     printf '%-32s %-5s %-5s %s%s\n' "$n" "$(s_needs "$st")" "$([ -f "$L/$n.done" ] && echo "done" || echo -)" "$(s_cmd "$st")" "$(n2=$(s_note "$st"); [ -n "$n2" ] && printf '  # %s' "$n2")"
@@ -240,7 +247,13 @@ fi
 # --- the selection: [first, last], optional stages only with E17B_OPTIONAL=1 -------------------------------------
 last=$((${#STAGES[@]} - 1))
 [ -z "$TO" ] || last=$(stage_index "$TO")
-selected() { [ "$(s_needs "${STAGES[$1]}")" != opt ] || [ "${E17B_OPTIONAL:-0}" = 1 ]; }
+selected() {
+  case "$(s_needs "${STAGES[$1]}")" in
+  opt) [ "${E17B_OPTIONAL:-0}" = 1 ] ;;
+  ram256) [ "${E17B_RAM256:-0}" = 1 ] ;;
+  *) true ;;
+  esac
+}
 if [ -n "$FROM" ]; then
   first=$(stage_index "$FROM")
 else
@@ -422,6 +435,12 @@ sq_point() {
 run_cmd() {
   local kind=$1 n mm
   shift
+  # E17B-R51: the disk preflight's per-workspace estimate (lib.sh workspace_delta_kb: the template's allocated size
+  # less the dataset, 388 MiB at pycache-d768) refuses a squeeze N=24 repeat and the N=128 pycache rungs on this
+  # host's 300 GB; the measured cost is < 1 MiB per workspace (512 squeeze workspaces added 0.2 GiB; E17a: ~2 MiB).
+  # The chain sets 8 MiB for the pycache family and the squeeze points, as E17a's rungs ran. The operator still
+  # cannot set it (STAGE_KNOBS); run_cmd runs in a subshell, so the export is this stage's only.
+  case " $* " in *" pycache"* | *" squeeze"*) export E15_WS_DELTA_MB=8 ;; esac
   case "$kind" in
   smoke)
     preflight pycache sbx ship-30 ship-120 ship-300
@@ -439,9 +458,9 @@ run_cmd() {
     preflight "$3" "$1"
     E17B_GUEST_RAM_MB=256 E15_TAG=ram256 bash "$RUNG" "$1" "$2" "$3"
     ;;
-  ladder)
+  ladder) # POINT ARM [START_N]
     preflight "$1" "$2"
-    bash "$LADDER" "$1" "$2"
+    bash "$LADDER" "$1" "$2" ${3:+"$3"}
     ;;
   baseline256)
     preflight "$1" "$2"
@@ -451,7 +470,7 @@ run_cmd() {
     sq_point "$1"
     [ -n "$sq_mb" ] || die "the $1 climb needs $sq_var (MiB, from a first short climb: Task 14 Step 3)"
     preflight "$1" "$2"
-    env ${sq_ram:+E17B_GUEST_RAM_MB=$sq_ram} E15_SQUEEZE_MEMMAX_MB="$sq_mb" bash "$LADDER" "$1" "$2"
+    env ${sq_ram:+E17B_GUEST_RAM_MB=$sq_ram} E15_SQUEEZE_MEMMAX_MB="$sq_mb" bash "$LADDER" "$1" "$2" ${E17B_SQUEEZE_START_N:+"$E17B_SQUEEZE_START_N"}
     ;;
   squeeze-rung) # POINT ARM
     sq_point "$1"
@@ -499,7 +518,10 @@ for i in $(seq "$first" "$last"); do
   st=${STAGES[$i]}
   STAGE=$(s_name "$st")
   if ! selected "$i"; then
-    echo "E17B $STAGE SKIP (optional: E17B_OPTIONAL=1 runs it)"
+    case "$(s_needs "$st")" in
+    ram256) echo "E17B $STAGE SKIP (cut, E17B-R45: E17B_RAM256=1 runs it)" ;;
+    *) echo "E17B $STAGE SKIP (optional: E17B_OPTIONAL=1 runs it)" ;;
+    esac
     continue
   fi
   if [ "$(s_needs "$st")" != - ] && ! sealed; then

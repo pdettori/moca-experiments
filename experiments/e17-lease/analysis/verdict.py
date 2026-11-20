@@ -17,7 +17,9 @@ and nothing already fails. Criterion 5 keeps `pass` null until its thresholds ar
   2  ship-300's warm gain against sbx at pycache, N=1 and N=128: py_short >= 0.50 and py_import >= 0.30
      (gain = 1 - warm median / sbx median, latency_report.py).
   3  At each squeeze point whose climb ran (squeeze is required; squeeze-256 is judged when it ran), over the
-     climb's rungs: zero guard events (each rung's criterion3_guards_pass true), zero refusals while an idle lease
+     climb's rungs: zero guard events (memory_floor, OOM kills and host_memory refusals: lease_ends guards total
+     less memory_high, ruling E17B-R49; memory_high, the squeezed slice's memory.high, is reported, not judged), zero
+     refusals while an idle lease
      existed (memory-budget and host-memory, none unclassified), no wrong / unknown / victim_executing reclaim, and
      at least one reclaim at the point (E17B-R39: else false, "no reclaim happened", when every rung of the climb
      was read and valid). A rung without lease_ends.json, invalid, or with its guard or refusal reading unavailable
@@ -26,8 +28,9 @@ and nothing already fails. Criterion 5 keeps `pass` null until its thresholds ar
 
   1 capacity   RUNS/default/{ship-300,sbx}/ladder.json n_max (n_max_abs reported): ship_300_n_max, sbx_n_max and
                their difference.
-  2 latency    latency_report.build over the latency rungs (directory N1-lat or N128-lat: the chain's lat stages,
-               never a baseline seed N1-s<k>) of sbx and every ship arm at pycache and pycache-low. `gated` is
+  2 latency    latency_report.build over the latency rungs (directory N1-lat or N128-lat: the chain's lat stages;
+               at pycache N=1 also the baseline seeds N1-s<k>, E17B-R52) of sbx and every ship arm at pycache and
+               pycache-low. `gated` is
                ship-300's warm py_short and py_import gain against sbx at pycache, N 1 and 128; `groups` has every
                arm, point and class (py_grep, py_analyze, py_test reported).
   3 reclaim    At squeeze and squeeze-256: the ship-300 climb's ladder.json squeeze {stop_n, stopped_by} and, for
@@ -36,7 +39,8 @@ and nothing already fails. Criterion 5 keeps `pass` null until its thresholds ar
                and their totals; the sbx rungs there (tag sq) with their params memory_abort / oom_kills.
   4 notices    Every ship-* rung's lease_ends.json criterion4_pass and valid, combined by ruling E17B-R16: r16_met
                when no rung is false, every rung is valid (a ship rung without lease_ends.json is not), and at
-               least one rung is true. ended_after_sweep and live_at_stop totals reported (excluded by definition).
+               least one rung is true. ended_after_sweep, ended_by_run_cut (E17B-R54) and live_at_stop totals reported
+               (excluded by definition).
   5 memory     At pycache, every ship rung's vm_age_lease.json: first half the relative verdict (follows_true,
                follows_false, share_true, not_judged_low_growth; E17B-R29) and the absolute reading (pinned_share,
                pinned_share_of_judged, pinned_vm_share), per rung and pooled; second half each rung's
@@ -47,6 +51,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -54,6 +59,9 @@ sys.path.insert(0, HERE)
 import latency_report as LR  # noqa: E402  (sets up the E15 analysis path)
 
 LAT_NAMES = ("N1-lat", "N128-lat")
+# E17B-R52 (user, 2026-11-18): a single N=1 session leaves N1-lat with one in-window call, so the N=1 half pools the
+# pycache N=1 baseline seeds (baseline.sh N1-s<k>, the calibration the predictions were drafted from) with N1-lat.
+N1_SEED = re.compile(r"^N1-s[0-9]+$")
 LAT_POINTS = ("pycache", "pycache-low")
 GATED_CLASSES = ("py_short", "py_import")
 GAIN_BARS = {"py_short": 0.50, "py_import": 0.30}  # SPEC §7.5 criterion 2: at least 50% / 30% faster warm
@@ -124,7 +132,8 @@ def capacity(root):
 
 
 def latency(rungs):
-    dirs = [r["dir"] for r in rungs if r["point"] in LAT_POINTS and r["name"] in LAT_NAMES
+    dirs = [r["dir"] for r in rungs if r["point"] in LAT_POINTS
+            and (r["name"] in LAT_NAMES or (r["point"] == "pycache" and N1_SEED.match(r["name"])))
             and (r["arm"] == "sbx" or is_ship(r))]
     gated = {str(n): {c: None for c in GATED_CLASSES} for n in (1, 128)}
     value = {"gated": gated, "gated_arm": "ship-300", "gated_point": "pycache", "groups": [], "error": None}
@@ -173,7 +182,7 @@ def reclaim(root, rungs):
             continue
         inputs.append(lp)
         rows, unread = [], 0
-        tot = {"guards": 0, "refusals_with_idle_lease": 0, "host_memory_with_idle_lease": 0, "reclaims": 0,
+        tot = {"guards": 0, "memory_high": 0, "refusals_with_idle_lease": 0, "host_memory_with_idle_lease": 0, "reclaims": 0,
                "wrong": 0, "unknown": 0, "victim_executing": 0}
         for sr in sq.get("rungs") or []:
             d = resolve(root, point, "ship-300", sr.get("dir"))
@@ -188,14 +197,22 @@ def reclaim(root, rungs):
                 continue
             inputs.append(ep)
             ref, rec = e.get("refusals") or {}, e.get("reclaim") or {}
-            row.update(guards=(e.get("guards") or {}).get("total"), guards_pass=e.get("criterion3_guards_pass"),
+            g = e.get("guards") or {}
+            # E17B-R49 (user, 2026-11-18): memory_high is the squeezed e15.slice's memory.high, reached by page cache
+            # that destroyed VMs' cgroups leave in the slice (the worker's budget does not see it; production slices
+            # are MemoryMax=infinity). Reported, not judged: the judged guards are total - memory_high.
+            judged_guards = None if g.get("total") is None else int(g["total"]) - int(g.get("memory_high") or 0)
+            guards_pass = None if not g.get("available") else judged_guards == 0
+            row.update(guards=judged_guards, memory_high=g.get("memory_high"), guards_pass=guards_pass,
+                       lease_ends_guards_pass=e.get("criterion3_guards_pass"),
                        refusals_with_idle_lease=ref.get("with_idle_lease"),
                        host_memory_with_idle_lease=ref.get("host_memory_with_idle_lease"),
                        refusals_unclassified=len(ref.get("unclassified") or []),
                        refusals_pass=e.get("criterion3_refusals_pass"), reclaims=rec.get("total"),
                        wrong=rec.get("wrong"), unknown=rec.get("unknown"), order_pass=e.get("criterion3_order_pass"),
                        valid=e.get("valid"))
-            for k, src in (("guards", row["guards"]), ("refusals_with_idle_lease", row["refusals_with_idle_lease"]),
+            for k, src in (("guards", row["guards"]), ("memory_high", row["memory_high"]),
+                           ("refusals_with_idle_lease", row["refusals_with_idle_lease"]),
                            ("host_memory_with_idle_lease", row["host_memory_with_idle_lease"]),
                            ("reclaims", rec.get("total")), ("wrong", rec.get("wrong")),
                            ("unknown", rec.get("unknown")), ("victim_executing", rec.get("victim_executing"))):
@@ -235,7 +252,7 @@ def reclaim(root, rungs):
 
 def notices(rungs):
     v = {"rungs": 0, "true": 0, "false": 0, "null": 0, "invalid": 0, "false_rungs": [], "invalid_rungs": [],
-         "ended_after_sweep": 0, "live_at_stop": 0, "r16_met": False,
+         "ended_after_sweep": 0, "ended_by_run_cut": 0, "live_at_stop": 0, "r16_met": False,
          "rule": "E17B-R16: met when no rung is false, every rung is valid, and at least one rung is true"}
     inputs, missing = [], []
     for r in rungs:
@@ -257,6 +274,7 @@ def notices(rungs):
             v["invalid_rungs"].append(r["dir"])
         n = e.get("notices") or {}
         v["ended_after_sweep"] += int(n.get("ended_after_sweep") or 0)
+        v["ended_by_run_cut"] += int(n.get("ended_by_run_cut") or 0)  # E17B-R54
         v["live_at_stop"] += int(n.get("live_at_stop") or 0)
     v["r16_met"] = v["false"] == 0 and v["invalid"] == 0 and not missing and v["true"] >= 1
     why = []

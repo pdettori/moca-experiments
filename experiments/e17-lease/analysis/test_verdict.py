@@ -49,12 +49,13 @@ def sbx_lat(root, point, n, short_ms, import_ms):
 
 
 def le(c4=True, valid=True, guards=0, with_idle=0, host_idle=0, wrong=0, unknown=0, reclaims=0, after_sweep=0, live=0,
-       guards_available=True):
+       guards_available=True, memory_high=0):
     return {"valid": valid, "invalid_reasons": [] if valid else ["stub"], "criterion4_pass": c4,
-            "criterion3_guards_pass": False if guards else (True if guards_available else None),
+            "criterion3_guards_pass": False if guards + memory_high else (True if guards_available else None),
             "criterion3_refusals_pass": with_idle == 0 and host_idle == 0,
             "criterion3_order_pass": (wrong == 0 and unknown == 0) if reclaims else None,
-            "guards": {"total": guards}, "refusals": {"with_idle_lease": with_idle, "host_memory_with_idle_lease": host_idle,
+            "guards": {"total": guards + memory_high, "memory_high": memory_high, "available": guards_available},
+            "refusals": {"with_idle_lease": with_idle, "host_memory_with_idle_lease": host_idle,
                                                      "unclassified": []},
             "reclaim": {"total": reclaims, "wrong": wrong, "unknown": unknown, "victim_executing": 0},
             "notices": {"ended_after_sweep": after_sweep, "live_at_stop": live}}
@@ -101,15 +102,19 @@ def test_criterion_2_gains_against_sbx_at_pycache_n1_and_n128(tmp_path):
     for n in (1, 128):
         sbx_lat(root, "pycache", n, short_ms=400, import_ms=1000)
         ship_lat(root, "pycache", n, short_ms=100, import_ms=600)
-    # a seed rung of the baseline (N1-s1) is not a latency rung: never pooled into N=1
-    write_rung(root, "pycache", "sbx", "N1-s1", 1, [call("S", 1, cls="py_short", ms=99999)], [exec_line("S", "vm-9")])
+    # E17B-R52: a pycache N=1 baseline seed (N1-s<k>) is pooled into N=1; a probe rung and a pycache-low seed are not
+    write_rung(root, "pycache", "sbx", "N1-s1", 1, [call("S", 1, cls="py_short", ms=400)], [exec_line("S", "vm-9")])
+    write_rung(root, "pycache", "sbx", "N1-probe-py_short", 1, [call("P", 1, cls="py_short", ms=99999)],
+               [exec_line("P", "vm-8")])
+    write_rung(root, "pycache-low", "sbx", "N1-s1", 1, [call("L", 1, cls="py_short", ms=99999)], [exec_line("L", "vm-7")])
     c = crit(V.verdict(root), "2")
     g = c["value"]["gated"]
     assert g["1"]["py_short"] == pytest.approx(0.75) and g["1"]["py_import"] == pytest.approx(0.4)
     assert g["128"]["py_short"] == pytest.approx(0.75) and g["128"]["py_import"] == pytest.approx(0.4)
     rep = {(x["point"], x["n"], x["arm"]): x for x in c["value"]["groups"]}
     assert rep[("pycache", 1, "ship-300")]["classes"]["py_short"]["baseline_median_ms"] == 400
-    assert not any(p.endswith("N1-s1") for p in c["inputs"])
+    assert any(p.endswith("pycache/sbx/N1-s1") for p in c["inputs"])
+    assert not any(p.endswith("N1-probe-py_short") or p.endswith("pycache-low/sbx/N1-s1") for p in c["inputs"])
 
 
 def test_criterion_2_without_sbx_is_null(tmp_path):
@@ -132,7 +137,7 @@ def test_criterion_3_reads_the_squeeze_climb(tmp_path):
     assert sq["stop_n"] == 96 and sq["stopped_by"] == "reclaim_rate"
     assert [r["n"] for r in sq["rungs"]] == [64, 96]  # the rung dir is resolved under RUNS when it moved
     assert sq["rungs"][1]["order_pass"] is False and sq["rungs"][1]["refusals_with_idle_lease"] == 2
-    assert sq["totals"] == {"guards": 0, "refusals_with_idle_lease": 2, "host_memory_with_idle_lease": 0,
+    assert sq["totals"] == {"guards": 0, "memory_high": 0, "refusals_with_idle_lease": 2, "host_memory_with_idle_lease": 0,
                             "reclaims": 12, "wrong": 1, "unknown": 0, "victim_executing": 0}
     assert sq["sbx_rungs"][0]["dir"].endswith("squeeze/sbx/N96-sq")
     assert c["pass"] is False and any("wrong" in w for w in c["why"]) and any("idle lease" in w for w in c["why"])
@@ -274,6 +279,14 @@ def test_criterion_3_pass_needs_zero_guards_refusals_wrong_picks_and_a_reclaim(t
             ("unknown", [dict(reclaims=4, unknown=1)], "unknown")):
         c = crit(V.verdict(c3_root(tmp_path, name, rungs)), "3")
         assert c["pass"] is False and any(why in w for w in c["why"]), (name, c["why"])
+    # E17B-R49: the squeezed slice's memory.high is reported, not judged; any other guard event still fails
+    c = crit(V.verdict(c3_root(tmp_path, "high", [dict(reclaims=4, memory_high=19)])), "3")
+    assert c["pass"] is True, c["why"]
+    row = c["value"]["squeeze"]["rungs"][0]
+    assert row["memory_high"] == 19 and row["guards"] == 0 and row["lease_ends_guards_pass"] is False
+    assert c["value"]["squeeze"]["totals"]["memory_high"] == 19
+    c = crit(V.verdict(c3_root(tmp_path, "high-oom", [dict(reclaims=4, memory_high=19, guards=1)])), "3")
+    assert c["pass"] is False and any("1 memory-guard event" in w for w in c["why"]), c["why"]
     # a rung whose guard reading is unavailable cannot pass it: null
     c = crit(V.verdict(c3_root(tmp_path, "unavail", [dict(reclaims=4, guards_available=False)])), "3")
     assert c["pass"] is None
