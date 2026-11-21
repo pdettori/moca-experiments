@@ -2338,7 +2338,13 @@ print(" ".join(sorted(s)))' "$GC/$1/corpus.jsonl"
   }
   # E17c Task 10 (SPEC §13.5, R45): --gate-256 GATE.json (a passing gate-256.json) also writes pycache-256, the 256 MiB
   # points' corpus: pycache's arguments with py_analyze at the gate's measured ms, so it has its own corpus hash
-  gcg() { env -u E17B E17C=1 E17_CORPORA="$GC" E17_GAPS="$E17D/extract/testdata/gaps-20.jsonl" bash "$E17D/rig/gen_corpora.sh" "$@" >"$TMP/gc.out" 2>&1; echo $?; }
+  # final review M5: the gate must match library-256.json's committed scale and E17C_MOCA_PIN (E17C_PINS_FILE and
+  # E17_LIBRARY_256 point the script at a fixture pin and a library at scale 8 here)
+  printf 'E17C_MOCA_PIN=%s\n' "$E17C_FIXPIN_GC" >"$TMP/gc-pins.sh"
+  gclib() { python3 -c 'import json,sys; sys.path.insert(0, sys.argv[3]); import gate256; l=json.load(open(sys.argv[1])); l["classes"]["py_analyze"][0]["cmd"]=gate256.analyze_cmd(int(sys.argv[2])); json.dump(l, open(sys.argv[4], "w"))' \
+    "$E17D/workload/library-256.json" "$1" "$E17D/analysis" "$TMP/gc-lib256.json"; }
+  gclib 8
+  gcg() { env -u E17B E17C=1 E17C_PINS_FILE="$TMP/gc-pins.sh" E17_LIBRARY_256="$TMP/gc-lib256.json" E17_CORPORA="$GC" E17_GAPS="$E17D/extract/testdata/gaps-20.jsonl" bash "$E17D/rig/gen_corpora.sh" "$@" >"$TMP/gc.out" 2>&1; echo $?; }
   printf '{"stage": "gate-256", "pass": true, "chosen_scale": 8, "py_analyze_ms": 4321.5, "moca_commit": "%s"}\n' "$E17C_FIXPIN_GC" >"$TMP/g256.json"
   rm -rf "$GC"
   check "E17c gen_corpora: E17C=1 without --gate-256 writes no pycache-256, and says why" \
@@ -2361,6 +2367,20 @@ print(" ".join(sorted(s)))' "$GC/$1/corpus.jsonl"
   printf '{"stage": "gate-256", "pass": false, "chosen_scale": null, "py_analyze_ms": null, "reason": "scale 1: OOM"}\n' >"$TMP/g256-fail.json"
   check "E17c gen_corpora --gate-256: a gate that did not pass is refused (exit 1, naming it), pycache-256 left as it was" \
     "$(gcg --gate-256 "$TMP/g256-fail.json")/$(grep -c 'g256-fail.json did not pass' "$TMP/gc.out")/$(cmp -s "$TMP/gc-256.jsonl" "$GC/pycache-256/corpus.jsonl" && echo kept)" "1/1/kept"
+  check "E17c gen_corpora --gate-256: the corpus report records the gate file's sha256, chosen scale and moca_commit" \
+    "$(gcg --gate-256 "$TMP/g256.json")/$(gcr pycache-256 'sorted(r["gate_256"].items())')" \
+    "0/[('chosen_scale', 8), ('file', 'g256.json'), ('moca_commit', '$E17C_FIXPIN_GC'), ('sha256', '$(sha256sum "$TMP/g256.json" | cut -d' ' -f1)')]"
+  cp "$GC/pycache-256/corpus.jsonl" "$TMP/gc-256.jsonl"
+  gclib 16
+  check "E17c gen_corpora --gate-256: refused (exit 1, nothing written) when library-256.json's scale is not the gate's chosen one" \
+    "$(gcg --gate-256 "$TMP/g256.json")/$(grep -c 'gc-lib256.json carries scale 16, but .*g256.json chose 8' "$TMP/gc.out")/$(cmp -s "$TMP/gc-256.jsonl" "$GC/pycache-256/corpus.jsonl" && echo kept)" "1/1/kept"
+  gclib 0
+  check "E17c gen_corpora --gate-256: refused while library-256.json carries the placeholder 0" \
+    "$(gcg --gate-256 "$TMP/g256.json")/$(grep -c 'carries scale 0, but' "$TMP/gc.out")" "1/1"
+  gclib 8
+  printf '{"stage": "gate-256", "pass": true, "chosen_scale": 8, "py_analyze_ms": 4321.5, "moca_commit": "%s"}\n' 3333333333333333333333333333333333333333 >"$TMP/g256-other.json"
+  check "E17c gen_corpora --gate-256: refused when the gate's moca_commit is not E17C_MOCA_PIN" \
+    "$(gcg --gate-256 "$TMP/g256-other.json")/$(grep -c 'moca_commit "3333333333333333333333333333333333333333", not E17C_MOCA_PIN '"$E17C_FIXPIN_GC" "$TMP/gc.out")/$(cmp -s "$TMP/gc-256.jsonl" "$GC/pycache-256/corpus.jsonl" && echo kept)" "1/1/kept"
   check "E17c gen_corpora --gate-256: refused with E17C unset (E17B=1 or neither), and without a file" \
     "$(gc --gate-256 "$TMP/g256.json")/$(gcu --gate-256 "$TMP/g256.json")/$(gcg --gate-256 "$TMP/nope.json")" "2/2/2"
   check "E17 gen_corpora: placeholders without --durations-from, and it says so" \
@@ -3303,6 +3323,8 @@ systemd-run)
     # a worker with moca #974 (E17c): the lease_cache_drop field after lease_reclaim_free, 30s (the default) or off (0)
     drop30) b='2026/11/15 10:00:00 microvm-worker: relay=127.0.0.1:9643 sandbox_id=e15 tls=false vmm=firecracker D=0 guest=1024MiB budget=385024MiB slots=1792 standby_headroom=off mem_floor=1536MiB workspace_idle=24h0m0s lease=on lease_idle=5m0s/1h0m0s lease_max=8h0m0s/8h0m0s lease_grace=30s lease_start=192MiB lease_headroom=1.25 lease_pagecache=256MiB lease_reclaim_free=2048MiB lease_cache_drop=30s labels=map[]' ;;
     dropoff) b='2026/11/15 10:00:00 microvm-worker: relay=127.0.0.1:9643 sandbox_id=e15 tls=false vmm=firecracker D=0 guest=1024MiB budget=385024MiB slots=1792 standby_headroom=off mem_floor=1536MiB workspace_idle=24h0m0s lease=on lease_idle=5m0s/1h0m0s lease_max=8h0m0s/8h0m0s lease_grace=30s lease_start=192MiB lease_headroom=1.25 lease_pagecache=256MiB lease_reclaim_free=2048MiB lease_cache_drop=off labels=map[]' ;;
+    # a pin whose drop default is not 30s (final review M3: 5a's +45 s reading assumes the 30 s drop)
+    drop45) b='2026/11/15 10:00:00 microvm-worker: relay=127.0.0.1:9643 sandbox_id=e15 tls=false vmm=firecracker D=0 guest=1024MiB budget=385024MiB slots=1792 standby_headroom=off mem_floor=1536MiB workspace_idle=24h0m0s lease=on lease_idle=5m0s/1h0m0s lease_max=8h0m0s/8h0m0s lease_grace=30s lease_start=192MiB lease_headroom=1.25 lease_pagecache=256MiB lease_reclaim_free=2048MiB lease_cache_drop=45s labels=map[]' ;;
     esac
     for a; do case "\$a" in StandardOutput=file:*)
       { [ -z "\$b" ] || printf '%s\n' "\$b"; printf '2026/11/15 10:00:01 microvm-worker: attached, serving execs\n'; } >"\${a#StandardOutput=file:}" ;; esac; done ;;
@@ -3888,6 +3910,12 @@ test_ship_nd_rung_checks_cache_drop_banner() {
   crung ship-300 STUB_BANNER=dropoff
   check "cache-drop banner: ship-300 on lease_cache_drop=off -> refused before the driver, naming the mismatch" \
     "$?/$(grep -c '^driver$' "$SORD")/$(grep -c 'lease_cache_drop=off.*ship-300 needs the drop on' "$TMP/ship-rung.out")" "1/0/1"
+  crung ship-300 STUB_BANNER=drop45
+  check "cache-drop banner: ship-300 on lease_cache_drop=45s -> refused before the driver: E17c's ship-300 needs exactly 30s (M3)" \
+    "$?/$(grep -c '^driver$' "$SORD")/$(grep -c 'lease_cache_drop=45s.*ship-300 needs exactly 30s' "$TMP/ship-rung.out")" "1/0/1"
+  crung ship-300-nd STUB_BANNER=drop45
+  check "cache-drop banner: ship-300-nd on lease_cache_drop=45s -> refused (it needs off), as before" \
+    "$?/$(grep -c '^driver$' "$SORD")/$(grep -c 'lease_cache_drop=45s.*ship-300-nd needs off' "$TMP/ship-rung.out")" "1/0/1"
   local a
   for a in ship-300 ship-300-nd; do
     crung $a STUB_BANNER=on

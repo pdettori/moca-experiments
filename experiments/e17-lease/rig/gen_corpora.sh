@@ -27,12 +27,18 @@
 # points (pycache-d64, squeeze-256): pycache's arguments, with the durations of --durations-from (or the placeholders)
 # but py_analyze at the gate's py_analyze_ms (the chosen scale's sbx median), so it has its own corpus hash. The
 # durations go in via a durations-256.json, which its corpus-report.json names. A gate that did not pass is refused
-# (exit 1) before anything is written. Under E17C=1 without it, no pycache-256 is written, and this script says so.
+# (exit 1) before anything is written, and so is one whose chosen_scale is not the scale workload/library-256.json
+# carries (the reviewed commit of the gate's scale, ruling R-x; the placeholder 0 included) or whose moca_commit is not
+# E17C_MOCA_PIN (rig/e17c-pins.sh) (final review M5). pycache-256's corpus-report.json records the gate under
+# "gate_256": the file's name and sha256, its chosen_scale and moca_commit. Under E17C=1 without it, no pycache-256 is
+# written, and this script says so. E17C_PINS_FILE and E17_LIBRARY_256 override the pin file and the library (tests).
 set -euo pipefail
 W="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 PC=${E17_CORPORA:-/tmp/kagenti/e17-corpora}
 GAPS=${E17_GAPS:-/tmp/kagenti/e16-corpus-default/corpus.jsonl}
 PY=${E17_PYTHON:-python3}
+PINS=${E17C_PINS_FILE:-$W/experiments/e17-lease/rig/e17c-pins.sh}
+LIB256=${E17_LIBRARY_256:-$W/experiments/e17-lease/workload/library-256.json}
 if [ "${E17B:-}" = 1 ] || [ "${E17C:-}" = 1 ]; then SHARE=${E17_TMPFS_SHARE:-0.5}; else SHARE=${E17_TMPFS_SHARE:-0}; fi
 cal=()
 gate=""
@@ -74,21 +80,45 @@ if [ -n "$gate" ]; then
   # the gate first: a gate that did not pass writes nothing
   d256=$(mktemp -d)
   trap 'rm -rf -- "$d256"' EXIT
-  "$PY" - "$W/experiments/e17-lease/extract" "$gate" "${cal[1]:-}" "$d256/durations-256.json" <<'PY' || exit 1
-import json, sys
+  [ -f "$PINS" ] || {
+    echo "gen_corpora.sh: no $PINS (E17C_MOCA_PIN): --gate-256 checks the gate's moca_commit against it" >&2
+    exit 1
+  }
+  pin=$(sed -n 's/^E17C_MOCA_PIN=\([0-9a-f]*\)$/\1/p' "$PINS")
+  "$PY" - "$W/experiments/e17-lease/extract" "$gate" "${cal[1]:-}" "$d256/durations-256.json" \
+    "$W/experiments/e17-lease/analysis" "$LIB256" "$pin" "$d256/gate-256-record.json" <<'PY' || exit 1
+import hashlib, json, os, sys
 sys.path.insert(0, sys.argv[1])
+sys.path.insert(0, sys.argv[5])
 import pycache_corpus as P  # noqa: E402
-gate, cal, out = sys.argv[2:]
+import gate256  # noqa: E402
+gate, cal, out, _, lib, pin, rec = sys.argv[2:]
 try:
-    g = json.load(open(gate))
+    raw = open(gate, "rb").read()
+    g = json.loads(raw)
 except (OSError, ValueError) as e:
     sys.exit("gen_corpora.sh: %s is unreadable (%s)" % (gate, e))
 ms = g.get("py_analyze_ms") if isinstance(g, dict) else None
 if not isinstance(g, dict) or g.get("pass") is not True or not isinstance(ms, (int, float)) or ms <= 0:
     sys.exit("gen_corpora.sh: %s did not pass (%s): no pycache-256 corpus" % (gate, (g or {}).get("reason") if isinstance(g, dict) else "not an object"))
+scale = g.get("chosen_scale")
+if not isinstance(scale, int) or isinstance(scale, bool):
+    sys.exit("gen_corpora.sh: %s has no integer chosen_scale (%s): no pycache-256 corpus" % (gate, json.dumps(scale)))
+try:
+    have = gate256.library_scale(lib)
+except (OSError, ValueError, KeyError) as e:
+    sys.exit("gen_corpora.sh: %s is unreadable (%s): no pycache-256 corpus" % (lib, e))
+if have != scale:
+    sys.exit("gen_corpora.sh: %s carries scale %d, but %s chose %d: commit the gate's scale first (ruling R-x); "
+             "no pycache-256 corpus" % (lib, have, gate, scale))
+if g.get("moca_commit") != pin:
+    sys.exit("gen_corpora.sh: %s has moca_commit %s, not E17C_MOCA_PIN %s: no pycache-256 corpus"
+             % (gate, json.dumps(g.get("moca_commit")), pin or "(none)"))
 dur = dict(json.load(open(cal))) if cal else dict(P.DUR_MS)
 dur["py_analyze"] = ms
 json.dump(dur, open(out, "w"), sort_keys=True)
+json.dump({"file": os.path.basename(gate), "sha256": hashlib.sha256(raw).hexdigest(), "chosen_scale": scale,
+           "moca_commit": pin}, open(rec, "w"), sort_keys=True)
 PY
   specs+=" pycache-256:0.095"
 fi
@@ -104,6 +134,16 @@ for spec in $specs; do
     rm -rf -- "$tmp"
     echo "gen_corpora.sh: pycache_corpus.py failed for $p" >&2
     exit 1
+  fi
+  # pycache-256's report names the gate it was built from (final review M5); corpus_sha256 covers corpus.jsonl only
+  if [ "$p" = pycache-256 ]; then
+    if ! "$PY" -c 'import json,sys; r=json.load(open(sys.argv[1])); r["gate_256"]=json.load(open(sys.argv[2]))
+f = open(sys.argv[1] + ".tmp", "w"); f.write(json.dumps(r, indent=2) + "\n"); f.close()' \
+      "$tmp/corpus-report.json" "$d256/gate-256-record.json" || ! mv "$tmp/corpus-report.json.tmp" "$tmp/corpus-report.json"; then
+      rm -rf -- "$tmp"
+      echo "gen_corpora.sh: could not record the gate in $p's corpus-report.json" >&2
+      exit 1
+    fi
   fi
   # Only the corpus directory itself is replaced: $PC/pycache, $PC/pycache-low or $PC/pycache-256, nothing above.
   rm -rf -- "${PC:?}/$p"
