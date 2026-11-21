@@ -5,6 +5,8 @@ group id and six values, each "dd.ddd". The py_short `edit` command rewrites MAX
 back in the same command, so keep that line exactly as it is.
 """
 
+import os
+
 DATA_DIR = "../data"
 SHARD_GLOB = "shard-*.csv"
 COLUMNS = ("g", "x0", "x1", "x2", "x3", "x4", "x5")
@@ -26,3 +28,7 @@ TOLERANCE = 1e-4
 # 32 puts analyze.py at about 15 s on the laptop at D = 256 (spec §4.2: about 10-20 s of CPU);
 # Task 5's calibration tunes it here, in this one line.
 ANALYZE_WORK_SCALE = 32
+# E17c (SPEC §13.5, R45): the 256 MiB library (workload/library-256.json) runs py_analyze with
+# PYC_ANALYZE_WORK_SCALE=<its scale>, chosen by the rig's gate-256; unset or empty, the line above stands.
+if os.environ.get("PYC_ANALYZE_WORK_SCALE"):
+    ANALYZE_WORK_SCALE = int(os.environ["PYC_ANALYZE_WORK_SCALE"])

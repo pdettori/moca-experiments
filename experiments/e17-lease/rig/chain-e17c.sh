@@ -51,11 +51,29 @@
 #     failed gate makes it a SKIP, "pycache-low cut by gate-pycache-low: <reason>" (exit 0, ruling R-n's form), so the
 #     chain goes on; a passed gate runs it. The baselines run with the gate's E15_START_ZERO=1 and 1800 s window
 #     (baseline-low); the N = 128 rungs as before.
-#   gate-256 (Task 10): the 256 MiB calibration gate; not built yet, it fails naming the task.
+#   gate-256 (Task 10; SPEC §13.5, R45; ruling R-x): the 256 MiB library's calibration. For each candidate scale
+#     (G256_SCALES, descending from config.py's ANALYZE_WORK_SCALE 32: 32 16 8 4 2 1) and each arm (sbx, ship-300),
+#     py_analyze runs 20 times in a 256 MiB guest: one probe session of 20 py_analyze calls (make_probe.py from the
+#     pycache corpus, as classprobe.sh), rung.sh ARM 1 pycache-d64 with E17B_GUEST_RAM_MB=256, E15_START_ZERO=1,
+#     E15_MAX_SESSIONS=1, no warm-up or spread, a 3600 s window (20 runs at the 136 s Exec timeout fit; the run ends
+#     with its session), E15_TAG=g256-s<scale> and E17C_GATE_LIBRARY = library-256.json with py_analyze the RSS
+#     wrapper at that scale (analysis/gate256.py: analyze.py as a python3 child, then peak_rss_kb from
+#     getrusage(RUSAGE_CHILDREN), exit 137 when OOM-killed). analysis/gate256.py write then picks the largest scale
+#     whose runs in both arms are all ok, none OOM-killed (exit or failed_rc 137), with peak RSS <= 120 MiB, and writes
+#     $E15_RUNS/pycache-d64/gate-256.json (per scale and arm: runs, OOM kills, peak RSS, pass and reason; the chosen
+#     scale, pass, reason, py_analyze_ms and moca_commit), pass or fail, and is DONE; a rung that fails is a rig error
+#     and fails the stage (no file). An old gate file is removed before anything else, the preflight included. Its
+#     rungs are calibration only: no lease analysis runs on them (an OOM-killed py_analyze is the measurement).
+#     The gate REPORTS the scale; it never edits library-256.json. The controller commits it there (a reviewed
+#     change: PYC_ANALYZE_WORK_SCALE=<scale>, replacing the placeholder 0), runs gen_corpora.sh --gate-256 (the
+#     pycache-256 corpus), sync.sh and E17C=1 setup.sh, then the ram256 stages.
 #   seal: the pycache N=128 rungs (three arms); pycache-low's baselines and N=128 rungs (sbx, ship-300); the squeeze
 #     baselines, the ship-300 climb at E17B_SQUEEZE_MEMMAX_MB 24576 (fixed by the chain, passed to ladder.sh as
 #     E15_SQUEEZE_MEMMAX_MB) and sbx at its stop N; ownwalk 10000 100000.
-#   ram256: pycache-d64 N=1 and the squeeze-256 point at 256 MiB guests (E17B_GUEST_RAM_MB=256), as E17b's.
+#   ram256: pycache-d64 N=1 and the squeeze-256 point at 256 MiB guests (E17B_GUEST_RAM_MB=256), as E17b's, on
+#     library-256.json and the pycache-256 corpus (points.sh under E17C=1). Each reads gate-256.json first
+#     (analysis/gate256.py state): none, an unreadable one, one from another moca_commit, one that did not pass, or a
+#     library-256.json whose scale is not the gate's chosen one (the placeholder 0 included) refuses the stage, naming why.
 #   opt: the default ladders (sbx, ship-300); ownwalk-500k, which needs a snapshot whose workspace drive is >= 4 GiB
 #     (moca #907's open half): the snapshot manifest records no workspace drive size yet, so it is SKIPPED with that
 #     reason (ruling R-n: exit 0, its .done and .log say skipped), and the chain goes on to verdict.
@@ -78,7 +96,8 @@ E15_PROG=chain-e17c.sh
 STAGE_KNOBS=(E15_RUNG E15_MAX_COMMITTED_MB E15_MAX_RUNS E15_LADDER_EXTRA E15_SPREAD_S E15_MEMAVAIL_FLOOR_MIB
   E15_END_SESSION_RATE E15_ATTACH_TIMEOUT_S E15_BASELINE_MAX_SEEDS E15_WS_DELTA_MB E15_CLASSPROBE E15_PROBE_CALLS
   E15_PROBE_SEED E15_MEMINFO E15_OS_RELEASE E15_SLICE_DIR E15_STATS_URL E15_PROC E15_DISK_DEV E15_DISK_PATH
-  E15_SQUEEZE_ACTIVE E15_SQUEEZE_RESTORED E15_SQUEEZE_ORIG_MAX E15_SQUEEZE_ORIG_HIGH E15_SQUEEZE_MAX E15_SQUEEZE_HIGH)
+  E15_SQUEEZE_ACTIVE E15_SQUEEZE_RESTORED E15_SQUEEZE_ORIG_MAX E15_SQUEEZE_ORIG_HIGH E15_SQUEEZE_MAX E15_SQUEEZE_HIGH
+  E17C_GATE_LIBRARY)
 TEST_HOOKS=(E17C_RUNG E17C_LADDER E17C_BASELINE E17C_SMOKE E17C_OWNWALK E17C_ANALYSIS)
 SQUEEZE_MB=24576 # SPEC §13.2: the squeeze's MemoryMax, as in E17b
 knobs_set=()
@@ -135,6 +154,15 @@ LOW_MIN_CALLS=3
 LOW_CLASSES="py_short py_import"
 LOW_ARMS="sbx ship-300"
 LOW_GATE=$E15_RUNS/pycache-low/gate-pycache-low.json # ruling R-q: verdict_e17c.py reads it here
+# gate-256 (Task 10; SPEC §13.5, R45): candidate scales (descending), arms, runs per arm and scale, the RSS bar
+G256=$E15_RUNS/pycache-d64/gate-256.json # ruling R-x
+G256_SCALES="32 16 8 4 2 1"
+G256_ARMS="sbx ship-300"
+G256_RUNS=20
+G256_RSS_MIB=120
+G256_WINDOW_S=3600
+LIB256=$E17_SRC/workload/library-256.json
+GATE256=$E17_SRC/analysis/gate256.py
 
 # name|needs|command[|note]: needs is "-" (allowed before the seal), "seal", "ram256" (seal, and E17C_RAM256=1) or
 # "opt" (seal, and E17C_OPTIONAL=1).
@@ -357,6 +385,8 @@ gate() {
     fi
     arm=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("arm", ""))' "$f" 2>/dev/null)
     case "$arm" in ship-*) ;; *) continue ;; esac
+    # gate-256's rungs are calibration only: an OOM-killed py_analyze is its measurement, not a lease failure
+    [ "$STAGE" != gate-256 ] || continue
     sbxd=$(dirname "$(dirname "$d")")/sbx/$(basename "$d")
     for a in warmcold_lease.py lease_ends.py freed_from_shmem.py vm_age_lease.py; do
       extra=()
@@ -536,7 +566,7 @@ PY
 
 # run_cmd KIND ARGS...: one stage's work (its output goes to the stage log).
 run_cmd() {
-  local kind=$1 n mm ok top out arm k
+  local kind=$1 n mm ok top out arm k s gin
   shift
   # E17B-R51: 8 MiB per workspace at the pycache family and the squeeze points (run_cmd runs in a subshell).
   case " $* " in *" pycache"* | *" squeeze"*) export E15_WS_DELTA_MB=8 ;; esac
@@ -548,6 +578,13 @@ run_cmd() {
       echo "$SKIP_MARK pycache-low cut by gate-pycache-low: ${out#cut } ($LOW_GATE; SPEC §13.5, R47)"
       return 0
     fi
+    ;;
+  esac
+  # Task 10 (ruling R-x): a 256 MiB stage runs only after gate-256 passed at this pin and its scale is committed.
+  case " $* " in *" pycache-d64 "* | *" squeeze-256 "*)
+    out=$(python3 "$GATE256" state --gate "$G256" --moca-commit "$E15_MOCA_PIN" --library "$LIB256") ||
+      die "${out:-$G256 could not be checked: re-run gate-256}"
+    echo "gate-256: passed, scale ${out#pass } ($G256), carried by $LIB256"
     ;;
   esac
   case "$kind" in
@@ -587,7 +624,32 @@ run_cmd() {
     out=$(gate_low_write) || die "gate-pycache-low: $out"
     echo "$GATE_MARK gate-pycache-low: $out ($LOW_GATE)"
     ;;
-  gate-256) die "gate-256: not built yet (Task 10)" ;;
+  gate-256) # the 256 MiB library's calibration (Task 10); G256 either way
+    rm -f "$G256" # before the preflight, so a refused one leaves no old gate behind
+    # shellcheck disable=SC2086 # G256_ARMS is a word list
+    preflight pycache-d64 $G256_ARMS
+    [ -f "$LIB256" ] || die "no $LIB256 (sync.sh stages experiments/e17-lease/workload/)"
+    gin=$E15_RUNS/pycache-d64/gate-256-inputs
+    rm -rf -- "${gin:?}"
+    mkdir -p "$gin"
+    # one session of G256_RUNS py_analyze calls, drawn from the pycache corpus as classprobe.sh draws a class probe
+    python3 "$E15_SRC/analysis/make_probe.py" "$E15_CORPORA/pycache/corpus.jsonl" "$LIB256" "$gin/probe" \
+      --per-class "$G256_RUNS" --seed 1 --cap-ms 120000 || die "make_probe.py failed: no gate"
+    for s in $G256_SCALES; do
+      python3 "$GATE256" library --base "$LIB256" --scale "$s" --out "$gin/library-s$s.json" ||
+        die "gate256.py library --scale $s failed: no gate"
+      for arm in $G256_ARMS; do
+        echo "gate-256: $arm at scale $s ($G256_RUNS py_analyze runs in a 256 MiB guest, tag g256-s$s)"
+        E17B_GUEST_RAM_MB=256 E17C_GATE_LIBRARY="$gin/library-s$s.json" E15_CORPUS_OVERRIDE="$gin/probe/py_analyze/corpus.jsonl" \
+          E15_START_ZERO=1 E15_MAX_SESSIONS=1 E15_WARMUP_S=0 E15_SPREAD_S=0 E15_WINDOW_S=$G256_WINDOW_S E15_TAG=g256-s$s \
+          bash "$RUNG" "$arm" 1 pycache-d64 || die "rung.sh $arm 1 pycache-d64 (scale $s) failed: a rig error, not a fail; no gate"
+      done
+    done
+    out=$(python3 "$GATE256" write --runs "$E15_RUNS/pycache-d64" --out "$G256" --moca-commit "$E15_MOCA_PIN" \
+      --scales "$G256_SCALES" --arms "$G256_ARMS" --runs-per "$G256_RUNS" --rss-max-mib "$G256_RSS_MIB" --library "$LIB256" 2>&1) ||
+      die "gate-256: $out"
+    echo "$GATE_MARK gate-256: $out ($G256)"
+    ;;
   baseline)
     preflight "$1" "$2"
     bash "$BASELINE" "$1" "$2"

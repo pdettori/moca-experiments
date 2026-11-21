@@ -2321,7 +2321,8 @@ if [ -f "$E17D/rig/gen_corpora.sh" ]; then
   rm -rf "$GC"
   # gc: the E17b corpora (E17B=1); gcu: E17B unset (the sealed E17a command); gc0: E17_TMPFS_SHARE=0 explicitly
   gc() { E17B=1 E17_CORPORA="$GC" E17_GAPS="$E17D/extract/testdata/gaps-20.jsonl" bash "$E17D/rig/gen_corpora.sh" "$@" >"$TMP/gc.out" 2>&1; echo $?; }
-  gcu() { env -u E17B E17_CORPORA="$GC" E17_GAPS="$E17D/extract/testdata/gaps-20.jsonl" bash "$E17D/rig/gen_corpora.sh" >"$TMP/gc.out" 2>&1; echo $?; }
+  gcu() { env -u E17B E17_CORPORA="$GC" E17_GAPS="$E17D/extract/testdata/gaps-20.jsonl" bash "$E17D/rig/gen_corpora.sh" "$@" >"$TMP/gc.out" 2>&1; echo $?; }
+  E17C_FIXPIN_GC=2222222222222222222222222222222222222222
   gc0() { env -u E17B E17_TMPFS_SHARE=0 E17_CORPORA="$GC" E17_GAPS="$E17D/extract/testdata/gaps-20.jsonl" bash "$E17D/rig/gen_corpora.sh" >"$TMP/gc.out" 2>&1; echo $?; }
   gcr() { python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print(eval(sys.argv[2], {"r": r}))' "$GC/$1/corpus-report.json" "$2"; }
   # gcc: E17C=1 alone (PLAN-E17C Task 4: E17C=1 implies E17B=1, so the E17b corpora)
@@ -2335,6 +2336,33 @@ for l in open(sys.argv[1]):
     for c in json.loads(l)["calls"]: s.add("%s=%d/%d" % (c["class"], c["dur_ms"], c["work_ms"]))
 print(" ".join(sorted(s)))' "$GC/$1/corpus.jsonl"
   }
+  # E17c Task 10 (SPEC §13.5, R45): --gate-256 GATE.json (a passing gate-256.json) also writes pycache-256, the 256 MiB
+  # points' corpus: pycache's arguments with py_analyze at the gate's measured ms, so it has its own corpus hash
+  gcg() { env -u E17B E17C=1 E17_CORPORA="$GC" E17_GAPS="$E17D/extract/testdata/gaps-20.jsonl" bash "$E17D/rig/gen_corpora.sh" "$@" >"$TMP/gc.out" 2>&1; echo $?; }
+  printf '{"stage": "gate-256", "pass": true, "chosen_scale": 8, "py_analyze_ms": 4321.5, "moca_commit": "%s"}\n' "$E17C_FIXPIN_GC" >"$TMP/g256.json"
+  rm -rf "$GC"
+  check "E17c gen_corpora: E17C=1 without --gate-256 writes no pycache-256, and says why" \
+    "$(gcg)/$([ -e "$GC/pycache-256" ] && echo there || echo none)/$(grep -c 'no pycache-256 corpus.*--gate-256' "$TMP/gc.out")" "0/none/1"
+  cp "$GC/pycache/corpus.jsonl" "$TMP/gc-p.jsonl"
+  cp "$GC/pycache-low/corpus.jsonl" "$TMP/gc-pl.jsonl"
+  check "E17c gen_corpora --gate-256: also pycache-256, pycache's arguments (duty 0.095, 400 sessions, seed 1, tmpfs share 0.5)" \
+    "$(gcg --gate-256 "$TMP/g256.json")/$(gcr pycache-256 '(r["duty_target"], r["sessions"], r["seed"], r["min_turns"], r["tmpfs_share"])')" "0/(0.095, 400, 1, 4, 0.5)"
+  check "E17c gen_corpora --gate-256: py_analyze at the gate's ms (rounded), the other classes as pycache's; the report names the input" \
+    "$(gcd pycache-256)/$(gcr pycache-256 'r["durations_from"]["file"]')" \
+    "py_analyze=4322/4322 py_grep=2200/2200 py_import=2000/2000 py_shmem=100/100 py_short=300/300 py_test=60000/60000/durations-256.json"
+  check "E17c gen_corpora --gate-256: its own corpus hash; pycache and pycache-low byte-identical to the run without it" \
+    "$([ "$(gcr pycache-256 'r["corpus_sha256"]')" != "$(gcr pycache 'r["corpus_sha256"]')" ] && echo own)/$([ "$(gcr pycache-256 'r["corpus_sha256"]')" = "$(sha256sum "$GC/pycache-256/corpus.jsonl" | cut -d' ' -f1)" ] && echo match)/$(cmp -s "$TMP/gc-p.jsonl" "$GC/pycache/corpus.jsonl" && cmp -s "$TMP/gc-pl.jsonl" "$GC/pycache-low/corpus.jsonl" && echo same)" \
+    "own/match/same"
+  printf '{"py_analyze": 18250.6, "py_test": 57100, "py_import": 1980.6, "py_grep": 2150, "py_short": 412}\n' >"$TMP/cal256.json"
+  check "E17c gen_corpora --gate-256 with --durations-from: the measured durations, py_analyze replaced by the gate's" \
+    "$(gcg --durations-from "$TMP/cal256.json" --gate-256 "$TMP/g256.json")/$(gcd pycache-256)/$(gcd pycache | cut -d' ' -f1)" \
+    "0/py_analyze=4322/4322 py_grep=2150/2150 py_import=1981/1981 py_shmem=100/100 py_short=412/412 py_test=57100/57100/py_analyze=18251/18251"
+  cp "$GC/pycache-256/corpus.jsonl" "$TMP/gc-256.jsonl"
+  printf '{"stage": "gate-256", "pass": false, "chosen_scale": null, "py_analyze_ms": null, "reason": "scale 1: OOM"}\n' >"$TMP/g256-fail.json"
+  check "E17c gen_corpora --gate-256: a gate that did not pass is refused (exit 1, naming it), pycache-256 left as it was" \
+    "$(gcg --gate-256 "$TMP/g256-fail.json")/$(grep -c 'g256-fail.json did not pass' "$TMP/gc.out")/$(cmp -s "$TMP/gc-256.jsonl" "$GC/pycache-256/corpus.jsonl" && echo kept)" "1/1/kept"
+  check "E17c gen_corpora --gate-256: refused with E17C unset (E17B=1 or neither), and without a file" \
+    "$(gc --gate-256 "$TMP/g256.json")/$(gcu --gate-256 "$TMP/g256.json")/$(gcg --gate-256 "$TMP/nope.json")" "2/2/2"
   check "E17 gen_corpora: placeholders without --durations-from, and it says so" \
     "$(gc)/$(gcd pycache)/$(grep -c 'placeholder durations' "$TMP/gc.out")" "0/py_analyze=15000/15000 py_grep=2200/2200 py_import=2000/2000 py_shmem=100/100 py_short=300/300 py_test=60000/60000/1"
   check "E17b gen_corpora: under E17B=1 E17_TMPFS_SHARE defaults to 0.5 (200 of 400 sessions flagged tmpfs, both corpora)" \
@@ -3884,6 +3912,64 @@ test_ship_nd_arm_known_under_e17c_only
 test_ship_nd_worker_env
 test_ship_nd_is_a_lease_arm
 test_ship_nd_rung_checks_cache_drop_banner
+
+# --- E17c Task 10 (SPEC §13.5, R45): the 256 MiB points' library and corpus; gate-256's rungs ----------------------
+c256rung() { # ARM [VAR=val ...]: crung at pycache-d64 (the e17c 256 MiB leaf and the 256 inputs in the harness root)
+  mkdir -p "$RS/snapshots/e17c-${E17C_FIXPIN:0:8}-256" "$RS/corpora/pycache-256" "$RS/template-pycache-d64"
+  printf '{"hash": "hc256", "guest_ram_mb": 256, "features": ["lease-v1", "balloon-fpr-v1"]}\n' >"$RS/snapshots/e17c-${E17C_FIXPIN:0:8}-256/manifest.json"
+  printf '{"session":"s","calls":[]}\n' >"$RS/corpora/pycache-256/corpus.jsonl"
+  printf '{"table": {"mean_span_min": 30}}\n' >"$RS/corpora/pycache-256/corpus-report.json"
+  cp "$RIG/../../e17-lease/workload/library-256.json" "$RS/src/e17/workload/library-256.json"
+  head -c 4096 /dev/zero >"$RS/template-pycache-d64/workspace.img"
+  SRUNG_POINT=pycache-d64 crung "$@"
+}
+d64params() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' "$RS/runs/pycache-d64/$1/N1/params.json" "$2" 2>&1; }
+test_e17c_256_library() {
+  local f='e15_point P && echo "$E15_P_CORPUS|${E15_P_LIBRARY#"$E15_ROOT"/}"' p out=""
+  check "E17c 256: under E17C=1 pycache-d64 and squeeze-256 replay library-256.json and their own corpus, pycache-256" \
+    "$(t17n fresh-metal "${f/P/pycache-d64}")/$(t17n fresh-metal "${f/P/squeeze-256}")" \
+    "pycache-256|src/e17/workload/library-256.json/pycache-256|src/e17/workload/library-256.json"
+  for p in pycache pycache-low pycache-d768 squeeze; do out+="$p=$(t17n fresh-metal "${f/P/$p}") "; done
+  check "E17c 256: the 1024 MiB points keep the E17 library and their corpora under E17C=1" "$out" \
+    "pycache=pycache|src/e17/workload/library.json pycache-low=pycache-low|src/e17/workload/library.json pycache-d768=pycache|src/e17/workload/library.json squeeze=pycache|src/e17/workload/library.json "
+  check "E17c 256: with E17C unset pycache-d64 and squeeze-256 resolve as before (E17B=1; pycache-d64 with E17B unset too)" \
+    "$(t17m fresh-metal 1 "${f/P/pycache-d64}")/$(t17m fresh-metal 1 "${f/P/squeeze-256}")/$(t17m fresh-metal unset "${f/P/pycache-d64}")" \
+    "pycache|src/e17/workload/library.json/pycache|src/e17/workload/library.json/pycache|src/e17/workload/library.json"
+  check "E17c 256: pycache-d64's point signature under E17C=1 is not E17b's (its library and corpus are in the settings)" \
+    "$([ "$(t17n fresh-metal 'e15_point_sig pycache-d64')" != "$(t17m fresh-metal 1 'e15_point_sig pycache-d64')" ] && echo own)" "own"
+  c256rung sbx E17B_GUEST_RAM_MB=256
+  check "E17c 256: a pycache-d64 rung at 256 MiB runs with library-256.json (the driver's --library)" \
+    "$?/$(grep -c -- "--library $RS/src/e17/workload/library-256.json " "$SARGS")/$(grep -c -- '--record-stdout py_shmem$' "$SARGS")" "0/1/1"
+  check "E17c 256: params.json records which library the rung ran: its path, name and sha256" \
+    "$(d64params sbx library)/$(d64params sbx library_name)/$([ "$(d64params sbx library_sha256)" = "$(sha_f "$RS/src/e17/workload/library-256.json")" ] && echo sha)/$([ "$(d64params sbx library_sha256)" != "$(sha_f "$RS/src/e17/workload/library.json")" ] && echo not-1024)" \
+    "$RS/src/e17/workload/library-256.json/library-256.json/sha/not-1024"
+  c256rung sbx
+  check "E17c 256: under E17C=1 pycache-d64 is refused at 1024 MiB (exit 2, nothing started): its library is the 256 MiB one" \
+    "$?/$(grep -c . "$SSYS")/$(grep -c 'POINT pycache-d64 runs at E17B_GUEST_RAM_MB=256 under E17C=1' "$TMP/ship-rung.out")" "2/0/1"
+  SRUNG_POINT=pycache-d64 srung sbx
+  check "E17c 256: with E17C unset pycache-d64 runs at 1024 MiB on library.json as before, and params has no library_name" \
+    "$?/$(grep -c -- "--library $RS/src/e17/workload/library.json " "$SARGS")/$(d64params sbx library_name | grep -c KeyError)" "0/1/1"
+  # gate-256's rungs: E17C_GATE_LIBRARY (the chain's only), with a probe corpus, at pycache-d64
+  mkdir -p "$RS/probe"
+  printf '{"session":"probe-py_analyze","calls":[]}\n' >"$RS/probe/corpus.jsonl"
+  printf '{"table": {"mean_span_min": 6}}\n' >"$RS/probe/corpus-report.json"
+  echo '{"classes": {}}' >"$RS/gate-lib.json"
+  c256rung ship-300 E17B_GUEST_RAM_MB=256 STUB_BANNER=drop30 E17C_GATE_LIBRARY="$RS/gate-lib.json" E15_CORPUS_OVERRIDE="$RS/probe/corpus.jsonl"
+  check "E17c gate rung: E17C_GATE_LIBRARY replaces the library and records py_analyze's stdout (the peak RSS line)" \
+    "$?/$(grep -c -- "--corpus $RS/probe/corpus.jsonl --library $RS/gate-lib.json " "$SARGS")/$(grep -c -- '--record-stdout py_shmem,py_analyze$' "$SARGS")/$(d64params ship-300 library_name)" "0/1/1/gate-lib.json"
+  local why
+  for why in "point:SRUNG_POINT=pycache" "override:E15_CORPUS_OVERRIDE=" "e17c:E17C="; do
+    case "$why" in
+    point*) SRUNG_POINT=pycache crung sbx E17C_GATE_LIBRARY="$RS/gate-lib.json" E15_CORPUS_OVERRIDE="$RS/probe/corpus.jsonl" ;;
+    override*) c256rung sbx E17B_GUEST_RAM_MB=256 E17C_GATE_LIBRARY="$RS/gate-lib.json" ;;
+    e17c*) SRUNG_POINT=pycache-d64 srung sbx E17B_GUEST_RAM_MB=256 E17C_GATE_LIBRARY="$RS/gate-lib.json" E15_CORPUS_OVERRIDE="$RS/probe/corpus.jsonl" ;;
+    esac
+    printf '%s=%s:%s:%s ' "${why%%:*}" "$?" "$(grep -c . "$SSYS")" "$(grep -c 'E17C_GATE_LIBRARY is gate-256' "$TMP/ship-rung.out")"
+  done >"$TMP/gl.out"
+  check "E17c gate rung: E17C_GATE_LIBRARY is refused (exit 2, nothing started) at another point, without a probe corpus, or with E17C unset" \
+    "$(cat "$TMP/gl.out")" "point=2:0:1 override=2:0:1 e17c=2:0:1 "
+}
+test_e17c_256_library
 check "ship-300-nd: record.py judges its footprint drift as the other lease arms (RESIDENT)" \
   "$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import record; print("ship-300-nd" in record.RESIDENT)' "$RIG/../analysis" 2>&1)" "True"
 rm -rf "$RS" "$RSS"
