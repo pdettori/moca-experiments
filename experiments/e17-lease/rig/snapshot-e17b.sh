@@ -12,11 +12,13 @@
 # copy ($E15_ROOT/src/e17/rig). setup.sh under E17B=1 never builds a snapshot (rulings E17B-R3, R32: it skips
 # that step with a log line); this is the builder it names. It reuses setup.sh step 7's recipe for fresh-metal: the pinned guest kernel,
 # moca's build-rootfs.sh over the pinned sandbox image + E15's pytest wheels, the guest git identity,
-# then moca's build-snapshot.sh from $E15_MOCA (the E17b checkout, at E17B_MOCA_PIN) with that
+# then moca's build-snapshot.sh from $E15_MOCA (the E17b checkout moca-e17b at E17B_MOCA_PIN; under E17C=1 the
+# E17c checkout moca-e17c at E17C_MOCA_PIN) with that
 # checkout's own guest agent (--agent $E15_MOCA/remote-worker). Like E15 it bakes no egress CA.
 #
 # Rig safety (2026-11-09 incident): the leaf is a NEW directory under /srv/e15/snapshots and nothing
-# else is ever deleted. The name must be e17b-<first 8 hex of the pin>-<1024|256> with the RAM equal to
+# else is ever deleted. The name must be e17b-<first 8 hex of the pin>-<1024|256> (under E17C=1:
+# e17c-<first 8 hex of E17C_MOCA_PIN>-<1024|256>) with the RAM equal to
 # --ram-mb; never e15, never an existing leaf, never a path with / or .., and the snapshots dir must be
 # the real directory (no symlink escape). Every rm -rf goes through safe_rm_rf, which re-checks.
 #

@@ -39,10 +39,12 @@
 #     at most 12 seeds in all.
 #   gate-pycache-low (Task 9) and gate-256 (Task 10): the calibration gates; not built yet, they fail naming the task.
 #   seal: the pycache N=128 rungs (three arms); pycache-low's baselines and N=128 rungs (sbx, ship-300); the squeeze
-#     baselines, the ship-300 climb under E15_SQUEEZE_MEMMAX_MB=24576 and sbx at its stop N; ownwalk 10000 100000.
+#     baselines, the ship-300 climb at E17B_SQUEEZE_MEMMAX_MB 24576 (fixed by the chain, passed to ladder.sh as
+#     E15_SQUEEZE_MEMMAX_MB) and sbx at its stop N; ownwalk 10000 100000.
 #   ram256: pycache-d64 N=1 and the squeeze-256 point at 256 MiB guests (E17B_GUEST_RAM_MB=256), as E17b's.
 #   opt: the default ladders (sbx, ship-300); ownwalk-500k, which needs a snapshot whose workspace drive is >= 4 GiB
-#     (moca #907's open half): the snapshot manifest records no workspace drive size yet, so it is refused, naming why.
+#     (moca #907's open half): the snapshot manifest records no workspace drive size yet, so it is SKIPPED with that
+#     reason (ruling R-n: exit 0, its .done and .log say skipped), and the chain goes on to verdict.
 #   verdict (last, seal): analysis/verdict_e17c.py over $E15_RUNS at the pin to $L/verdict.json (Task 7 writes it; a
 #     missing script fails the stage, naming it).
 #
@@ -110,6 +112,7 @@ ANALYSIS=${E17C_ANALYSIS:-$E17_SRC/analysis}
 L=$E15_ROOT/e17c
 CAL_SEEDS=4      # SPEC §13.5 (R52): at least 4 seeds per arm at N = 1
 CAL_MAX_SEEDS=12 # baseline.sh's own cap
+SKIP_MARK="E17C-STAGE-SKIPPED: skipped:" # a stage's log line that turns its success into a SKIP (ownwalk-500k, R-n)
 
 # name|needs|command[|note]: needs is "-" (allowed before the seal), "seal", "ram256" (seal, and E17C_RAM256=1) or
 # "opt" (seal, and E17C_OPTIONAL=1).
@@ -133,7 +136,7 @@ STAGES=(
   # squeeze: its baselines, the ship-300 climb at 24576 MiB, sbx at its stop N
   "base-squeeze-sbx|seal|baseline squeeze sbx"
   "base-squeeze-ship-300|seal|baseline squeeze ship-300"
-  "squeeze-ship-300|seal|squeeze-ladder squeeze ship-300|E15_SQUEEZE_MEMMAX_MB 24576 (SPEC §13.2, as in E17b); budget = MemoryMax - 8192 (E17B-R20)"
+  "squeeze-ship-300|seal|squeeze-ladder squeeze ship-300|E17B_SQUEEZE_MEMMAX_MB 24576, fixed by the chain (SPEC §13.2, as in E17b); budget = MemoryMax - 8192 (E17B-R20)"
   "squeeze-sbx|seal|squeeze-rung squeeze sbx"
   # the ownership walk (Q7), 10 000 and 100 000 files
   "ownwalk|seal|ownwalk 10000 100000|normalise_us per size from the phase line, beside A - B"
@@ -147,7 +150,7 @@ STAGES=(
   # optional: the default ladder pair (SPEC §13.2), and the 500 000-file walk
   "ladder-default-sbx|opt|ladder default sbx 56"
   "ladder-default-ship-300|opt|ladder default ship-300 80"
-  "ownwalk-500k|opt|ownwalk-big 500000|needs a snapshot whose workspace drive is >= 4 GiB (moca #907's open half); refused until the manifest records one"
+  "ownwalk-500k|opt|ownwalk-big 500000|needs a snapshot whose workspace drive is >= 4 GiB (moca #907's open half); skipped until the manifest records one"
   # the criteria, computed by code from every rung (Task 7): $L/verdict.json
   "verdict|seal|verdict|analysis/verdict_e17c.py over the runs (Task 7)"
 )
@@ -398,7 +401,7 @@ latency() {
 # sq_point POINT: the squeeze point's MemoryMax (sq_mb, from the variable sq_var) and guest RAM (sq_ram; empty: 1024).
 sq_point() {
   case "$1" in
-  squeeze) sq_var=E15_SQUEEZE_MEMMAX_MB sq_mb=$SQUEEZE_MB sq_ram="" ;;
+  squeeze) sq_var=E17B_SQUEEZE_MEMMAX_MB sq_mb=$SQUEEZE_MB sq_ram="" ;;
   squeeze-256) sq_var=E17B_SQUEEZE256_MEMMAX_MB sq_mb=$SQUEEZE256_MB sq_ram=256 ;;
   *) die "sq_point: $1 is not a squeeze point" ;;
   esac
@@ -424,7 +427,7 @@ PY
 
 # run_cmd KIND ARGS...: one stage's work (its output goes to the stage log).
 run_cmd() {
-  local kind=$1 n mm ok top
+  local kind=$1 n mm ok top out
   shift
   # E17B-R51: 8 MiB per workspace at the pycache family and the squeeze points (run_cmd runs in a subshell).
   case " $* " in *" pycache"* | *" squeeze"*) export E15_WS_DELTA_MB=8 ;; esac
@@ -437,7 +440,11 @@ run_cmd() {
     preflight "$1" "$2"
     E15_START_ZERO=1 bash "$BASELINE" "$1" "$2" || die "baseline.sh $1 $2 failed"
     while :; do
-      read -r ok top <<<"$(cal_seeds "$1" "$2")" || die "the seeds under $E15_RUNS/$1/$2 are unreadable"
+      # review fix 1: an unreadable record.json must fail the stage, never pass as "enough seeds"
+      out=$(cal_seeds "$1" "$2") || die "the seeds under $E15_RUNS/$1/$2 are unreadable (a corrupt N1-s*/record.json?): no calibration"
+      read -r ok top <<<"$out"
+      [[ ${ok:-} =~ ^[0-9]+$ && ${top:-} =~ ^[0-9]+$ ]] ||
+        die "the seeds under $E15_RUNS/$1/$2 are unreadable (seed count '${out}'): no calibration"
       [ "$ok" -lt "$CAL_SEEDS" ] || break
       [ "$top" -lt "$CAL_MAX_SEEDS" ] ||
         die "$CAL_MAX_SEEDS seeds gave $ok evaluable N=1 runs at $1 $2 (need $CAL_SEEDS, SPEC §13.5): no calibration"
@@ -497,8 +504,9 @@ run_cmd() {
     ;;
   ownwalk-big) # FILES: the walk that needs a workspace drive >= 4 GiB (moca #907's open half)
     # The snapshot manifest (build-snapshot.sh) records no workspace drive size today, so no snapshot can show it has
-    # one: refused unconditionally until moca #907 lands and its manifest field is checked here.
-    die "ownwalk $1 refused: it needs a snapshot whose workspace drive is >= 4 GiB (moca #907's open half), and the snapshot manifest $E15_SNAPDIR/$(worker_snapimg)/manifest.json records no workspace drive size; deferred again (SPEC §13.1)"
+    # one: never run until moca #907 lands and its manifest field is checked here. Ruling R-n: a SKIP with its reason
+    # (exit 0, the main loop reads the SKIPPED line), so a resume goes on to verdict.
+    echo "$SKIP_MARK ownwalk $1 needs a snapshot whose workspace drive is >= 4 GiB (moca #907's open half), and the snapshot manifest $E15_SNAPDIR/$(worker_snapimg)/manifest.json records no workspace drive size; deferred again (SPEC §13.1)"
     ;;
   verdict) # the criteria from every rung at the pin (Task 7)
     [ -f "$ANALYSIS/verdict_e17c.py" ] || die "no $ANALYSIS/verdict_e17c.py (Task 7 writes it): no verdict"
@@ -540,6 +548,13 @@ for i in $(seq "$first" "$last"); do
     echo "E17C $STAGE FAILED its analysis (above); resume with --from $STAGE after the user decides"
     rc=1
     break
+  fi
+  why=$(grep -m1 "^$SKIP_MARK" "$L/$STAGE.log")
+  if [ -n "$why" ]; then # the stage ran nothing and said why: SKIP, recorded as such in its .done
+    why=${why#"$SKIP_MARK" }
+    echo "$(date -u +%FT%TZ) skipped: $why" >"$L/$STAGE.done"
+    echo "E17C $STAGE SKIP ($why)"
+    continue
   fi
   [ "$(s_needs "$st")" = - ] || latency "$L/$STAGE.start" "$L/$STAGE.latency"
   date -u +%FT%TZ >"$L/$STAGE.done"

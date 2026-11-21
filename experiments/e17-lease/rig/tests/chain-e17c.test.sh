@@ -235,6 +235,14 @@ test_bringup_unsealed() {
     "1/baseline pycache sbx;rung sbx 1 pycache;rung sbx 1 pycache;rung sbx 1 pycache;rung sbx 1 pycache;rung sbx 1 pycache;rung sbx 1 pycache;rung sbx 1 pycache;rung sbx 1 pycache;rung sbx 1 pycache;"
   check "cal: after 12 seeds without 4 evaluable ones the stage fails, naming it" "$(grep -c '12 seeds gave 3 evaluable' "$T/e17c/cal-pycache-sbx.log")" "1"
   reset
+  # review fix 1: a corrupt record.json from before the stage (a --from resume) makes the seed count unreadable: the stage
+  # fails, never "done" with fewer than 4 seeds (5 good seeds here: without the corrupt one it would not top up)
+  mkdir -p "$T/runs/pycache/sbx/N1-s9"
+  printf '{"reason": ' >"$T/runs/pycache/sbx/N1-s9/record.json"
+  check "cal: a corrupt N1-s* record.json fails the stage (unreadable seeds), no .done, no top-up rung" \
+    "$(chain STUB_SEEDS=5 -- --from cal-pycache-sbx --to cal-pycache-sbx)/$(grep -c 'seeds under .*pycache/sbx are unreadable' "$T/e17c/cal-pycache-sbx.log")/$([ -f "$T/e17c/cal-pycache-sbx.done" ] && echo "done" || echo open)/$(calls)" \
+    "1/1/open/baseline pycache sbx;"
+  reset
   check "smoke: the commit preflight covers E17c's three arms (another commit's ship-300-nd rung refuses the stage)" \
     "$(mkdir -p "$T/runs/pycache/ship-300-nd/N1-old"; printf '{"arm": "ship-300-nd", "moca_commit": "c13d55649777e69ec7649d6fa8c08f4acb1f4e2e"}\n' >"$T/runs/pycache/ship-300-nd/N1-old/params.json"; chain -- --from smoke --to smoke)/$(grep -c 'is not from E17C_MOCA_PIN' "$T/e17c/smoke.log")/$(grep -c . "$CLOG")" "1/1/0"
   reset
@@ -261,8 +269,13 @@ test_sealed_stages() {
     "0/2/0/ladder default sbx 56;ladder default ship-300 80;"
   mkdir -p "$T/snapshots/e17c-${PIN:0:8}-1024"
   printf '{"hash": "h", "guest_ram_mb": 1024, "features": ["lease-v1", "balloon-fpr-v1"]}\n' >"$T/snapshots/e17c-${PIN:0:8}-1024/manifest.json"
-  check "ownwalk-500k: refused, naming moca #907 and the 4 GiB workspace drive, nothing run" \
-    "$(chain E17C_OPTIONAL=1 -- --from ownwalk-500k --to ownwalk-500k)/$(grep -c 'moca #907' "$T/e17c/ownwalk-500k.log")/$(grep -c '4 GiB' "$T/e17c/ownwalk-500k.log")/$(grep -c . "$CLOG")" "1/1/1/0"
+  # ruling R-n: a SKIP with its reason (exit 0), so a resume goes on to verdict; its .done and .log say skipped
+  check "ownwalk-500k: SKIPPED with its reason (moca #907, the 4 GiB workspace drive), exit 0, nothing run" \
+    "$(chain E17C_OPTIONAL=1 -- --from ownwalk-500k --to ownwalk-500k)/$(grep -c '^E17C ownwalk-500k SKIP (.*moca #907.*)' "$TMP/c.out")/$(grep -c 'skipped: .*4 GiB.*moca #907.*no workspace drive size' "$T/e17c/ownwalk-500k.log")/$(grep -c 'skipped: .*moca #907' "$T/e17c/ownwalk-500k.done")/$(grep -c . "$CLOG")" "0/1/1/1/0"
+  printf '%s\n' "$VERDICT_STUB" >"$TMP/an/verdict_e17c.py"
+  check "ownwalk-500k: a plain resume with E17C_OPTIONAL=1 goes through it to verdict" \
+    "$(rm -f "$T/e17c/ownwalk-500k.done"; chain E17C_OPTIONAL=1 -- --from ownwalk-500k)/$(grep -c 'E17C ownwalk-500k SKIP' "$TMP/c.out")/$(grep -c 'E17C verdict DONE' "$TMP/c.out")" "0/1/1"
+  rm -f "$TMP/an/verdict_e17c.py" "$T/e17c/verdict.json"
   check "verdict: no analysis/verdict_e17c.py yet -> a clear failure naming it (Task 7), not a crash" \
     "$(chain -- --from verdict)/$(grep -c 'no .*verdict_e17c.py (Task 7' "$T/e17c/verdict.log")/$([ -f "$T/e17c/verdict.done" ] && echo "done" || echo open)" "1/1/open"
   printf '%s\n' "$VERDICT_STUB" >"$TMP/an/verdict_e17c.py"

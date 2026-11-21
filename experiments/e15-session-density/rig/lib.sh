@@ -1068,7 +1068,7 @@ e17b_require_snapshot() {
   leaf=$(worker_snapimg) || exit 1
   ram=$(e17b_guest_ram_mb) || exit 1
   [ -f "$E15_SNAPDIR/$leaf/manifest.json" ] ||
-    die "no E17b snapshot $E15_SNAPDIR/$leaf (manifest.json): build it with experiments/e17-lease/rig/snapshot-e17b.sh --ram-mb $ram --leaf $leaf"
+    die "no E17b snapshot $E15_SNAPDIR/$leaf (manifest.json): build it with $([ "${E17C:-}" = 1 ] && echo E17C=1 || echo E17B=1) experiments/e17-lease/rig/snapshot-e17b.sh --ram-mb $ram --leaf $leaf"
 }
 # e17b_token_iss: the token issuer the relay's SH_SANDBOX_TOKEN_ISSUER and the driver's --token-iss share.
 e17b_token_iss() { echo e17b-driver; }
