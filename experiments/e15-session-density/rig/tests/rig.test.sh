@@ -3206,6 +3206,9 @@ systemd-run)
     case "\${STUB_BANNER:-on}" in
     off) b='2026/11/15 10:00:00 microvm-worker: relay=127.0.0.1:9643 sandbox_id=e15 tls=false vmm=firecracker D=0 guest=1024MiB budget=385024MiB slots=1792 standby_headroom=off mem_floor=1536MiB workspace_idle=24h0m0s lease=off labels=map[]' ;;
     none) b='' ;;
+    # a worker with moca #974 (E17c): the lease_cache_drop field after lease_reclaim_free, 30s (the default) or off (0)
+    drop30) b='2026/11/15 10:00:00 microvm-worker: relay=127.0.0.1:9643 sandbox_id=e15 tls=false vmm=firecracker D=0 guest=1024MiB budget=385024MiB slots=1792 standby_headroom=off mem_floor=1536MiB workspace_idle=24h0m0s lease=on lease_idle=5m0s/1h0m0s lease_max=8h0m0s/8h0m0s lease_grace=30s lease_start=192MiB lease_headroom=1.25 lease_pagecache=256MiB lease_reclaim_free=2048MiB lease_cache_drop=30s labels=map[]' ;;
+    dropoff) b='2026/11/15 10:00:00 microvm-worker: relay=127.0.0.1:9643 sandbox_id=e15 tls=false vmm=firecracker D=0 guest=1024MiB budget=385024MiB slots=1792 standby_headroom=off mem_floor=1536MiB workspace_idle=24h0m0s lease=on lease_idle=5m0s/1h0m0s lease_max=8h0m0s/8h0m0s lease_grace=30s lease_start=192MiB lease_headroom=1.25 lease_pagecache=256MiB lease_reclaim_free=2048MiB lease_cache_drop=off labels=map[]' ;;
     esac
     for a; do case "\$a" in StandardOutput=file:*)
       { [ -z "\$b" ] || printf '%s\n' "\$b"; printf '2026/11/15 10:00:01 microvm-worker: attached, serving execs\n'; } >"\${a#StandardOutput=file:}" ;; esac; done ;;
@@ -3725,6 +3728,98 @@ test_pr34_sealed_driver_rebuild_guard() {
 test_pr34_sealed_rung_has_no_worker_bin_errors
 test_pr34_e17a_arms_refused_under_e17b
 test_pr34_sealed_driver_rebuild_guard
+
+# --- E17c Task 2: ship-300-nd, the shipped lease without the idle page-cache drop (E17C=1 only) ---------------------
+printf 'E17B_MOCA_PIN=%s\nE17C_MOCA_PIN=%s\n' "$E17B_FIXPIN" "$E17C_FIXPIN" >"$TMP/e17c-rung-pins.sh"
+t17n() { t17m "$1" 1 "$2" E17C=1 E15_TEST_PINS="$TMP/e17c-rung-pins.sh" "${@:3}"; } # PROFILE EXPR [VAR=val ...]: E17C=1
+test_ship_nd_arm_known_under_e17c_only() {
+  local isarm='e15_is_arm ship-300-nd && echo yes || echo no'
+  check "ship-300-nd: known on fresh-metal under E17C=1; not under E17B=1 alone, E17B unset, or on aws-prelim" \
+    "$(t17n fresh-metal "$isarm")/$(t17m fresh-metal 1 "$isarm")/$(t17m fresh-metal unset "$isarm")/$(t17n aws-prelim "$isarm")" "yes/no/no/no"
+  check "ship-300-nd: E15_ARMS under E17C=1 appends it after the E17b ship arms" \
+    "$(t17n fresh-metal 'echo ${E15_ARMS[*]}')" "sbx resident-inf resident-300 control lease-30 lease-120 ship-30 ship-120 ship-300 ship-300-nd"
+  check "ship-300-nd: the points the ship arms run (default, smoke, pycache*) list it under E17C=1; squeeze does not" \
+    "$(t17n fresh-metal 'for p in default smoke pycache pycache-low pycache-d64 pycache-d768 squeeze squeeze-256 lowduty mem512; do e15_point $p; case " $E15_P_ARMS " in *" ship-300-nd "*) printf "%s " $p ;; esac; done')" \
+    "default smoke pycache pycache-low pycache-d64 pycache-d768 "
+  check "ship-300-nd: no point lists it under E17B=1 alone" \
+    "$(t17m fresh-metal 1 'for p in default smoke pycache pycache-low pycache-d64 pycache-d768 squeeze; do e15_point $p; case " $E15_P_ARMS " in *" ship-300-nd "*) printf "%s " $p ;; esac; done')" ""
+  check "ship-300-nd: the point signature is the same with or without it (the arm list is not in the settings)" \
+    "$([ "$(t17n fresh-metal 'e15_point_sig pycache')" = "$(t17m fresh-metal 1 'e15_point_sig pycache')" ] && echo same || echo differ)" "same"
+  check "ship-300-nd: the default warm-up is 1200 s (as ship-300)" "$(t17n fresh-metal 'e15_default_warmup ship-300-nd')" "1200"
+}
+test_ship_nd_worker_env() {
+  local a="$TMP/nd-wenv-300" b="$TMP/nd-wenv-nd" c="$TMP/nd-wenv-300b"
+  t17n fresh-metal 'worker_env ship-300 "'"$a"'"; worker_env ship-300-nd "'"$b"'"' >/dev/null
+  t17m fresh-metal 1 'worker_env ship-300 "'"$c"'"' >/dev/null
+  check "ship-300-nd worker_env: ship-300's plus SH_LEASE_CACHE_DROP_S=0, nothing else" \
+    "$(diff "$a" "$b" | grep '^[<>]' | tr '\n' ' ')" "> SH_LEASE_CACHE_DROP_S=0 "
+  check "ship-300 worker_env has no SH_LEASE_CACHE_DROP_S line (the worker's 30 s default stands), under E17C=1 and E17B=1" \
+    "$(grep -c '^SH_LEASE_CACHE_DROP_S' "$a")/$(grep -c '^SH_LEASE_CACHE_DROP_S' "$c")" "0/0"
+  check "ship-300-nd worker_env: refused under E17B=1 alone (E17C unset)" \
+    "$(t17m fresh-metal 1 '(worker_env ship-300-nd "'"$b.x"'") >/dev/null 2>&1; echo $?')" "1"
+}
+test_ship_nd_is_a_lease_arm() {
+  check "ship-300-nd: a lease arm under E17C=1 (e17b_lease_arm), not under E17B=1 alone or E17B unset" \
+    "$(t17n fresh-metal 'e17b_lease_arm ship-300-nd && echo y || echo n')/$(t17m fresh-metal 1 'e17b_lease_arm ship-300-nd && echo y || echo n')/$(t17m fresh-metal unset 'e17b_lease_arm ship-300-nd && echo y || echo n')" "y/n/n"
+  check "ship-300-nd: its token idle timeout is 300 s (ship-300's is still 300)" \
+    "$(t17n fresh-metal 'e17b_idle_timeout_s ship-300-nd; e17b_idle_timeout_s ship-300' | tr '\n' ' ')" "300 300 "
+  check "ship-300-nd: its worker is the stock -e17b build under E17C=1; refused under E17B=1 alone" \
+    "$(t17n fresh-metal 'worker_bin ship-300-nd')/$(t17m fresh-metal 1 '(worker_bin ship-300-nd) >/dev/null 2>&1; echo $?')" "$TROOT/bin/microvm-worker-e17b/1"
+  check "ship-300-nd: not an E17a arm (never refused as one)" "$(t17n fresh-metal 'e15_e17a_arm_refused ship-300-nd && echo refused || echo ok')" "ok"
+}
+crung() { # ARM [VAR=val ...]: srung under E17C=1 (the E17c pin's stamp and snapshot leaf in the harness root)
+  local arm=$1 rc
+  shift
+  printf '%s\n' "$E17C_FIXPIN" >"$RS/state/go-stock-e17b"
+  mkdir -p "$RS/snapshots/e17b-${E17C_FIXPIN:0:8}-1024"
+  printf '{"hash": "hc", "guest_ram_mb": 1024, "features": ["lease-v1", "balloon-fpr-v1"]}\n' >"$RS/snapshots/e17b-${E17C_FIXPIN:0:8}-1024/manifest.json"
+  srung "$arm" E17C=1 E15_TEST_PINS="$TMP/e17c-rung-pins.sh" "$@"
+  rc=$?
+  printf '%s\n' "$E17B_FIXPIN" >"$RS/state/go-stock-e17b"
+  return $rc
+}
+test_ship_nd_rung_checks_cache_drop_banner() {
+  crung ship-300-nd STUB_BANNER=dropoff
+  check "cache-drop banner: ship-300-nd on lease_cache_drop=off runs (exit 0), the driver at --idle-timeout-s 300 in lease mode" \
+    "$?/$(grep -c '^driver$' "$SORD")/$(grep -c -- '--lease-mode --token-key [^ ]* --idle-timeout-s 300 ' "$SARGS")" "0/1/1"
+  check "cache-drop banner: ship-300-nd params.json records lease_cache_drop off, idle_timeout_s 300, its worker env and worker sha" \
+    "$(sparams ship-300-nd lease_cache_drop)/$(sparams ship-300-nd idle_timeout_s)/$(sparams ship-300-nd worker_env | grep -c "'SH_LEASE_CACHE_DROP_S': '0'")/$(sparams ship-300-nd worker_bin_sha256 | grep -cE '^[0-9a-f]{64}$')" "off/300/1/1"
+  check "cache-drop banner: the value is logged" "$(grep -c 'worker banner: lease_cache_drop=off' "$TMP/ship-rung.out")" "1"
+  crung ship-300 STUB_BANNER=drop30
+  check "cache-drop banner: ship-300 on lease_cache_drop=30s runs; params.json records it as printed" \
+    "$?/$(grep -c '^driver$' "$SORD")/$(sparams ship-300 lease_cache_drop)" "0/1/30s"
+  crung ship-300-nd STUB_BANNER=drop30
+  check "cache-drop banner: ship-300-nd on lease_cache_drop=30s -> refused before the driver, naming the mismatch" \
+    "$?/$(grep -c '^driver$' "$SORD")/$(grep -c 'lease_cache_drop=30s.*ship-300-nd needs off' "$TMP/ship-rung.out")" "1/0/1"
+  crung ship-300 STUB_BANNER=dropoff
+  check "cache-drop banner: ship-300 on lease_cache_drop=off -> refused before the driver, naming the mismatch" \
+    "$?/$(grep -c '^driver$' "$SORD")/$(grep -c 'lease_cache_drop=off.*ship-300 needs the drop on' "$TMP/ship-rung.out")" "1/0/1"
+  local a
+  for a in ship-300 ship-300-nd; do
+    crung $a STUB_BANNER=on
+    check "cache-drop banner: $a on a banner without lease_cache_drop (a worker before moca #974) -> refused before the driver" \
+      "$?/$(grep -c '^driver$' "$SORD")/$(grep -c 'no lease_cache_drop= field' "$TMP/ship-rung.out")" "1/0/1"
+  done
+  crung ship-300-nd STUB_BANNER=dropoff
+  check "cache-drop banner: the check comes before the relay attach probe" \
+    "$(awk '/worker banner: lease_cache_drop=/{b=NR} /relay attach check passed/{p=NR} END{print (b && p && b < p) ? "before" : "after"}' "$TMP/ship-rung.out")" "before"
+  crung sbx STUB_BANNER=drop30
+  check "cache-drop banner: sbx under E17C=1 is not checked and its params.json has no lease_cache_drop" \
+    "$?/$(grep -c '^driver$' "$SORD")/$(sparams sbx lease_cache_drop | grep -c KeyError)" "0/1/1"
+  srung ship-300 STUB_BANNER=drop30
+  check "cache-drop banner: with E17C unset a ship-300 rung is not checked and its params.json has no lease_cache_drop" \
+    "$?/$(grep -c '^driver$' "$SORD")/$(sparams ship-300 lease_cache_drop | grep -c KeyError)" "0/1/1"
+  srung ship-300 STUB_BANNER=on
+  check "cache-drop banner: with E17C unset a banner without the field still runs (E17b unchanged)" "$?/$(grep -c '^driver$' "$SORD")" "0/1"
+  check "cache-drop banner: params.json gets lease_cache_drop only from the E17C=1 ship branch (sbx and E17C unset unchanged)" \
+    "$(grep -c 'lease_cache_drop' "$RIG/rung.sh" | awk '{print ($1 > 0) ? "present" : "absent"}')/$(grep -c 'if "\$lease_cache_drop_rec" == "1" else {}' "$RIG/rung.sh")" "present/1"
+}
+test_ship_nd_arm_known_under_e17c_only
+test_ship_nd_worker_env
+test_ship_nd_is_a_lease_arm
+test_ship_nd_rung_checks_cache_drop_banner
+check "ship-300-nd: record.py judges its footprint drift as the other lease arms (RESIDENT)" \
+  "$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import record; print("ship-300-nd" in record.RESIDENT)' "$RIG/../analysis" 2>&1)" "True"
 rm -rf "$RS" "$RSS"
 echo
 if [ "$fails" -eq 0 ]; then
