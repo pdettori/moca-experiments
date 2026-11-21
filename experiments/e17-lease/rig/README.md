@@ -73,6 +73,27 @@ Task 12 carry (ruling E17B-R29): read `py_shmem` on a fresh lease VM (a lease's 
 record its baseline Shmem. If it is stable at 1 MiB or less, R24 (a lease's first turn is never judged) may be
 relaxed for unflagged sessions; that needs a new ruling.
 
+## E17c bring-up: move E17b's runs aside first (PLAN-E17C Task 11; ruling R-z5)
+
+E17c writes to the same `/srv/e15/runs/` as E17b, under the same points and arm names (`pycache/sbx`,
+`pycache/ship-300`, `pycache-d64/*`, `squeeze/*`, `default/*`, ...). `chain-e17c.sh`'s commit preflight refuses a
+stage while its run directories hold another commit's `params.json`, and a `.prev-*` rung under the arm still counts,
+so E17b's arm directories have to leave `runs/` whole. Task 11 Step 1 therefore starts with this controller step,
+before the first `E17C=1` stage (`chain-e17c.sh`'s `smoke`):
+
+- For each `/srv/e15/runs/<point>/<arm>` that an E17c stage writes (`chain-e17c.sh --list`) and that holds a
+  `params.json` from another commit than `E17C_MOCA_PIN` (E17b's, or older):
+  `mkdir -p /srv/e15/runs-e17b/<point> && mv /srv/e15/runs/<point>/<arm> /srv/e15/runs-e17b/<point>/`, and one
+  manifest line per move in `~/e17-manifest.md`:
+  `- <UTC> E17c Task 11: moved E17b's runs/<point>/<arm> aside to runs-e17b/<point>/<arm> | UNDO: mv /srv/e15/runs-e17b/<point>/<arm> /srv/e15/runs/<point>/`.
+  Nothing is deleted. Points and arms that E17c never runs stay where they are.
+- `verdict_e17c.py`'s `--moca-commit` filter (the chain passes `E17C_MOCA_PIN`) stays the guard: a rung from another
+  commit that is still under `runs/` is listed under `excluded_rungs`, never read.
+
+Then the rest of Task 11 Step 1 (`E17C=1 setup.sh`, the two `snapshot-e17b.sh` leaves `e17c-<pin8>-{1024|256}` under
+`E17C=1`, `E17C=1 setup.sh` again, `E17C=1 bringup.sh`) and `chain-e17c.sh --to gate-256` (the stages allowed before
+the seal).
+
 ## Reproducing E17a (final review M3)
 
 The E17b build changed `workload/project/` (so `bringup.sh` rebuilds the shared `template-pycache-d*` images, also
