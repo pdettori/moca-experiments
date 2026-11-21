@@ -3,6 +3,10 @@
 # experiments/e17-lease/rig/snapshot-e17b.sh -- build one E17b guest snapshot into a NEW leaf.
 #
 #   E17B=1 snapshot-e17b.sh --ram-mb {1024|256} --leaf e17b-<sha8>-<ram>
+#   E17C=1 snapshot-e17b.sh --ram-mb {1024|256} --leaf e17c-<sha8>-<ram>    (E17c, PLAN-E17C Task 4)
+#
+# E17C=1 is the E17c profile (lib.sh: it implies E17B=1, with E17C_MOCA_PIN and the moca-e17c checkout): the leaf is
+# then e17c-<first 8 hex of E17C_MOCA_PIN>-<ram>, and an e17b-* name is refused (with E17B=1 alone, e17c-* is).
 #
 # Run ON THE RIG by the controller, as the login user (sudo -n per step, as setup.sh), from the staged
 # copy ($E15_ROOT/src/e17/rig). setup.sh under E17B=1 never builds a snapshot (rulings E17B-R3, R32: it skips
@@ -25,9 +29,10 @@ set -euo pipefail
 E15_PROG=snapshot-e17b.sh
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# The profile is the whole point: with E17B unset lib.sh would resolve the sealed E15 pin and checkout.
-if [ "${E17B:-}" != 1 ]; then
-  printf '%s: E17B=1 is required (E17b snapshots are built at E17B_MOCA_PIN only)\n' "$E15_PROG" >&2
+# The profile is the whole point: with E17B unset lib.sh would resolve the sealed E15 pin and checkout. E17C=1
+# implies E17B=1 (lib.sh exports it).
+if [ "${E17B:-}" != 1 ] && [ "${E17C:-}" != 1 ]; then
+  printf '%s: E17B=1 is required, or E17C=1 (E17b snapshots are built at E17B_MOCA_PIN only, E17c ones at E17C_MOCA_PIN)\n' "$E15_PROG" >&2
   exit 1
 fi
 # The repo layout and the rig's staged one (sync.sh puts e15-session-density at src/e15 and e17-lease at src/e17).
@@ -41,7 +46,9 @@ done
 # shellcheck source=../../e15-session-density/rig/lib.sh
 . "$_lib"
 
-LEAF_RE='^e17b-[0-9a-f]{8}-(1024|256)$'
+# The leaf prefix follows the profile: e17c under E17C=1 (its pin is E15_MOCA_PIN there), e17b otherwise.
+if [ "${E17C:-}" = 1 ]; then LEAF_PFX=e17c PIN_VAR=E17C_MOCA_PIN; else LEAF_PFX=e17b PIN_VAR=E17B_MOCA_PIN; fi
+LEAF_RE="^$LEAF_PFX-[0-9a-f]{8}-(1024|256)\$"
 LEAF=""
 RAM=""
 
@@ -66,9 +73,9 @@ leaf_name_ok() {
   */* | *..*) echo "leaf '$name' has / or .." >&2; return 1 ;;
   e15) echo "leaf 'e15' is the sealed snapshot" >&2; return 1 ;;
   esac
-  [[ $name =~ $LEAF_RE ]] || { echo "leaf '$name' is not e17b-<8 hex>-{1024|256}" >&2; return 1; }
+  [[ $name =~ $LEAF_RE ]] || { echo "leaf '$name' is not $LEAF_PFX-<8 hex>-{1024|256}" >&2; return 1; }
   [[ $pin8 =~ ^[0-9a-f]{8}$ ]] || { echo "E15_MOCA_PIN '$E15_MOCA_PIN' has no 8-hex prefix" >&2; return 1; }
-  [[ $name == "e17b-$pin8-"* ]] || { echo "leaf '$name' is not for pin $pin8" >&2; return 1; }
+  [[ $name == "$LEAF_PFX-$pin8-"* ]] || { echo "leaf '$name' is not for pin $pin8" >&2; return 1; }
   case "$ram" in 1024 | 256) ;; *) echo "--ram-mb '$ram' is not 1024 or 256" >&2; return 1 ;; esac
   [ "${name##*-}" = "$ram" ] || { echo "leaf '$name' names RAM ${name##*-}, --ram-mb is $ram" >&2; return 1; }
 }
@@ -202,20 +209,21 @@ main() {
   while [ $# -gt 0 ]; do
     case "$1" in
     --ram-mb | --leaf)
-      [ $# -ge 2 ] || die "$1 needs a value (usage: --ram-mb {1024|256} --leaf e17b-<sha8>-<ram>)"
+      [ $# -ge 2 ] || die "$1 needs a value (usage: --ram-mb {1024|256} --leaf $LEAF_PFX-<sha8>-<ram>)"
       if [ "$1" = --ram-mb ]; then RAM=$2; else LEAF=$2; fi
       shift 2
       ;;
-    *) die "unknown argument '$1' (usage: --ram-mb {1024|256} --leaf e17b-<sha8>-<ram>)" ;;
+    *) die "unknown argument '$1' (usage: --ram-mb {1024|256} --leaf $LEAF_PFX-<sha8>-<ram>)" ;;
     esac
   done
   [ "$E15_HOST_PROFILE" = fresh-metal ] || die "E17b snapshots are built on the fresh-metal rig only"
+  [ "${E17C:-}" != 1 ] || e17c_require_pin
   e17b_require_pin
   leaf_name_ok "$LEAF" "$RAM" || die "bad --leaf/--ram-mb"
   [ "$(id -u)" != 0 ] || die "run as the login user, not root (sudo -n is used per step)"
   sudo -n true 2>/dev/null || die "needs passwordless sudo"
-  [ -d "$E15_MOCA/.git" ] || [ -f "$E15_MOCA/.git" ] || die "no moca checkout at $E15_MOCA; run setup.sh with E17B=1 first"
-  [ "$(git -C "$E15_MOCA" rev-parse HEAD)" = "$E15_MOCA_PIN" ] || die "$E15_MOCA is not at E17B_MOCA_PIN $E15_MOCA_PIN"
+  [ -d "$E15_MOCA/.git" ] || [ -f "$E15_MOCA/.git" ] || die "no moca checkout at $E15_MOCA; run setup.sh with E17B=1 (E17C=1 for E17c) first"
+  [ "$(git -C "$E15_MOCA" rev-parse HEAD)" = "$E15_MOCA_PIN" ] || die "$E15_MOCA is not at $PIN_VAR $E15_MOCA_PIN"
   PATH=$(e15_path)
   export PATH
   refuse_shared_paths "$E15_ROOT" "$E15_MANIFEST" "$E15_SNAPDIR"

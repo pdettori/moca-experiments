@@ -2324,6 +2324,10 @@ if [ -f "$E17D/rig/gen_corpora.sh" ]; then
   gcu() { env -u E17B E17_CORPORA="$GC" E17_GAPS="$E17D/extract/testdata/gaps-20.jsonl" bash "$E17D/rig/gen_corpora.sh" >"$TMP/gc.out" 2>&1; echo $?; }
   gc0() { env -u E17B E17_TMPFS_SHARE=0 E17_CORPORA="$GC" E17_GAPS="$E17D/extract/testdata/gaps-20.jsonl" bash "$E17D/rig/gen_corpora.sh" >"$TMP/gc.out" 2>&1; echo $?; }
   gcr() { python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print(eval(sys.argv[2], {"r": r}))' "$GC/$1/corpus-report.json" "$2"; }
+  # gcc: E17C=1 alone (PLAN-E17C Task 4: E17C=1 implies E17B=1, so the E17b corpora)
+  gcc() { env -u E17B E17C=1 E17_CORPORA="$GC" E17_GAPS="$E17D/extract/testdata/gaps-20.jsonl" bash "$E17D/rig/gen_corpora.sh" >"$TMP/gc.out" 2>&1; echo $?; }
+  check "E17c gen_corpora: E17C=1 alone (E17B unset) is E17B=1: E17_TMPFS_SHARE defaults to 0.5" \
+    "$(gcc)/$(gcr pycache '(r["tmpfs_share"], r["tmpfs_sessions"])')/$(gcr pycache-low '(r["tmpfs_share"], r["tmpfs_sessions"])')" "0/(0.5, 200)/(0.5, 200)"
   gcd() { # POINT -> "class=dur_ms/work_ms" for every distinct pair in the corpus
     python3 -c 'import json,sys
 s=set()
@@ -2462,6 +2466,16 @@ SH
   rm -f "$SM/bin/microvm-worker-e17b"
   check "E17 smoke (stubbed): warmcold counts printed per rung, the pass line names the BUILD sha256" \
     "$(grep -c '^smoke pycache/[a-z0-9-]*/N1-smoke: warm [0-9]* cold [0-9]* unknown [0-9]* (holds=True)$' "$TMP/sm.out")/$(grep -c "analyze sha256 = BUILD dataset_sha256 ($SMSHA)" "$TMP/sm.out")" "4/1"
+  # E17c (PLAN-E17C Task 4, carried from Task 2): E17C=1 smokes E17c's arms, sbx ship-300 ship-300-nd
+  printf '#!/bin/sh\n' >"$SM/bin/microvm-worker-e17b"
+  chmod +x "$SM/bin/microvm-worker-e17b"
+  printf 'E17B_MOCA_PIN=%s\nE17C_MOCA_PIN=%s\n' 1111111111111111111111111111111111111111 2222222222222222222222222222222222222222 >"$TMP/sm-e17c-pins.sh"
+  mkdir -p "$SM/snapshots/e17c-22222222-1024" && echo '{}' >"$SM/snapshots/e17c-22222222-1024/manifest.json"
+  check "E17c smoke (stubbed): under E17C=1 (E17B unset) the arms are sbx ship-300 ship-300-nd, in that order" \
+    "$(smoke E17C=1 E15_TEST_PINS="$TMP/sm-e17c-pins.sh")/$(cut -d' ' -f2 "$TMP/sm.rlog" | tr '\n' ' ')" "0/sbx ship-300 ship-300-nd "
+  check "E17c smoke (stubbed): E17B=1 alone keeps E17b's arms" \
+    "$(smoke E17B=1 E15_TEST_PINS="$TMP/sm-e17b-pins.sh")/$(cut -d' ' -f2 "$TMP/sm.rlog" | tr '\n' ' ')" "0/sbx ship-30 ship-120 ship-300 "
+  rm -f "$SM/bin/microvm-worker-e17b"
   check "E17 smoke (stubbed): analyze ran on its own key with the library's command; the copy removed after" \
     "$(grep -c '"workspace_key": "e17-smoke-analyze"' "$TMP/sm.glog")/$(grep -c 'cd project && ../venv/bin/python analyze.py' "$TMP/sm.glog")/$([ -e "$SM/workspaces/e17-smoke-analyze" ] && echo left || echo removed)" "1/1/removed"
   check "E17 smoke (stubbed): a printed sha256 that is not BUILD's fails" \
@@ -2667,6 +2681,8 @@ PY
   }
   RPR=$RP/runs/pycache/sbx
   rp_stage sbx
+  check "E17c reprobe: the usage text lists ship-300-nd under E17C=1" \
+    "$(grep -c 'usage: reprobe.sh ARM .*with E17C=1: sbx ship-300 ship-300-nd' "$RE17/rig/reprobe.sh")" "1"
   check "E17 5b reprobe: sbx passes" "$(rp sbx)" "0"
   grep -q 'reprobe.sh:' "$TMP/rp.out" && sed 's/^/    /' "$TMP/rp.out" | tail -5
   check "E17 5b reprobe: the old probe dirs and probe-corpora are renamed aside, contents kept" \
@@ -2925,8 +2941,9 @@ test_e17c_profile_on() {
     "$(t17c 1 unset 'case " ${E15_ARMS[*]} " in *" ship-300 "*) echo arms ;; *) echo noarms ;; esac; e17b_lease_arm ship-300 && echo lease; e15_e17a_arm_refused lease-300 2>/dev/null && echo refused' "$p" E15_HOST_PROFILE=fresh-metal | tr '\n' ' ')" "arms lease refused "
   check "e17c on: every other pins.sh pin is unchanged" \
     "$([ "$(t17c unset unset 'for n in "${E15_PINS[@]}"; do echo "$n=${!n}"; done' | sha256sum)" = "$(t17c 1 unset 'for n in "${E15_PINS[@]}"; do echo "$n=${!n}"; done' "$p" | sha256sum)" ] && echo same || echo differ)" "same"
-  check "e17c on: the snapshot leaf and the stock build stamp key carry the E17C pin" \
-    "$(t17c 1 unset 'worker_snapimg' "$p")/$(t17c 1 unset 'stamp_set() { :; }; mkdir -p "$E15_STATE"; echo "$E15_MOCA_PIN" >"$E15_STATE/go-stock-e17b"; e17b_require_build && echo built' "$p")" "e17b-${E17C_FIXPIN:0:8}-1024/built"
+  check "e17c on: the snapshot leaf is e17c-<E17C pin8>-<ram> (ruling R-i) and the stock build stamp key carries the E17C pin" \
+    "$(t17c 1 unset 'worker_snapimg' "$p")/$(t17c 1 unset 'worker_snapimg' "$p" E17B_GUEST_RAM_MB=256)/$(t17c 1 unset 'stamp_set() { :; }; mkdir -p "$E15_STATE"; echo "$E15_MOCA_PIN" >"$E15_STATE/go-stock-e17b"; e17b_require_build && echo built' "$p")" "e17c-${E17C_FIXPIN:0:8}-1024/e17c-${E17C_FIXPIN:0:8}-256/built"
+  check "e17c off: E17B=1 alone keeps the e17b-<pin8>-<ram> leaf" "$(t17c unset 1 'worker_snapimg' E15_TEST_PINS="$TMP/e17b-test-pins.sh")" "e17b-${E17B_FIXPIN:0:8}-1024"
   rm -rf "${TROOT:?}/state"
 }
 test_e17c_pin_is_a_full_sha
@@ -3820,8 +3837,8 @@ crung() { # ARM [VAR=val ...]: srung under E17C=1 (the E17c pin's stamp and snap
   local arm=$1 rc
   shift
   printf '%s\n' "$E17C_FIXPIN" >"$RS/state/go-stock-e17b"
-  mkdir -p "$RS/snapshots/e17b-${E17C_FIXPIN:0:8}-1024"
-  printf '{"hash": "hc", "guest_ram_mb": 1024, "features": ["lease-v1", "balloon-fpr-v1"]}\n' >"$RS/snapshots/e17b-${E17C_FIXPIN:0:8}-1024/manifest.json"
+  mkdir -p "$RS/snapshots/e17c-${E17C_FIXPIN:0:8}-1024"
+  printf '{"hash": "hc", "guest_ram_mb": 1024, "features": ["lease-v1", "balloon-fpr-v1"]}\n' >"$RS/snapshots/e17c-${E17C_FIXPIN:0:8}-1024/manifest.json"
   srung "$arm" E17C=1 E15_TEST_PINS="$TMP/e17c-rung-pins.sh" "$@"
   rc=$?
   printf '%s\n' "$E17B_FIXPIN" >"$RS/state/go-stock-e17b"
