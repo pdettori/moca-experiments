@@ -168,9 +168,10 @@ def resolve(root, point, arm, d):
     return os.path.join(root, point, arm, os.path.basename(str(d or "").rstrip("/")))
 
 
-def reclaim(root, rungs):
+def reclaim(root, rungs, points=SQUEEZE_POINTS):
+    """Criterion 3 over `points` (E17b: both squeeze points; verdict_e17c.py judges squeeze alone)."""
     value, inputs, missing, why, unknown = {}, [], [], [], []
-    for point in SQUEEZE_POINTS:
+    for point in points:
         lp = os.path.join(root, point, "ship-300", "ladder.json")
         lj = load(lp)
         sq = (lj or {}).get("squeeze")
