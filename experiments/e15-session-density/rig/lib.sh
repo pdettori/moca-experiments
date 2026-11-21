@@ -82,6 +82,11 @@ E15_MOCA_URL=${E15_MOCA_URL:-https://github.com/rossoctl/moca.git}
 # setup.sh's clone, build stamps, snapshot key, relay, microvm-worker and guest agent all follow it.
 # With E17B unset (or anything but 1) nothing here runs and the sealed E15/E16/E17a procedures resolve
 # as before. rig.test.sh only: a fixture pin file (E15_TEST_PINS) is applied last, as for pins.sh.
+# E17c profile (experiments/e17-lease/PLAN-E17C.md): E17C=1 is E17B=1 (ship-* arms, the lease worker, E17a arms
+# refused, resident build skipped; E17C=1 alone is E17C=1 E17B=1, exported to child scripts) except that the pin is
+# E17C_MOCA_PIN (experiments/e17-lease/rig/e17c-pins.sh) and the checkout $E15_ROOT/moca-e17c (set below).
+# With E17C unset (or anything but 1) nothing here runs and E17b and the sealed procedures resolve as before.
+[ "${E17C:-}" != 1 ] || export E17B=1
 if [ "${E17B:-}" = 1 ]; then
   _e17b_here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
   # The repo layout (experiments/e17-lease) and the rig's staged one (/srv/e15/src/e17, sync.sh).
@@ -94,6 +99,17 @@ if [ "${E17B:-}" = 1 ]; then
   }
   # shellcheck disable=SC1090
   . "$_e17b_f"
+  if [ "${E17C:-}" = 1 ]; then
+    for _e17c_f in "$_e17b_here/../../e17-lease/rig/e17c-pins.sh" "$_e17b_here/../../e17/rig/e17c-pins.sh"; do
+      [ -f "$_e17c_f" ] && break
+    done
+    [ -f "$_e17c_f" ] || {
+      printf 'lib.sh: E17C=1 but no e17c-pins.sh at %s or %s\n' "$_e17b_here/../../e17-lease/rig/e17c-pins.sh" "$_e17b_here/../../e17/rig/e17c-pins.sh" >&2
+      exit 3
+    }
+    # shellcheck disable=SC1090
+    . "$_e17c_f"
+  fi
   case "$E15_ROOT" in
   */e15-rig-test.*)
     # shellcheck disable=SC1090
@@ -102,6 +118,8 @@ if [ "${E17B:-}" = 1 ]; then
   esac
   # shellcheck disable=SC2153 # assigned by the pin file sourced above
   E15_MOCA_PIN=$E17B_MOCA_PIN
+  # shellcheck disable=SC2153 # assigned by the pin file sourced above
+  [ "${E17C:-}" != 1 ] || E15_MOCA_PIN=$E17C_MOCA_PIN
 fi
 # e17b_require_pin: refuse an E17B_MOCA_PIN that is not a full 40-hex sha or is the all-zero placeholder.
 # setup.sh and rung.sh call it when E17B=1; teardown.sh does not (it must always be able to undo).
@@ -113,6 +131,17 @@ e17b_require_pin() {
   esac
   printf '%s' "${E17B_MOCA_PIN:-}" | grep -qE '^[0-9a-f]{40}$' ||
     die "E17B_MOCA_PIN '${E17B_MOCA_PIN:-}' is not a full 40-hex sha (e17b-pins.sh)"
+}
+# e17c_require_pin: the same for E17C_MOCA_PIN (e17c-pins.sh). setup.sh and rung.sh call it when E17C=1, before
+# the E17b checks; teardown.sh does not.
+e17c_require_pin() {
+  case "${E17C_MOCA_PIN:-}" in
+  0000000000000000000000000000000000000000)
+    die "E17C_MOCA_PIN is still the placeholder (all zeros) in e17c-pins.sh; replace it with the upstream/main sha (moca #974 merged) before any rig run"
+    ;;
+  esac
+  printf '%s' "${E17C_MOCA_PIN:-}" | grep -qE '^[0-9a-f]{40}$' ||
+    die "E17C_MOCA_PIN '${E17C_MOCA_PIN:-}' is not a full 40-hex sha (e17c-pins.sh)"
 }
 
 # Ports (SPEC §4): relay attach, relay exec, null-responder (control arm), worker /stats, Redis.
@@ -718,6 +747,7 @@ E15_STATE=$E15_ROOT/state
 E15_LOGS=$E15_ROOT/logs
 E15_MOCA=$E15_ROOT/moca
 [ "${E17B:-}" != 1 ] || E15_MOCA=$E15_ROOT/moca-e17b # E17b profile (above): its own checkout
+[ "${E17C:-}" != 1 ] || E15_MOCA=$E15_ROOT/moca-e17c # E17c profile (above): its own checkout
 E15_SNAPDIR=$E15_ROOT/snapshots
 E15_SNAPIMG=e15
 E15_TEMPLATE=$E15_ROOT/template/workspace.img
