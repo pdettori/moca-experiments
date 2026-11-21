@@ -46,6 +46,7 @@ T="$TMP/e15-rig-test.chain"
 PIN=2222222222222222222222222222222222222222
 mkdir -p "$T/src/e15" "$T/src/e17" "$T/state" "$T/runs" "$TMP/stub" "$TMP/an"
 cp -R "$E15RIG" "$T/src/e15/rig"
+cp -R "$E15RIG/../analysis" "$T/src/e15/analysis" # the gate reads calls.jsonl through holds.py, as baseline.sh does
 cp -R "$RIG" "$T/src/e17/rig"
 CHAIN="$T/src/e17/rig/chain-e17c.sh"
 PRED="$T/src/e17/predictions-e17c.json"
@@ -57,19 +58,29 @@ printf '#!/usr/bin/env bash\ncase "$*" in *e15-worker.service*) [ -e "%s/worker-
 printf '#!/usr/bin/env bash\n[ "$1" = -n ] && shift\nexec "$@"\n' >"$TMP/stub/sudo"
 chmod +x "$TMP/stub/systemctl" "$TMP/stub/sudo"
 # a stage stub KIND: logs "KIND ARGS tag=<E15_TAG> seed=<E15_SEED> zero=<E15_START_ZERO> memmax=<...> e17c=<E17C>
-# e17b=<E17B> ram=<E17B_GUEST_RAM_MB>"; fails when the logged call starts with $FAIL_ON. rung writes the rung's
-# params.json and record.json (reason STUB_REASON); baseline writes seeds N1-s1..N1-s$STUB_SEEDS (default 3) and
-# N1/baseline.json; ladder at a squeeze point a ladder.json with squeeze.stop_n 40 and the memmax it ran under.
+# e17b=<E17B> ram=<E17B_GUEST_RAM_MB> win=<E15_WINDOW_S>"; fails when the logged call starts with $FAIL_ON. rung writes the
+# rung's params.json, record.json (reason STUB_REASON) and calls.jsonl from STUB_CALLS ("class:in_window[:status],...";
+# STUB_CALLS_<tag> overrides it for that tag, for every arm or, with STUB_LOW_ARM, that arm only); baseline writes
+# seeds N1-s1..N1-s$STUB_SEEDS (default 3) and N1/baseline.json; ladder at a squeeze point a ladder.json with squeeze.stop_n 40 and the memmax it ran under.
 mkstub() {
   cat >"$TMP/stub-$1.sh" <<SH
 #!/usr/bin/env bash
-line="$1 \$* tag=\${E15_TAG:-unset} seed=\${E15_SEED:-unset} zero=\${E15_START_ZERO:-unset} memmax=\${E15_SQUEEZE_MEMMAX_MB:-unset} e17c=\${E17C:-unset} e17b=\${E17B:-unset} ram=\${E17B_GUEST_RAM_MB:-unset}"
+line="$1 \$* tag=\${E15_TAG:-unset} seed=\${E15_SEED:-unset} zero=\${E15_START_ZERO:-unset} memmax=\${E15_SQUEEZE_MEMMAX_MB:-unset} e17c=\${E17C:-unset} e17b=\${E17B:-unset} ram=\${E17B_GUEST_RAM_MB:-unset} win=\${E15_WINDOW_S:-unset}"
 echo "\$line" >>"$CLOG"
 case "\$line" in "\${FAIL_ON:-NONE}"*) echo "stub failure: \$line" >&2; exit 1 ;; esac
 rungdir() { # DIR ARM REASON
   mkdir -p "\$1"
   printf '{"arm": "%s", "n": 1, "moca_commit": "%s", "driver_exit": 0, "rung_failed": null, "memory_abort": null}\n' "\$2" "\${STUB_COMMIT:-$PIN}" >"\$1/params.json"
   printf '{"aborted": false, "holds": true, "reason": "%s"}\n' "\$3" >"\$1/record.json"
+  local v=STUB_CALLS_\${E15_TAG:-none} spec=\${STUB_CALLS:-} i=0 c
+  if [ -n "\${!v+x}" ] && { [ -z "\${STUB_LOW_ARM:-}" ] || [ "\$STUB_LOW_ARM" = "\$2" ]; }; then spec=\${!v}; fi
+  : >"\$1/calls.jsonl"
+  for c in \${spec//,/ }; do
+    IFS=: read -r cl w st <<<"\$c"
+    printf '{"session": 0, "call": %d, "class": "%s", "in_window": %s, "status": "%s", "observed_ms": 100}\n' \
+      "\$i" "\$cl" "\$([ "\$w" = 1 ] && echo true || echo false)" "\${st:-ok}" >>"\$1/calls.jsonl"
+    i=\$((i + 1))
+  done
 }
 case "$1" in
 rung) rungdir "\$E15_ROOT/runs/\$3/\$1/N\$2\${E15_TAG:+-\$E15_TAG}" "\$1" "\${STUB_REASON:-ok}" ;;
@@ -135,6 +146,14 @@ chain() { # [VAR=val ...] -- ARGS: run the staged chain; rc echoed, output in $T
 }
 calls() { sed 's/ *tag=.*//' "$CLOG" | tr '\n' ';'; }
 reset() { rm -rf "$T/e17c" "$T/runs" && mkdir -p "$T/runs"; }
+GATE="$T/runs/pycache-low/gate-pycache-low.json"
+gate_file() { # PASS REASON: a gate-pycache-low.json as the gate writes it
+  mkdir -p "$T/runs/pycache-low"
+  printf '{"stage": "gate-pycache-low", "pass": %s, "reason": "%s", "arms": {}}\n' "$1" "$2" >"$GATE"
+}
+gq() { python3 -c 'import json,sys; v=json.load(open(sys.argv[1]))
+for k in sys.argv[2].split("."): v = v[int(k)] if isinstance(v, list) else v[k]
+print(json.dumps(v, sort_keys=True))' "$GATE" "$1" 2>/dev/null || echo unreadable; }
 listed() { sed -n '2,$p' "$TMP/c.out" | awk '{print $1 ":" $2}' | tr '\n' ' '; }
 
 STAGES_WANT="smoke:- cal-pycache-sbx:- cal-pycache-ship-300:- cal-pycache-ship-300-nd:- gate-pycache-low:- gate-256:- \
@@ -210,9 +229,9 @@ test_refuses_unsealed() {
   check "seal: a seal stage alone is refused while unsealed, nothing run" "$out" "lat-pycache-ship-300-nd-n128=1:0 squeeze-ship-300=1:0 ownwalk=1:0 verdict=1:0 "
   check "seal: a ram256 or opt stage needs the seal too" \
     "$(chain E17C_RAM256=1 -- --from ram256-pycache-sbx-n1 --to ram256-pycache-sbx-n1)/$(chain E17C_OPTIONAL=1 -- --from ladder-default-sbx --to ladder-default-sbx)/$(grep -c . "$CLOG")" "1/1/0"
-  check "seal: the gate stages run before the seal (not refused as needing it; they die as not built yet)" \
-    "$(chain -- --from gate-pycache-low --to gate-pycache-low)/$(grep -c 'REFUSED' "$TMP/c.out")/$(grep -c 'not built yet (Task 9)' "$T/e17c/gate-pycache-low.log")/$(chain -- --from gate-256 --to gate-256)/$(grep -c 'not built yet (Task 10)' "$T/e17c/gate-256.log")" \
-    "1/0/1/1/1"
+  check "seal: the gate stages run before the seal (not refused as needing it; gate-256 dies as not built yet)" \
+    "$(chain -- --from gate-pycache-low --to gate-pycache-low)/$(grep -c 'REFUSED' "$TMP/c.out")/$(grep -c 'E17C gate-pycache-low DONE' "$TMP/c.out")/$(chain -- --from gate-256 --to gate-256)/$(grep -c 'not built yet (Task 10)' "$T/e17c/gate-256.log")" \
+    "0/0/1/1/1"
 }
 
 test_bringup_unsealed() {
@@ -246,13 +265,14 @@ test_bringup_unsealed() {
   check "smoke: the commit preflight covers E17c's three arms (another commit's ship-300-nd rung refuses the stage)" \
     "$(mkdir -p "$T/runs/pycache/ship-300-nd/N1-old"; printf '{"arm": "ship-300-nd", "moca_commit": "c13d55649777e69ec7649d6fa8c08f4acb1f4e2e"}\n' >"$T/runs/pycache/ship-300-nd/N1-old/params.json"; chain -- --from smoke --to smoke)/$(grep -c 'is not from E17C_MOCA_PIN' "$T/e17c/smoke.log")/$(grep -c . "$CLOG")" "1/1/0"
   reset
-  check "bring-up: --to gate-256 runs smoke and the cal stages, then stops at gate-pycache-low (not built yet), resume named" \
-    "$(chain -- --to gate-256)/$(grep -c 'E17C gate-pycache-low FAILED rc=1 .*resume with --from gate-pycache-low' "$TMP/c.out")" "1/1"
+  check "bring-up: --to gate-256 runs smoke, the cal stages and gate-pycache-low, then stops at gate-256 (not built yet)" \
+    "$(chain -- --to gate-256)/$(grep -c 'E17C gate-pycache-low DONE' "$TMP/c.out")/$(grep -c 'E17C gate-256 FAILED rc=1 .*resume with --from gate-256' "$TMP/c.out")" "1/1/1"
 }
 
 test_sealed_stages() {
   reset
   seal true
+  gate_file true "every seed passed"
   check "sealed: the pycache, pycache-low and squeeze stages in order; the squeeze climb at 24576 without any operator value" \
     "$(chain -- --from lat-pycache-sbx-n128 --to squeeze-sbx)/$(sed 's/ seed=.*memmax=/ memmax=/; s/ e17c=.*//' "$CLOG" | tr '\n' ';')" \
     "0/rung sbx 128 pycache tag=lat memmax=unset;rung ship-300 128 pycache tag=lat memmax=unset;rung ship-300-nd 128 pycache tag=lat memmax=unset;baseline pycache-low sbx tag=unset memmax=unset;baseline pycache-low ship-300 tag=unset memmax=unset;rung sbx 128 pycache-low tag=lat memmax=unset;rung ship-300 128 pycache-low tag=lat memmax=unset;baseline squeeze sbx tag=unset memmax=unset;baseline squeeze ship-300 tag=unset memmax=unset;ladder squeeze ship-300 tag=unset memmax=24576;rung sbx 40 squeeze tag=sq memmax=24576;"
@@ -262,7 +282,7 @@ test_sealed_stages() {
   check "ownwalk: 10000 then 100000 files (the seal stage), under E17C=1" \
     "$(chain -- --from ownwalk --to ownwalk)/$(sed 's/ tag=.* e17c=/ e17c=/; s/ e17b=.*//' "$CLOG" | tr '\n' ';')" "0/ownwalk 10000 e17c=1;ownwalk 100000 e17c=1;"
   check "ram256: SKIP without E17C_RAM256=1; with it the pycache-d64 N=1 rungs at 256 MiB" \
-    "$(chain -- --from ram256-pycache-sbx-n1 --to ram256-squeeze-sbx)/$(grep -c 'SKIP (ram256: E17C_RAM256=1 runs it)' "$TMP/c.out")/$(chain E17C_RAM256=1 -- --from ram256-pycache-sbx-n1 --to ram256-pycache-ship-300-n1)/$(sed 's/ seed=.* ram=/ ram=/' "$CLOG" | tr '\n' ';')" \
+    "$(chain -- --from ram256-pycache-sbx-n1 --to ram256-squeeze-sbx)/$(grep -c 'SKIP (ram256: E17C_RAM256=1 runs it)' "$TMP/c.out")/$(chain E17C_RAM256=1 -- --from ram256-pycache-sbx-n1 --to ram256-pycache-ship-300-n1)/$(sed 's/ seed=.* ram=/ ram=/; s/ win=.*//' "$CLOG" | tr '\n' ';')" \
     "0/6/0/rung sbx 1 pycache-d64 tag=ram256 ram=256;rung ship-300 1 pycache-d64 tag=ram256 ram=256;"
   check "opt: SKIP without E17C_OPTIONAL=1; with it the default ladders run" \
     "$(chain -- --from ladder-default-sbx --to ladder-default-ship-300)/$(grep -c 'SKIP (optional: E17C_OPTIONAL=1 runs it)' "$TMP/c.out")/$(chain E17C_OPTIONAL=1 -- --from ladder-default-sbx --to ladder-default-ship-300)/$(calls)" \
@@ -285,6 +305,73 @@ test_sealed_stages() {
   rm -f "$TMP/an/verdict_e17c.py"
 }
 
+# Task 9 (SPEC §13.5, R47): gate-pycache-low runs the N = 1 seeds at pycache-low from the first call (E15_START_ZERO=1)
+# with an 1800 s window, 4 per arm (sbx, ship-300); it passes only when every seed has >= 3 in-window ok calls of
+# py_short or py_import (criterion 2's classes). It writes $E15_RUNS/pycache-low/gate-pycache-low.json (ruling R-q)
+# either way; on a fail the pycache-low stages are SKIPPED as cut (exit 0, the gate's reason) and the chain goes on.
+GOOD="py_short:1,py_import:1,py_short:1,build:1,py_short:0" # 3 counted: 2 py_short + 1 py_import in the window
+test_gate_low() {
+  reset
+  rm -f "$PRED"
+  check "gate: runs before the seal; 4 seeds per arm, sbx then ship-300, at pycache-low N=1, tags g1..g4" \
+    "$(chain STUB_CALLS="$GOOD" -- --from gate-pycache-low --to gate-pycache-low)/$(calls)" \
+    "0/rung sbx 1 pycache-low;rung sbx 1 pycache-low;rung sbx 1 pycache-low;rung sbx 1 pycache-low;rung ship-300 1 pycache-low;rung ship-300 1 pycache-low;rung ship-300 1 pycache-low;rung ship-300 1 pycache-low;"
+  check "gate: every seed with E15_START_ZERO=1, E15_WINDOW_S=1800, E15_SEED=k, E15_TAG=gk, under E17C=1" \
+    "$(sed 's/^rung [a-z0-9-]* 1 pycache-low //; s/ memmax=.* e17c=/ e17c=/; s/ e17b=.*win=/ win=/' "$CLOG" | sort -u | tr '\n' ';')" \
+    "tag=g1 seed=1 zero=1 e17c=1 win=1800;tag=g2 seed=2 zero=1 e17c=1 win=1800;tag=g3 seed=3 zero=1 e17c=1 win=1800;tag=g4 seed=4 zero=1 e17c=1 win=1800;"
+  check "gate: pass, written to \$E15_RUNS/pycache-low/gate-pycache-low.json with its settings" \
+    "$(gq pass)/$(gq window_s)/$(gq start_zero)/$(gq seeds_per_arm)/$(gq min_calls)/$(gq classes)/$(gq moca_commit)" \
+    "true/1800/true/4/3/[\"py_short\", \"py_import\"]/\"$PIN\""
+  check "gate: per arm and seed the in-window ok counts by class (not the out-of-window py_short, not build)" \
+    "$(gq arms.sbx.0)" \
+    '{"calls": 3, "in_window": {"py_import": 1, "py_short": 2}, "pass": true, "reason": null, "record_reason": "ok", "rung": "pycache-low/sbx/N1-g1", "seed": 1}'
+  check "gate: four seeds per arm recorded; the stage DONE line says it passed" \
+    "$(python3 -c 'import json,sys; a=json.load(open(sys.argv[1]))["arms"]; print(sorted(a), [len(v) for _, v in sorted(a.items())])' "$GATE")/$(grep -c 'E17C gate-pycache-low DONE .*(gate-pycache-low: PASS' "$TMP/c.out")" \
+    "['sbx', 'ship-300'] [4, 4]/1"
+  reset
+  check "gate: one seed of one arm short (ship-300 seed 3: 2 counted, a failed py_import does not count) -> fail, all 8 seeds still run, exit 0" \
+    "$(chain STUB_CALLS="$GOOD" STUB_CALLS_g3="py_short:1,py_import:1,py_import:1:failed" STUB_LOW_ARM=ship-300 -- --from gate-pycache-low --to gate-pycache-low)/$(grep -c . "$CLOG")/$(gq pass)/$(gq arms.sbx.2.pass)/$(gq arms.ship-300.2.pass)/$(gq arms.ship-300.2.in_window)" \
+    '0/8/false/true/false/{"py_import": 1, "py_short": 1}'
+  check "gate: the fail reason names the arm, seed, rung and counts; the DONE line says pycache-low is cut" \
+    "$(gq reason)/$(grep -c 'E17C gate-pycache-low DONE .*(gate-pycache-low: FAIL.*pycache-low is cut' "$TMP/c.out")" \
+    '"ship-300 seed 3 (N1-g3): 2 in-window py_short/py_import call(s) (py_short 1, py_import 1), need 3"/1'
+  reset
+  check "gate: an empty-window seed counts 0 calls and fails the gate (R47's case), reason recorded" \
+    "$(chain STUB_REASON=empty_window -- --from gate-pycache-low --to gate-pycache-low)/$(gq arms.sbx.0.record_reason)/$(gq pass)/$(gq reason | grep -c 'sbx seed 1 (N1-g1): 0 in-window.*record reason empty_window.*need 3')" \
+    '0/"empty_window"/false/1'
+  reset
+  gate_file true stale
+  check "gate: a rung failure fails the stage (rig error, not a cut): no .done, the stale gate file removed" \
+    "$(chain STUB_CALLS="$GOOD" FAIL_ON="rung ship-300 1 pycache-low tag=g2" -- --from gate-pycache-low --to gate-pycache-low)/$([ -f "$T/e17c/gate-pycache-low.done" ] && echo "done" || echo open)/$([ -f "$GATE" ] && echo gate || echo nogate)/$(grep -c 'rung.sh ship-300 1 pycache-low (seed 2) failed' "$T/e17c/gate-pycache-low.log")" \
+    "1/open/nogate/1"
+  reset
+  mkdir -p "$T/runs/pycache-low/sbx/N1-old"
+  printf '{"arm": "sbx", "moca_commit": "c13d55649777e69ec7649d6fa8c08f4acb1f4e2e"}\n' >"$T/runs/pycache-low/sbx/N1-old/params.json"
+  check "gate: the commit preflight covers pycache-low's arms" \
+    "$(chain STUB_CALLS="$GOOD" -- --from gate-pycache-low --to gate-pycache-low)/$(grep -c 'is not from E17C_MOCA_PIN' "$T/e17c/gate-pycache-low.log")/$(grep -c . "$CLOG")" "1/1/0"
+
+  # the pycache-low stages after the gate
+  reset
+  seal true
+  local st out=""
+  for st in base-pycache-low-sbx base-pycache-low-ship-300 lat-pycache-low-sbx-n128 lat-pycache-low-ship-300-n128; do
+    out+="$st=$(chain -- --from "$st" --to "$st"):$(grep -c 'no .*gate-pycache-low.json.*run gate-pycache-low' "$T/e17c/$st.log"):$(grep -c . "$CLOG") "
+  done
+  check "pycache-low: each stage refuses without the gate's file, naming the gate, nothing run" "$out" \
+    "base-pycache-low-sbx=1:1:0 base-pycache-low-ship-300=1:1:0 lat-pycache-low-sbx-n128=1:1:0 lat-pycache-low-ship-300-n128=1:1:0 "
+  mkdir -p "$T/runs/pycache-low" && printf '{"pass": ' >"$GATE"
+  check "pycache-low: an unreadable gate file refuses too" \
+    "$(chain -- --from base-pycache-low-sbx --to base-pycache-low-sbx)/$(grep -c 'gate-pycache-low.json is unreadable' "$T/e17c/base-pycache-low-sbx.log")/$(grep -c . "$CLOG")" "1/1/0"
+  gate_file false "ship-300 seed 3 (N1-g3): 2 in-window calls, need 3"
+  check "pycache-low: after a failed gate the four stages are SKIPPED as cut, with the gate's reason, exit 0, nothing run; the chain goes on" \
+    "$(chain -- --from base-pycache-low-sbx --to base-squeeze-sbx)/$(grep -c '^E17C [a-z0-9-]*pycache-low[a-z0-9-]* SKIP (pycache-low cut by gate-pycache-low: ship-300 seed 3 (N1-g3): 2 in-window calls, need 3' "$TMP/c.out")/$(cat "$T"/e17c/*pycache-low*.done | grep -c 'skipped: pycache-low cut')/$(calls)" \
+    "0/4/4/baseline squeeze sbx;"
+  gate_file true "every seed passed"
+  check "pycache-low: after a passed gate they run; the baselines from the first call with the 1800 s window, the N=128 rungs as before" \
+    "$(chain -- --from base-pycache-low-sbx --to lat-pycache-low-ship-300-n128)/$(sed 's/ tag=[^ ]* seed=[^ ]*//; s/ memmax=.* win=/ win=/' "$CLOG" | tr '\n' ';')" \
+    "0/baseline pycache-low sbx zero=1 win=1800;baseline pycache-low ship-300 zero=1 win=1800;rung sbx 128 pycache-low zero=unset win=unset;rung ship-300 128 pycache-low zero=unset win=unset;"
+}
+
 test_guards() {
   reset
   seal true
@@ -305,6 +392,7 @@ test_refuses_knobs
 test_refuses_unsealed
 test_bringup_unsealed
 test_sealed_stages
+test_gate_low
 test_guards
 
 echo
