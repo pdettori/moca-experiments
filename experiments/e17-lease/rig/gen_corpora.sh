@@ -8,7 +8,8 @@
 # E17_CORPORA defaults to /tmp/kagenti/e17-corpora; E17_PYTHON (default python3) runs the generator.
 # E17_TMPFS_SHARE (PLAN-E17B Task 10) is --tmpfs-share: that fraction of the sessions keeps its
 # py_analyze/py_test caches in guest tmpfs, and every turn ends with a py_shmem reading. Its default follows the
-# profile (final review M3): 0.5 under E17B=1 (the E17b corpora), 0 with E17B unset, so the sealed command still
+# profile (final review M3): 0.5 under E17B=1 (the E17b corpora; E17C=1 implies E17B=1, PLAN-E17C Task 4), 0 with
+# E17B and E17C unset, so the sealed command still
 # writes the E17a corpora byte for byte (corpus_sha256 of results/corpus/*-report.json).
 #
 #   bash experiments/e17-lease/rig/gen_corpora.sh [--durations-from CAL.json]
@@ -25,7 +26,7 @@ W="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 PC=${E17_CORPORA:-/tmp/kagenti/e17-corpora}
 GAPS=${E17_GAPS:-/tmp/kagenti/e16-corpus-default/corpus.jsonl}
 PY=${E17_PYTHON:-python3}
-if [ "${E17B:-}" = 1 ]; then SHARE=${E17_TMPFS_SHARE:-0.5}; else SHARE=${E17_TMPFS_SHARE:-0}; fi
+if [ "${E17B:-}" = 1 ] || [ "${E17C:-}" = 1 ]; then SHARE=${E17_TMPFS_SHARE:-0.5}; else SHARE=${E17_TMPFS_SHARE:-0}; fi
 cal=()
 case "${1:-}" in
 "") ;;

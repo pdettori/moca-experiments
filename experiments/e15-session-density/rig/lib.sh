@@ -1041,7 +1041,8 @@ e17b_idle_timeout_s() {
 }
 # E17b snapshot leaf (ruling E17B-R17): under E17B=1 every arm's worker runs on snapshot-e17b.sh's leaf
 # e17b-<first 8 of E15_MOCA_PIN>-<E17B_GUEST_RAM_MB> (1024 by default; 256 for the 256 MiB stages) with that guest RAM,
-# never on the sealed e15 leaf. With E17B unset: $E15_SNAPIMG and 1024 MiB, as before.
+# never on the sealed e15 leaf; under E17C=1 the leaf is e17c-<first 8 of E15_MOCA_PIN (= E17C_MOCA_PIN)>-<ram>.
+# With E17B unset: $E15_SNAPIMG and 1024 MiB, as before.
 e17b_guest_ram_mb() {
   case "${E17B_GUEST_RAM_MB:-1024}" in
   1024 | 256) echo "${E17B_GUEST_RAM_MB:-1024}" ;;
@@ -1052,7 +1053,8 @@ worker_snapimg() {
   if [ "${E17B:-}" = 1 ]; then
     local ram
     ram=$(e17b_guest_ram_mb) || exit 1
-    echo "e17b-${E15_MOCA_PIN:0:8}-$ram"
+    # E17c (E17C=1, ruling R-i): its own leaves e17c-<E17C pin8>-<ram> (snapshot-e17b.sh under E17C=1)
+    if [ "${E17C:-}" = 1 ]; then echo "e17c-${E15_MOCA_PIN:0:8}-$ram"; else echo "e17b-${E15_MOCA_PIN:0:8}-$ram"; fi
   else
     echo "$E15_SNAPIMG"
   fi
