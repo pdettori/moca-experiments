@@ -59,17 +59,21 @@ def lat(root, point, arm, name, n, short_ms, import_ms, **files):
     return write_rung(root, point, arm, name, n, calls, log, **files)
 
 
-def c2_tree(root, seeds=4, sbx_seeds=None, short_ms=100, import_ms=600, n128=True, arms=("ship-300",)):
-    """sbx 400/1000 ms; the lease arms short_ms/import_ms: gains 1 - 100/400 = 0.75, 1 - 600/1000 = 0.40."""
+def c2_tree(root, seeds=4, sbx_seeds=None, short_ms=100, import_ms=600, n128=True, arms=("ship-300",),
+            n128_import_ms=None, reason=None):
+    """sbx 400/1000 ms; the lease arms short_ms/import_ms: gains 1 - 100/400 = 0.75, 1 - 600/1000 = 0.40. Every seed
+    is evaluable (record.json, reason `reason`); n128_import_ms overrides the lease arms' N=128 py_import."""
+    rec = {"holds": True, "reason": reason}
     for k in range(1, (sbx_seeds if sbx_seeds is not None else seeds) + 1):
-        lat(root, "pycache", "sbx", "N1-s%d" % k, 1, 400, 1000)
+        lat(root, "pycache", "sbx", "N1-s%d" % k, 1, 400, 1000, record_json=rec)
     for arm in arms:
         for k in range(1, seeds + 1):
-            lat(root, "pycache", arm, "N1-s%d" % k, 1, short_ms, import_ms)
+            lat(root, "pycache", arm, "N1-s%d" % k, 1, short_ms, import_ms, record_json=rec)
     if n128:
         lat(root, "pycache", "sbx", "N128-lat", 128, 400, 1000)
         for arm in arms:
-            lat(root, "pycache", arm, "N128-lat", 128, short_ms, import_ms)
+            lat(root, "pycache", arm, "N128-lat", 128, short_ms,
+                import_ms if n128_import_ms is None else n128_import_ms)
 
 
 def squeeze_tree(root, point="squeeze", **kw):
@@ -223,9 +227,58 @@ def test_2_bars(tmp_path, short_ms, import_ms, want):
 @pytest.mark.parametrize("seeds,sbx_seeds", [(3, 4), (4, 3)])
 def test_2_fewer_than_4_seeds_per_arm_is_null(tmp_path, seeds, sbx_seeds):
     root = str(tmp_path / "runs")
-    c2_tree(root, seeds=seeds, sbx_seeds=sbx_seeds, import_ms=900)  # even a failing gain is not judged
+    c2_tree(root, seeds=seeds, sbx_seeds=sbx_seeds, import_ms=900, n128_import_ms=600)  # an N=1 fail is not judged
     c = crit(V(root), "2_prime")
-    assert c["pass"] is None and any("seed" in m for m in c["missing"])
+    assert c["pass"] is None and any("evaluable seed" in m for m in c["missing"])
+    assert c["value"]["n1_judged"] is False
+
+
+def test_2_fewer_than_4_seeds_does_not_hide_an_n128_failure(tmp_path):
+    root = str(tmp_path / "runs")
+    c2_tree(root, seeds=3, n128_import_ms=900)
+    c = crit(V(root), "2_prime")
+    assert c["pass"] is False and any("N=128" in w and "py_import" in w for w in c["why"])
+
+
+def mark_empty_window(root, arm, name):
+    json.dump({"holds": False, "reason": "empty_window"},
+              open(os.path.join(root, "pycache", arm, name, "record.json"), "w"))
+
+
+def test_2_counts_evaluable_seeds_only_4_dirs_one_empty_window_is_null(tmp_path):
+    # R-l': 4 seed directories, one with reason empty_window -> 3 evaluable ship-300 seeds
+    root = str(tmp_path / "runs")
+    c2_tree(root, seeds=4)
+    mark_empty_window(root, "ship-300", "N1-s2")
+    c = crit(V(root), "2_prime")
+    assert c["value"]["seeds"] == {"sbx": 4, "ship-300": 3}
+    assert c["pass"] is None and any("ship-300 has 3 evaluable seed" in m for m in c["missing"])
+    assert [x["state"] for x in c["value"]["seeds_not_evaluable"]] == ["empty_window"]
+
+
+def test_2_four_evaluable_plus_one_empty_window_is_judged_on_the_4(tmp_path):
+    root = str(tmp_path / "runs")
+    c2_tree(root, seeds=4)
+    # a fifth ship-300 seed, empty_window, whose calls would fail the bar were it read
+    lat(root, "pycache", "ship-300", "N1-s5", 1, 99999, 99999, record_json={"holds": False, "reason": "empty_window"})
+    c = crit(V(root), "2_prime")
+    assert c["value"]["seeds"] == {"sbx": 4, "ship-300": 4} and c["value"]["n1_judged"] is True
+    assert c["value"]["gated"]["1"]["py_short"] == pytest.approx(0.75)
+    assert not any(p.endswith("ship-300/N1-s5") for p in c["inputs"])
+    assert c["pass"] is True
+
+
+@pytest.mark.parametrize("state", ["no_record", "unreadable"])
+def test_2_seed_without_a_readable_record_is_not_evaluable(tmp_path, state):
+    root = str(tmp_path / "runs")
+    c2_tree(root, seeds=4)
+    lat(root, "pycache", "sbx", "N1-s5", 1, 400, 1000)
+    if state == "unreadable":
+        open(os.path.join(root, "pycache", "sbx", "N1-s5", "record.json"), "w").write("{")
+    c = crit(V(root), "2_prime")
+    assert c["value"]["seeds"]["sbx"] == 4 and c["value"]["seeds_not_evaluable"][0]["state"] == state
+    # an unreadable record is unknown, never read as fine: null; a seed with no record is simply not one
+    assert c["pass"] is (None if state == "unreadable" else True)
 
 
 def test_2_without_n128_is_null(tmp_path):
@@ -238,7 +291,8 @@ def test_2_reports_ship_300_nd_and_never_gates_it(tmp_path):
     root = str(tmp_path / "runs")
     c2_tree(root, arms=("ship-300",))
     for k in range(1, 5):
-        lat(root, "pycache", "ship-300-nd", "N1-s%d" % k, 1, 390, 990)  # fails the bars: reported only
+        lat(root, "pycache", "ship-300-nd", "N1-s%d" % k, 1, 390, 990,  # fails the bars: reported only
+            record_json={"reason": None})
     lat(root, "pycache", "ship-300-nd", "N128-lat", 128, 390, 990)
     r = V(root)
     assert crit(r, "2_prime")["pass"] is True
@@ -330,6 +384,15 @@ def test_top_level_pass_null_when_any_is_null(tmp_path):
     assert r["criteria"]["5a_prime"]["pass"] is None and r["pass"] is None
 
 
+def test_top_level_pass_null_when_one_is_null_and_another_false(tmp_path):
+    root = str(tmp_path / "runs")
+    full_tree(root)
+    json.dump(vmf(ratio=2.0), open(os.path.join(root, "pycache", "ship-300", "N128-lat", "vm_age_lease.json"), "w"))
+    r = V(root, None)  # 5a' null (no predictions), 5b' false
+    assert r["criteria"]["5a_prime"]["pass"] is None and r["criteria"]["5b_prime"]["pass"] is False
+    assert r["pass"] is None
+
+
 def test_top_level_pass_false_when_one_fails(tmp_path):
     root = str(tmp_path / "runs")
     full_tree(root)
@@ -418,3 +481,39 @@ def test_main_writes_the_verdict(tmp_path, capsys):
     assert r["pass"] is True and r["moca_commit"] == PIN and sorted(r["criteria"]) == sorted(VC.GATED)
     o = capsys.readouterr().out
     assert "verdict.json" in o and "pass True" in o
+
+
+# ---- fix round 1, item 2: 5a' reads the keys vm_age_lease.py really writes ----------------------------------------
+
+def test_5a_reads_the_producers_numbers(tmp_path):
+    """Two ship-300 rungs built with test_vm_age_lease's E17c fixture, analysed by the real vm_age_lease.main (as the
+    chain's analysis gate runs it), then the verdict over the tree."""
+    import test_vm_age_lease as TL
+    import vm_age_lease as VAL
+    os.makedirs(str(tmp_path / "runs" / "pycache" / "ship-300"))
+    # follows on vm_fp, +45 s and idle tail at 150 MiB (not pinned); then one that stays at 950 MiB and drops to
+    # 1000 MiB (follows false, pinned at +45 s and at the idle tail)
+    specs = (("N1-s1", 1, {}), ("N128-lat", 128, dict(fp_after=950, fp_drop=1000)))
+    fprs = []
+    for name, n, kw in specs:
+        d = TL.fp_fixture(tmp_path, name="runs/pycache/ship-300/" + name, **kw)
+        json.dump({"arm": "ship-300", "n": n, "point": "pycache", "moca_commit": PIN},
+                  open(os.path.join(d, "params.json"), "w"))
+        VAL.main([d, "--sbx-median-ms", "400"])
+        fprs.append(json.load(open(os.path.join(d, "vm_age_lease.json")))["fpr"])
+    root = str(tmp_path / "runs")
+    for reading, infix in (("plus45", "45s"), ("idle_tail", "idle_tail")):
+        c = crit(VC.verdict(root, PIN, predictions=preds(tmp_path, reading, name=reading + ".json")), "5a_prime")
+        v = c["value"]
+        t, f = (sum(x[k] for x in fprs) for k in ("follows_fp_true", "follows_fp_false"))
+        assert (t, f) == (1, 1)  # the fixture behaves as designed
+        assert v["pooled"]["follows_fp_true"] == t and v["pooled"]["follows_fp_false"] == f
+        assert v["follow_share"] == pytest.approx(t / float(t + f))
+        rd, pn = (sum(x["fp_%s_%s" % (infix, k)] for x in fprs) for k in ("readings", "pinned"))
+        assert (rd, pn) == (2, 1)
+        assert v["pooled"][reading]["readings"] == rd and v["pooled"][reading]["pinned"] == pn
+        assert v["pinned_share"] == pytest.approx(pn / float(rd))
+        assert [r["share_true_fp"] for r in v["rungs"]] == [x["share_true_fp"] for x in fprs]
+        assert [r["pinned_share_fp_" + infix] for r in v["rungs"]] == [x["pinned_share_fp_" + infix] for x in fprs]
+        assert v["pooled"]["plus45"]["judged_readings"] == sum(x["fp_45s_judged_readings"] for x in fprs)
+        assert c["missing"] == [] and c["pass"] is True  # 0.50 and 0.50: at both bars

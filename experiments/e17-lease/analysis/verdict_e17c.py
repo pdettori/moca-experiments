@@ -20,13 +20,17 @@ Gated (`criteria`):
             reported. Absent or unsealed predictions, or any other reading value: pass null, the reason in `missing`.
             A rung without vm_age_lease.json, with mapping_valid not true, or without the vm_fp keys: null.
   2_prime   E17b's criterion 2 (verdict.latency) for ship-300 against sbx at pycache: warm py_short gain >= 0.50 and
-            py_import >= 0.30 at N=1 (the seed rungs N1-s<k> pooled; at least 4 per arm for sbx and ship-300, else
-            null, ruling R-l) and N=128 (N128-lat). Gains are over all warm calls; Task 5's after_drop / kept split
-            rides in `groups` (classes[].warm_by_cache), reported, not gated.
+            py_import >= 0.30 at N=1 (the evaluable seed rungs N1-s<k> pooled, ruling R-l': a seed is evaluable when
+            its record.json exists and its reason is not empty_window, rig/chain-e17c.sh's cal rule; non-evaluable
+            seeds are listed and not read; fewer than 4 evaluable per arm for sbx or ship-300 leaves the N=1 half
+            null, and an unreadable record.json is listed as missing) and N=128 (N128-lat). As in E17b, a failing
+            gain makes it false even when the other half is null. Gains are over all warm calls; Task 5's
+            after_drop / kept split rides in `groups` (classes[].warm_by_cache), reported, not gated.
   5b_prime  Every ship-* rung at pycache (ship-300 and ship-300-nd): replacement-lease median first py_grep within
             1.5x of sbx (vm_age_lease --sbx ratio_to_sbx). A rung with no replacement lease with a first py_grep has
             no reading (counted, not a failure); a rung with one but no sbx median, a ship rung without
-            vm_age_lease.json, or an arm with no ratio at all leaves it null.
+            vm_age_lease.json, or an arm with no ratio at all leaves it null (ruling R-r, E17b's sealed rule: a
+            half with no judged reading is null, not a pass).
   3_prime   E17b's criterion 3 (verdict.reclaim) at squeeze for the ship-300 climb only.
 
 Top-level `pass`: true only when all four are true; null when any is null; false otherwise.
@@ -179,19 +183,51 @@ def criterion(name, value, inputs, missing, passed, why):
 
 # ---- 2' -------------------------------------------------------------------------------------------------------------
 
+def seed_state(r):
+    """R-l': a seed is evaluable when its record.json exists and its reason is not empty_window (the chain's cal
+    stage rule). -> "evaluable", "empty_window", "no_record" or "unreadable"."""
+    p = os.path.join(r["dir"], "record.json")
+    if not os.path.exists(p):
+        return "no_record"
+    rec = V.load(p)
+    if not isinstance(rec, dict):
+        return "unreadable"
+    return "empty_window" if rec.get("reason") == "empty_window" else "evaluable"
+
+
 def c2(rungs):
+    seeds, not_eval, unreadable, drop = {"sbx": 0, ARM: 0}, [], [], set()
+    for r in rungs:
+        if r["point"] != POINT or not N1_SEED.match(r["name"]) or not (r["arm"] == "sbx" or V.is_ship(r)):
+            continue
+        st = seed_state(r)
+        if st == "evaluable":
+            if r["arm"] in seeds:
+                seeds[r["arm"]] += 1
+            continue
+        drop.add(r["dir"])  # judged on the evaluable seeds only
+        not_eval.append({"rung": r["dir"], "state": st})
+        if st == "unreadable":
+            unreadable.append("%s/record.json unreadable" % r["dir"])
     # R-l: N=1 is the seed rungs; a pycache N1-lat (E17b's stage, not E17c's) is not read
-    lat_rungs = [r for r in rungs if not (r["point"] == POINT and r["name"] == "N1-lat")]
+    lat_rungs = [r for r in rungs if r["dir"] not in drop and not (r["point"] == POINT and r["name"] == "N1-lat")]
     c = V.latency(lat_rungs)
-    seeds = {a: sum(1 for r in rungs if r["point"] == POINT and r["arm"] == a and N1_SEED.match(r["name"]))
-             for a in ("sbx", ARM)}
-    c["value"].update(seeds=seeds, min_seeds=MIN_SEEDS)
-    short = ["pycache N=1 %s has %d seed rung(s) N1-s<k> (need %d)" % (a, n, MIN_SEEDS)
-             for a, n in sorted(seeds.items()) if n < MIN_SEEDS]
-    if short:
-        c["missing"] = sorted(c["missing"] + short)
-        c["why"] = ["not judged: " + s for s in short] + c["why"]
-        c["pass"] = None
+    gated = c["value"]["gated"]
+    short = ["pycache N=1 %s has %d evaluable seed(s) N1-s<k> (record.json, reason not empty_window; need %d): "
+             "the N=1 half is not judged" % (a, n, MIN_SEEDS) for a, n in sorted(seeds.items()) if n < MIN_SEEDS]
+    c["value"].update(seeds=seeds, min_seeds=MIN_SEEDS, seeds_not_evaluable=sorted(not_eval, key=lambda x: x["rung"]),
+                      n1_judged=not short)
+    fails = []
+    for n, v in sorted(gated.items()):
+        if n == "1" and short:
+            continue
+        for cl, gain in sorted(v.items()):
+            if gain is not None and gain < V.GAIN_BARS[cl]:
+                fails.append("pycache N=%s ship-300 warm %s gain %.3f < %.2f" % (n, cl, gain, V.GAIN_BARS[cl]))
+    missing = sorted(set(c["missing"] + short + unreadable))
+    c["missing"] = missing
+    c["pass"] = V.judged(fails, missing)
+    c["why"] = fails + ["not judged: " + m for m in short + unreadable]
     return dict(name="warm latency at the new pin (Q6)", **c)
 
 
