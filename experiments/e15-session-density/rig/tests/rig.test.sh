@@ -831,6 +831,55 @@ if [ -f "$RIG/sample.sh" ]; then
     "$(head -1 "$OUTS" | python3 -c 'import json,sys; print(json.dumps(json.loads(sys.stdin.read())["e15_mem_events"], sort_keys=True))')" '{"high": 42, "max": 3, "oom_kill": 1}'
 fi
 
+# sample.sh under E17C=1 (PLAN-E17C Task 3, ruling R-d): each VM's footprint as the moca worker charges it
+# (readLeaseFootprint, moca #974): vm_fp = memory.current - max(file - file_mapped - shmem - file_dirty -
+# file_writeback, 0), clamped at 0; vm_dirty = file_dirty. A VM whose memory.stat is missing or lacks a field is
+# left out (never 0). With E17C unset the line is byte-identical to the pre-E17c sampler's (golden below).
+if [ -f "$RIG/sample.sh" ]; then
+  FV="$TMP/fcg17/e15-vms.slice"
+  mkvm() { # NAME PROCS CURRENT [STAT-LINES]: a fake VM cgroup; no STAT-LINES -> no memory.stat
+    mkdir -p "$FV/$1"
+    printf '%s' "$2" >"$FV/$1/cgroup.procs"
+    printf '%s\n' "$3" >"$FV/$1/memory.current"
+    [ $# -ge 4 ] && printf '%b' "$4" >"$FV/$1/memory.stat"
+    return 0
+  }
+  # vm-a: reclaimable 600000-100000-50000-20000-10000 = 420000 -> 1000000-420000; the *_thp decoys are not the fields
+  mkvm vm-a 11 1000000 'anon 300000\nfile 600000\nfile_mapped 100000\nfile_dirty 20000\nfile_writeback 10000\nshmem 50000\nfile_thp 999\nshmem_thp 7\n'
+  # vm-b: reclaimable < 0 -> 0, the footprint is memory.current
+  mkvm vm-b 12 500000 'file 100\nfile_mapped 200\nshmem 0\nfile_dirty 0\nfile_writeback 0\n'
+  # vm-c: no file_writeback -> out of vm_fp; its file_dirty is still a reading
+  mkvm vm-c 13 700000 'file 1000\nfile_mapped 0\nshmem 0\nfile_dirty 300\n'
+  # vm-d: reclaimable above memory.current -> clamped at 0
+  mkvm vm-d 14 1000 'file 5000\nfile_mapped 0\nshmem 0\nfile_dirty 0\nfile_writeback 0\n'
+  # vm-e: no memory.stat -> in vm_mem only
+  mkvm vm-e 15 2000
+  # vm-f: an idle pool cgroup (no process) and the worker's service cgroup: in nothing
+  mkvm vm-f '' 9 'file 1\nfile_mapped 0\nshmem 0\nfile_dirty 0\nfile_writeback 0\n'
+  mkvm microvm-worker.service 16 9 'file 1\nfile_mapped 0\nshmem 0\nfile_dirty 0\nfile_writeback 0\n'
+  s17() { # [VAR=VALUE...]: one sampler run over the fake tree -> its first line, t and ts normalised
+    rm -f "$OUTS"
+    env E15_PROC="$FP" E15_DISK_DEV=nosuch E15_DISK_PATH="$TMP/nodisk" E15_SLICE_DIR="$TMP/fcg17" \
+      E15_STATS_URL=http://127.0.0.1:1/x "$@" bash "$RIG/sample.sh" "$OUTS" "$(date +%s)" 1.2 >/dev/null 2>&1
+    head -1 "$OUTS" | sed -E 's/^\{"t":[0-9.-]+,"ts":[0-9.]+,/{"t":T,"ts":TS,/'
+  }
+  base='{"t":T,"ts":TS,"mem_available_kb":100,"page_cache_kb":5,"slice_mem_bytes":null,"slice_cpu_usec":null,"e15_mem_bytes":null,"e15_cpu_usec":null,"psi_cpu_some_avg10":null,"psi_mem_some_avg10":null,"psi_mem_full_avg10":null,"slice_psi_mem_some_avg10":null,"disk_used_pct":null,"disk_used_kb":null,"procs":3,"vm_mem":{"vm-a":1000000,"vm-b":500000,"vm-c":700000,"vm-d":1000,"vm-e":2000}'
+  check "sample.sh E17C=1: vm_fp and vm_dirty beside vm_mem, the line otherwise unchanged" \
+    "$(s17 E17C=1)" "$base"',"vm_fp":{"vm-a":580000,"vm-b":500000,"vm-d":0},"vm_dirty":{"vm-a":20000,"vm-b":0,"vm-c":300,"vm-d":0}}'
+  check "sample.sh E17C unset: the line is byte-identical to the pre-E17c sampler's" "$(s17)" "$base}"
+  check "sample.sh E17C=0 (anything but 1): unchanged" "$(s17 E17C=0)" "$base}"
+  check "sample.sh E17C=1: a VM missing memory.stat or a field is left out of vm_fp, never 0" \
+    "$(s17 E17C=1 >/dev/null; head -1 "$OUTS" | python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print(",".join(sorted(set(d["vm_mem"]) - set(d["vm_fp"]))), ",".join(sorted(set(d["vm_mem"]) - set(d["vm_dirty"]))))')" "vm-c,vm-e vm-e"
+  # The switch reaches the sampler as rung.sh starts it: an E17C=1 environment, lib.sh sourced (its profile
+  # exports E17B=1 too), then a plain `bash sample.sh` child -- rung.sh's own launch line, pinned below.
+  rm -f "$OUTS"
+  E17C=1 E15_PROC="$FP" E15_DISK_DEV=nosuch E15_DISK_PATH="$TMP/nodisk" E15_SLICE_DIR="$TMP/fcg17" E15_STATS_URL=http://127.0.0.1:1/x \
+    bash -c 'source "$1"; bash "$2" "$3" "$(date +%s)" 1.2' _ "$RIG/lib.sh" "$RIG/sample.sh" "$OUTS" >/dev/null 2>&1
+  check "sample.sh: E17C=1 reaches the sampler through lib.sh as rung.sh starts it" "$(head -1 "$OUTS" | grep -c '"vm_fp":{"vm-a":580000,')" "1"
+  check "rung.sh: the sampler is a plain bash child (inherits E17C; no env -i, no unset)" \
+    "$(grep -c '^bash "\$HERE/sample.sh" "\$DIR/samples.jsonl" "\$launch_ts" "\$((WARMUP + WINDOW + 120))" &$' "$RIG/rung.sh")/$(grep -cE 'unset[^#]*E17C|export -n[^#]*E17C' "$RIG/rung.sh" "$RIG/lib.sh" | awk -F: '{s+=$NF} END{print s}')" "1/0"
+fi
+
 # setup.sh: the volume's read throughput, measured once (dd direct I/O), kept in state
 if [ -f "$RIG/lib.sh" ]; then
   ddout='2147483648 bytes (2.1 GB, 2.0 GiB) copied, 10.7374 s, 200 MB/s'
