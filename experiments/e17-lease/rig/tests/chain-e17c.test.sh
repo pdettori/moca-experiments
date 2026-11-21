@@ -195,8 +195,8 @@ g256_file() { # PASS SCALE [COMMIT]: a gate-256.json as the gate writes it (the 
     "$1" "$2" "${3:-$PIN}" >"$G256"
 }
 lib256() { # SCALE: the staged library-256.json with py_analyze at SCALE (the committed change the gate's scale needs)
-  python3 -c 'import json,sys; l=json.load(open(sys.argv[1])); l["classes"]["py_analyze"][0]["cmd"]="cd project && PYC_ANALYZE_WORK_SCALE=%s ../venv/bin/python analyze.py" % sys.argv[2]; json.dump(l, open(sys.argv[3], "w"))' \
-    "$RIG/../workload/library-256.json" "$1" "$LIB256"
+  python3 -c 'import json,sys; sys.path.insert(0, sys.argv[4]); import gate256; l=json.load(open(sys.argv[1])); l["classes"]["py_analyze"][0]["cmd"]=gate256.analyze_cmd(int(sys.argv[2])); json.dump(l, open(sys.argv[3], "w"))' \
+    "$RIG/../workload/library-256.json" "$1" "$LIB256" "$RIG/../analysis"
 }
 g2q() { python3 -c 'import json,sys; v=json.load(open(sys.argv[1]))
 for k in sys.argv[2].split("."): v = v[int(k)] if isinstance(v, list) else v[k]
@@ -455,8 +455,8 @@ test_gate_256() {
     "$(head -1 "$TMP/g256.log")/$(grep -c . "$TMP/g256.log")/$(sed 's/ .*//' "$TMP/g256.log" | LC_ALL=C sort -u | tr '\n' ' ')" \
     "lib=library-s32.json ovr=runs/pycache-d64/gate-256-inputs/probe/py_analyze/corpus.jsonl maxs=1 warm=0 spread=0/12/lib=library-s1.json lib=library-s16.json lib=library-s2.json lib=library-s32.json lib=library-s4.json lib=library-s8.json "
   check "gate-256: the gate library carries its scale and the RSS wrapper; the probe corpus has 20 py_analyze calls" \
-    "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["classes"]["py_analyze"][0]["cmd"][:57])' "$T/runs/pycache-d64/gate-256-inputs/library-s8.json")/$(python3 -c 'import json,sys; c=json.loads(open(sys.argv[1]).readline())["calls"]; print(len(c), sorted({x["class"] for x in c}))' "$T/runs/pycache-d64/gate-256-inputs/probe/py_analyze/corpus.jsonl")" \
-    "cd project && PYC_ANALYZE_WORK_SCALE=8 python3 -c 'import/20 ['py_analyze']"
+    "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["classes"]["py_analyze"][0]["cmd"][:57], "config.ANALYZE_WORK_SCALE = 8;" in json.load(open(sys.argv[1]))["classes"]["py_analyze"][0]["cmd"])' "$T/runs/pycache-d64/gate-256-inputs/library-s8.json")/$(python3 -c 'import json,sys; c=json.loads(open(sys.argv[1]).readline())["calls"]; print(len(c), sorted({x["class"] for x in c}))' "$T/runs/pycache-d64/gate-256-inputs/probe/py_analyze/corpus.jsonl")" \
+    "cd project && ../venv/bin/python -c 'import resource, sub True/20 ['py_analyze']"
   check "gate-256: every scale passes here -> the largest (32); gate-256.json with its settings, the DONE line says PASS" \
     "$(g2q pass)/$(g2q chosen_scale)/$(g2q candidates)/$(g2q runs_per_arm)/$(g2q rss_max_mib)/$(g2q moca_commit)/$(grep -c 'E17C gate-256 DONE .*(gate-256: PASS: scale 32' "$TMP/c.out")" \
     "true/32/[32, 16, 8, 4, 2, 1]/20/120/\"$PIN\"/1"

@@ -3,14 +3,16 @@
 
 E17b's py_analyze was OOM-killed in a 256 MiB guest in both arms: a lease command's cap there is about 166 MiB
 (MemTotal - max(64 MiB, MemTotal/8)). E17c's 256 MiB points (pycache-d64, squeeze-256) replay
-workload/library-256.json, whose py_analyze runs at a lower ANALYZE_WORK_SCALE (the command sets
-PYC_ANALYZE_WORK_SCALE, which config.py reads). This picks that scale: in a 256 MiB guest, for each candidate scale
+workload/library-256.json, whose py_analyze runs at a lower ANALYZE_WORK_SCALE. Ruling R-z1: the project's sources
+(config.py) stay as in E17a/E17b, so an E17C-unset bring-up keeps its templates; the command itself sets the scale
+(analyze_cmd: `../venv/bin/python -c` sets the bytecode prefix as analyze.py does, imports pyc.config, sets
+ANALYZE_WORK_SCALE and runs analyze.py as __main__). This picks that scale: in a 256 MiB guest, for each candidate scale
 and each arm (sbx, ship-300), py_analyze runs 20 times (one probe session, rung.sh at pycache-d64 N=1 with
 E17C_GATE_LIBRARY = a gate library); the chosen scale is the LARGEST whose 20 runs in EVERY arm all completed with
 exit 0, none OOM-killed, each with a peak RSS reading, and the peak over them <= 120 MiB.
 
-Peak RSS is measured inside the command: the gate library's py_analyze runs analyze.py as the child of a python3
-wrapper that prints `peak_rss_kb=<resource.getrusage(RUSAGE_CHILDREN).ru_maxrss>` after it (KiB on Linux, the guest)
+Peak RSS is measured inside the command: the gate library's py_analyze runs analyze_cmd's program as the child of a
+../venv/bin/python wrapper (the venv is in every guest; python3 is not certain to be) that prints `peak_rss_kb=<resource.getrusage(RUSAGE_CHILDREN).ru_maxrss>` after it (KiB on Linux, the guest)
 and exits as the child did (128 + signal when killed: 137 for the OOM killer's SIGKILL). The guest may have no
 /usr/bin/time. The rung records py_analyze's stdout (--record-stdout). The wrapper is in the same cgroup, so it lowers
 the command's headroom a little (the gate errs on the safe side).
@@ -46,14 +48,31 @@ RSS_MAX_MIB = 120
 ARMS = ("sbx", "ship-300")
 OOM_RC = 137
 PLACEHOLDER = 0
-CMD_256 = re.compile(r"^cd project && PYC_ANALYZE_WORK_SCALE=(\d+) \.\./venv/bin/python analyze\.py$")
+# library-256.json's py_analyze: analyze.py at ANALYZE_WORK_SCALE = <scale>, with no change to the project's sources.
+# PYC_CACHE_DIR's bytecode prefix is set before pyc.config is first imported, exactly as analyze.py sets it.
+ANALYZE_PROGRAM = ('import os, runpy, sys; d = os.environ.get("PYC_CACHE_DIR"); '
+                   'sys.pycache_prefix = os.path.join(d, "pyc") if d else None; sys.path.insert(0, "src"); '
+                   'from pyc import config; config.ANALYZE_WORK_SCALE = %d; '
+                   'runpy.run_path("analyze.py", run_name="__main__")')
+CMD_256 = re.compile("^" + re.escape("cd project && ../venv/bin/python -c '" + ANALYZE_PROGRAM + "'")
+                     .replace(re.escape("%d"), r"(\d+)") + "$")
 PEAK = re.compile(r"(?m)^peak_rss_kb=(\d+)$")
 RUNG = "N1-g256-s%d"
-# The gate library's py_analyze: analyze.py as the wrapper's child, its peak RSS printed after it.
-WRAPPER = ("cd project && PYC_ANALYZE_WORK_SCALE=%d python3 -c 'import resource, subprocess, sys; "
-           "r = subprocess.call([\"../venv/bin/python\", \"analyze.py\"]); "
+# The gate library's py_analyze: ANALYZE_PROGRAM as the wrapper's child, its peak RSS printed after it.
+WRAPPER = ("cd project && ../venv/bin/python -c 'import resource, subprocess, sys; "
+           "r = subprocess.call([\"../venv/bin/python\", \"-c\", %s]); "
            "print(\"peak_rss_kb=%%d\" %% resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss, flush=True); "
            "sys.exit(128 - r if r < 0 else r)'")
+
+
+def analyze_cmd(scale):
+    """library-256.json's py_analyze command at SCALE (PLACEHOLDER 0: fit_repeated refuses it, so it never runs)."""
+    return "cd project && ../venv/bin/python -c '" + ANALYZE_PROGRAM % scale + "'"
+
+
+def wrapper_cmd(scale):
+    """The gate library's py_analyze at SCALE: the RSS wrapper around analyze_cmd's program."""
+    return WRAPPER % json.dumps(ANALYZE_PROGRAM % scale)
 
 
 def sha256(path):
@@ -67,8 +86,7 @@ def library_scale(path):
         (inv,) = json.load(f)["classes"]["py_analyze"]
     m = CMD_256.match(inv["cmd"])
     if not m:
-        raise ValueError("%s: py_analyze's command is not 'cd project && PYC_ANALYZE_WORK_SCALE=<n> "
-                         "../venv/bin/python analyze.py': %r" % (path, inv["cmd"]))
+        raise ValueError("%s: py_analyze's command is not gate256.analyze_cmd(<n>): %r" % (path, inv["cmd"]))
     return int(m.group(1))
 
 
@@ -79,7 +97,7 @@ def write_gate_library(base, scale, out):
     with open(base) as f:
         lib = json.load(f)
     (inv,) = lib["classes"]["py_analyze"]
-    inv["cmd"] = WRAPPER % scale
+    inv["cmd"] = wrapper_cmd(scale)
     tmp = out + ".tmp"
     with open(tmp, "w") as f:
         json.dump(lib, f, indent=2)
@@ -200,9 +218,9 @@ def cmd_write(a):
     doc.update(stage="gate-256", spec="SPEC §13.5 (R45); PLAN-E17C Task 10", point="pycache-d64",
                moca_commit=a.moca_commit, guest_ram_mb=256,
                measured=("peak RSS: resource.getrusage(RUSAGE_CHILDREN).ru_maxrss of analyze.py (KiB), printed by "
-                         "the gate library's python3 wrapper inside the command; OOM kill: exit or failed_rc 137"),
+                         "the gate library's ../venv/bin/python wrapper inside the command; OOM kill: exit or failed_rc 137"),
                library_256={"path": a.library, "sha256": sha256(a.library), "scale": library_scale(a.library)},
-               next=("commit chosen_scale into library-256.json's py_analyze (PYC_ANALYZE_WORK_SCALE=<scale>), then "
+               next=("commit chosen_scale into library-256.json's py_analyze (gate256.analyze_cmd(<scale>)), then "
                      "gen_corpora.sh --gate-256 this file, sync.sh and E17C=1 setup.sh before the ram256 stages"))
     tmp = a.out + ".tmp"
     with open(tmp, "w") as f:

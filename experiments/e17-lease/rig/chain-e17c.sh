@@ -57,7 +57,7 @@
 #     pycache corpus, as classprobe.sh), rung.sh ARM 1 pycache-d64 with E17B_GUEST_RAM_MB=256, E15_START_ZERO=1,
 #     E15_MAX_SESSIONS=1, no warm-up or spread, a 3600 s window (20 runs at the 136 s Exec timeout fit; the run ends
 #     with its session), E15_TAG=g256-s<scale> and E17C_GATE_LIBRARY = library-256.json with py_analyze the RSS
-#     wrapper at that scale (analysis/gate256.py: analyze.py as a python3 child, then peak_rss_kb from
+#     wrapper at that scale (analysis/gate256.py: analyze_cmd's program as a ../venv/bin/python child, then peak_rss_kb from
 #     getrusage(RUSAGE_CHILDREN), exit 137 when OOM-killed). analysis/gate256.py write then picks the largest scale
 #     whose runs in both arms are all ok, none OOM-killed (exit or failed_rc 137), with peak RSS <= 120 MiB, and writes
 #     $E15_RUNS/pycache-d64/gate-256.json (per scale and arm: runs, OOM kills, peak RSS, pass and reason; the chosen
@@ -65,7 +65,7 @@
 #     and fails the stage (no file). An old gate file is removed before anything else, the preflight included. Its
 #     rungs are calibration only: no lease analysis runs on them (an OOM-killed py_analyze is the measurement).
 #     The gate REPORTS the scale; it never edits library-256.json. The controller commits it there (a reviewed
-#     change: PYC_ANALYZE_WORK_SCALE=<scale>, replacing the placeholder 0), runs gen_corpora.sh --gate-256 (the
+#     change: gate256.analyze_cmd(<scale>), replacing the placeholder 0; config.py is never edited, R-z1), runs gen_corpora.sh --gate-256 (the
 #     pycache-256 corpus), sync.sh and E17C=1 setup.sh, then the ram256 stages.
 #   seal: the pycache N=128 rungs (three arms); pycache-low's baselines and N=128 rungs (sbx, ship-300); the squeeze
 #     baselines, the ship-300 climb at E17B_SQUEEZE_MEMMAX_MB 24576 (fixed by the chain, passed to ladder.sh as
