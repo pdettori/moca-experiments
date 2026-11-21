@@ -17,6 +17,9 @@
 #   E15_CORPUS_OVERRIDE  a probe corpus.jsonl to replay instead of POINT's (classprobe.sh)
 #   E15_START_ZERO     1: every session starts at its first call (probe runs)
 #   E15_MAX_SESSIONS   start at most this many sessions, then end the run early (probe runs)
+#   E17C_GATE_LIBRARY  E17c's gate-256 only (experiments/e17-lease/rig/chain-e17c.sh; E17C=1, POINT pycache-d64, with
+#                      E15_CORPUS_OVERRIDE): the gate library replayed instead of the point's, and py_analyze's stdout
+#                      (its peak RSS line) recorded too
 #   E15_SQUEEZE_MEMMAX_MB  POINT squeeze or squeeze-256 only (E17b): lower e15.slice to MemoryMax=MB MiB, MemoryHigh 1 GiB below,
 #                      with `systemctl set-property --runtime` before the worker starts; the slice's own values
 #                      (read with `systemctl show` first) are restored at the rung's end and on any error or signal
@@ -106,6 +109,17 @@ if e15_is_squeeze "$POINT"; then
     exit 2
   }
 fi
+# E17c (PLAN-E17C Task 10): under E17C=1 pycache-d64 replays the 256 MiB library (points.sh), so it runs in 256 MiB
+# guests only. gate-256's rungs replay a gate library (E17C_GATE_LIBRARY) there, from a probe corpus.
+if [ "${E17C:-}" = 1 ] && [ "$POINT" = pycache-d64 ] && [ "$(worker_guest_ram_mb)" != 256 ]; then
+  echo "rung.sh: POINT pycache-d64 runs at E17B_GUEST_RAM_MB=256 under E17C=1 (its library is library-256.json, SPEC §13.5), got ${E17B_GUEST_RAM_MB:-1024}" >&2
+  exit 2
+fi
+if [ -n "${E17C_GATE_LIBRARY:-}" ] &&
+  { [ "${E17C:-}" != 1 ] || [ "$POINT" != pycache-d64 ] || [ -z "${E15_CORPUS_OVERRIDE:-}" ]; }; then
+  echo "rung.sh: E17C_GATE_LIBRARY is gate-256's (E17C=1, POINT pycache-d64, with E15_CORPUS_OVERRIDE): refusing" >&2
+  exit 2
+fi
 
 WARMUP=${E15_WARMUP_S:-$(e15_default_warmup "$ARM")}
 K_MULT=${E15_K_MULT:-1}
@@ -134,6 +148,7 @@ scan_flag=()
 [ -z "$E15_P_SCAN_CMD" ] || scan_flag=(--scan-cmd "$E15_P_SCAN_CMD" --scan-classes "$E15_P_SCAN_CLASSES")
 [ -n "${E15_MAX_SESSIONS:-}" ] && start_flag+=(--max-sessions "$E15_MAX_SESSIONS")
 LIBRARY=$E15_P_LIBRARY
+[ -z "${E17C_GATE_LIBRARY:-}" ] || LIBRARY=$E17C_GATE_LIBRARY # checked above: gate-256's rungs only
 TEMPLATE=$E15_P_TEMPLATE
 DRIVER=$E15_BIN/e15-driver
 # E16 supplementary: E15_END_SESSION_DEFER=1 runs e15-driver-defer (the same source plus the opt-in
@@ -452,6 +467,8 @@ fi
 stdout_flag=()
 if [ "${E17B:-}" = 1 ]; then
   stdout_flag=(--record-stdout py_shmem)
+  # gate-256 (E17c Task 10): py_analyze's stdout carries the gate library's peak_rss_kb line
+  [ -z "${E17C_GATE_LIBRARY:-}" ] || stdout_flag=(--record-stdout "py_shmem,py_analyze")
 fi
 launch_ts=$(date +%s.%N)
 # The sampler starts with the driver, its origin the epoch just before the driver is exec'd
@@ -657,6 +674,9 @@ p = {
     "disk_read_max_mbs": (lambda v: float(v) if v else None)(readf("$E15_STATE/disk_read_max_mbs")),
     "disk_read_single_mbs": (lambda v: float(v) if v else None)(readf("$E15_STATE/disk_read_single_mbs")),
     "library": "$LIBRARY",
+    # E17c (Task 10): which library the rung ran, by name beside its path and library_sha256 (a 256 MiB rung's is
+    # library-256.json; a gate-256 rung's its gate library)
+    **({"library_name": os.path.basename("$LIBRARY")} if "${E17C:-}" == "1" else {}),
     "moca_commit": "$E15_MOCA_PIN",
     "moca_experiments_commit": readf("$commit_file"),
     "resident_patch_sha256": sha("$E15_SRC/resident/resident.patch") if arm.startswith(("resident", "lease-")) else None,

@@ -39,7 +39,8 @@ Reported, never gated (`reported`): ship-300-nd on every reading (5a's pooled re
 (its warm gains from its baseline seeds N1-s<k>, evaluable ones, and N128-lat, never the gate's calibration rungs
 N1-g<k> (ruling R-v), and gate-pycache-low.json when the gate wrote one: --gate-pycache-low, else
 RUNS/pycache-low/gate-pycache-low.json, else gate-pycache-low.json beside --out); the 256 MiB stages (pycache-d64:
-5a's readings and warm gains; squeeze-256: criterion 3 there); the ownership walk (RUNS/ownwalk/ship-300/F<n>/
+5a's readings and warm gains, never gate-256's calibration rungs N1-g256-s<scale>, and RUNS/pycache-d64/gate-256.json's
+pass, chosen_scale and reason; squeeze-256: criterion 3 there); the ownership walk (RUNS/ownwalk/ship-300/F<n>/
 ownwalk.json, its top-level scalars per size).
 """
 import argparse
@@ -66,6 +67,8 @@ RATIO_MAX = 1.5  # SPEC §13.4 5b': within 1.5x of sbx
 MIN_SEEDS = 4  # SPEC §13.4 2' / §13.5 (R52): at least 4 N=1 seeds per arm
 N1_SEED = re.compile(r"^N1-s[0-9]+$")
 GATE_LOW = "gate-pycache-low.json"
+GATE_256 = "gate-256.json"
+GATE_256_RUNG = re.compile(r"^N1-g256-s[0-9]+$")  # Task 10: gate-256's calibration rungs at pycache-d64
 
 
 def ratio(n, d):
@@ -278,6 +281,15 @@ def gate_low(root, path, out):
     return None
 
 
+def gate_256(root):
+    """Task 10: gate-256.json's verdict (RUNS/pycache-d64/gate-256.json), or None when the gate wrote none."""
+    p = os.path.join(root, "pycache-d64", GATE_256)
+    v = V.load(p) if os.path.exists(p) else None
+    if not isinstance(v, dict):
+        return None
+    return {"path": p, "pass": v.get("pass"), "chosen_scale": v.get("chosen_scale"), "reason": v.get("reason")}
+
+
 def ownwalk(root):
     sizes = {}
     for p in sorted(glob.glob(os.path.join(root, "ownwalk", ARM, "F*", "ownwalk.json"))):
@@ -318,8 +330,10 @@ def lat_point(rungs, point):
 def reported(root, rungs, c2v, gate_path, out):
     groups = c2v["value"]["groups"]
     nd5a = fp_pool(rungs, POINT, ARM_ND)[0]
-    d64 = lat_point(rungs, "pycache-d64")
-    d64_arms = sorted({r["arm"] for r in rungs if r["point"] == "pycache-d64" and V.is_ship(r)})
+    # Task 10: gate-256's calibration rungs (N1-g256-s<scale>: a probe corpus, a gate library) are never read here
+    r256 = [r for r in rungs if not (r["point"] == "pycache-d64" and GATE_256_RUNG.match(r["name"]))]
+    d64 = lat_point(r256, "pycache-d64")
+    d64_arms = sorted({r["arm"] for r in r256 if r["point"] == "pycache-d64" and V.is_ship(r)})
     low_arms = sorted({r["arm"] for r in rungs if r["point"] == "pycache-low" and V.is_ship(r)})
     low = low_lat(rungs)
     s256 = V.reclaim(root, rungs, points=("squeeze-256",))
@@ -329,7 +343,8 @@ def reported(root, rungs, c2v, gate_path, out):
                         "latency_error": low["error"], "inputs": low["inputs"], "gate": gate_low(root, gate_path, out)},
         "ram256": {"pycache-d64": {"latency": {a: gains(d64["groups"], "pycache-d64", a) for a in d64_arms},
                                    "latency_error": d64["error"],
-                                   "5a": {a: fp_pool(rungs, "pycache-d64", a)[0] for a in d64_arms}},
+                                   "5a": {a: fp_pool(r256, "pycache-d64", a)[0] for a in d64_arms},
+                                   "gate": gate_256(root)},
                    "squeeze-256": dict(name="squeeze reclaim at 256 MiB (reported)", **s256)},
         "ownwalk": ownwalk(root),
         "note": "SPEC 13.4: reported, not gated",

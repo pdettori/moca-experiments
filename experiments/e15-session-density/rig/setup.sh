@@ -429,8 +429,11 @@ fi
 # Staged by experiments/e17-lease/rig/sync.sh (experiments/e17-lease/extract/pycache_corpus.py's corpus.jsonl + corpus-report.json in
 # $E15_CORPORA/pycache/ and pycache-low/). Checked and recorded as the lowduty corpus above. Absent:
 # a note only. The pycache templates are experiments/e17-lease/rig/bringup.sh's, not built here.
+# Under E17C=1 also pycache-256, the 256 MiB points' corpus (gen_corpora.sh --gate-256, after gate-256; PLAN-E17C Task 10).
 if [ "$METAL" = 1 ]; then
-  for pc in pycache pycache-low; do
+  pcs=(pycache pycache-low)
+  [ "${E17C:-}" != 1 ] || pcs+=(pycache-256)
+  for pc in "${pcs[@]}"; do
     pd=$E15_CORPORA/$pc
     if [ -f "$pd/corpus.jsonl" ]; then
       [ -f "$pd/corpus-report.json" ] || die "$pd has corpus.jsonl but no corpus-report.json"

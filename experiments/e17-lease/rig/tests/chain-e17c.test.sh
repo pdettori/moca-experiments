@@ -48,6 +48,11 @@ mkdir -p "$T/src/e15" "$T/src/e17" "$T/state" "$T/runs" "$TMP/stub" "$TMP/an"
 cp -R "$E15RIG" "$T/src/e15/rig"
 cp -R "$E15RIG/../analysis" "$T/src/e15/analysis" # the gate reads calls.jsonl through holds.py, as baseline.sh does
 cp -R "$RIG" "$T/src/e17/rig"
+# gate-256 (Task 10): the 256 MiB library, gate256.py, and the pycache corpus its probe draws py_analyze from
+mkdir -p "$T/src/e17/workload" "$T/src/e17/analysis" "$T/corpora/pycache"
+cp "$RIG/../workload/library-256.json" "$T/src/e17/workload/library-256.json"
+cp "$RIG/../analysis/gate256.py" "$T/src/e17/analysis/gate256.py"
+printf '{"session":"s","user":"u","provider":"p","calls":[{"i":0,"class":"py_analyze","skeleton":"x","dur_ms":15000,"work_ms":15000,"gap_ms":2000,"offset_ms":0,"out_bytes":0,"chain":false}]}\n' >"$T/corpora/pycache/corpus.jsonl"
 CHAIN="$T/src/e17/rig/chain-e17c.sh"
 PRED="$T/src/e17/predictions-e17c.json"
 printf 'E17B_MOCA_PIN=%s\nE17C_MOCA_PIN=%s\n' 1111111111111111111111111111111111111111 "$PIN" >"$TMP/pins.sh"
@@ -73,6 +78,7 @@ rungdir() { # DIR ARM REASON
   printf '{"arm": "%s", "n": 1, "moca_commit": "%s", "driver_exit": 0, "rung_failed": null, "memory_abort": null}\n' "\$2" "\${STUB_COMMIT:-$PIN}" >"\$1/params.json"
   printf '{"aborted": false, "holds": true, "reason": "%s"}\n' "\$3" >"\$1/record.json"
   local v=STUB_CALLS_\${E15_TAG:-none} spec=\${STUB_CALLS:-} i=0 c
+  v=\${v//-/_} # a tag with a dash (g256-s8) is not a variable name
   if [ -n "\${!v+x}" ] && { [ -z "\${STUB_LOW_ARM:-}" ] || [ "\$STUB_LOW_ARM" = "\$2" ]; }; then spec=\${!v}; fi
   : >"\$1/calls.jsonl"
   for c in \${spec//,/ }; do
@@ -82,8 +88,34 @@ rungdir() { # DIR ARM REASON
     i=\$((i + 1))
   done
 }
+# gate-256's rungs (E17C_GATE_LIBRARY set): 20 py_analyze rows; STUB_G256 "ARM/SCALE=RSS_MIB/OOMS ..." (default 100/0)
+g256calls() { # DIR ARM
+  echo "lib=\$(basename "\$E17C_GATE_LIBRARY") ovr=\${E15_CORPUS_OVERRIDE#"\$E15_ROOT"/} maxs=\${E15_MAX_SESSIONS:-unset} warm=\${E15_WARMUP_S:-unset} spread=\${E15_SPREAD_S:-unset}" >>"$TMP/g256.log"
+  python3 - "\$1" "\$2" "\${E15_TAG#g256-s}" "\${E17B_GUEST_RAM_MB:-1024}" "\${STUB_G256:-}" <<'PYG'
+import json, sys
+d, arm, scale, ram, spec = sys.argv[1:]
+rss, ooms = 100, 0
+for e in spec.split():
+    k, v = e.split("=")
+    if k == arm + "/" + scale:
+        rss, ooms = (int(x) for x in v.split("/"))
+p = json.load(open(d + "/params.json"))
+p["guest_ram_mb"] = int(ram)
+json.dump(p, open(d + "/params.json", "w"))
+with open(d + "/calls.jsonl", "w") as f:
+    for i in range(20):
+        r = {"session": 0, "call": i, "class": "py_analyze", "in_window": True, "observed_ms": 4000.0 + i}
+        if i < ooms:
+            r.update(status="err", cause="exit_mismatch", exit=90, failed_rc=137, stdout="")
+        else:
+            r.update(status="ok", exit=0, stdout="rows=1 peak_rss_kb=%d" % (rss * 1024))
+        f.write(json.dumps(r).replace("rows=1 peak", "rows=1" + chr(92) + "npeak") + chr(10))
+PYG
+}
 case "$1" in
-rung) rungdir "\$E15_ROOT/runs/\$3/\$1/N\$2\${E15_TAG:+-\$E15_TAG}" "\$1" "\${STUB_REASON:-ok}" ;;
+rung)
+  rungdir "\$E15_ROOT/runs/\$3/\$1/N\$2\${E15_TAG:+-\$E15_TAG}" "\$1" "\${STUB_REASON:-ok}"
+  [ -z "\${E17C_GATE_LIBRARY:-}" ] || g256calls "\$E15_ROOT/runs/\$3/\$1/N\$2\${E15_TAG:+-\$E15_TAG}" "\$1" ;;
 baseline)
   for s in \$(seq 1 "\${STUB_SEEDS:-3}"); do rungdir "\$E15_ROOT/runs/\$1/\$2/N1-s\$s" "\$2" ok; done
   mkdir -p "\$E15_ROOT/runs/\$1/\$2/N1"
@@ -145,7 +177,8 @@ chain() { # [VAR=val ...] -- ARGS: run the staged chain; rc echoed, output in $T
   echo $?
 }
 calls() { sed 's/ *tag=.*//' "$CLOG" | tr '\n' ';'; }
-reset() { rm -rf "$T/e17c" "$T/runs" && mkdir -p "$T/runs"; }
+LIB256="$T/src/e17/workload/library-256.json"
+reset() { rm -rf "$T/e17c" "$T/runs" && mkdir -p "$T/runs" && cp "$RIG/../workload/library-256.json" "$LIB256" && : >"$TMP/g256.log"; }
 GATE="$T/runs/pycache-low/gate-pycache-low.json"
 gate_file() { # PASS REASON [COMMIT WINDOW START_ZERO]: a gate-pycache-low.json as the gate writes it
   mkdir -p "$T/runs/pycache-low"
@@ -155,6 +188,19 @@ gate_file() { # PASS REASON [COMMIT WINDOW START_ZERO]: a gate-pycache-low.json 
 gq() { python3 -c 'import json,sys; v=json.load(open(sys.argv[1]))
 for k in sys.argv[2].split("."): v = v[int(k)] if isinstance(v, list) else v[k]
 print(json.dumps(v, sort_keys=True))' "$GATE" "$1" 2>/dev/null || echo unreadable; }
+G256="$T/runs/pycache-d64/gate-256.json"
+g256_file() { # PASS SCALE [COMMIT]: a gate-256.json as the gate writes it (the fields the ram256 stages read)
+  mkdir -p "$T/runs/pycache-d64"
+  printf '{"stage": "gate-256", "pass": %s, "chosen_scale": %s, "reason": "scale 1: 3 OOM kill(s)", "moca_commit": "%s", "guest_ram_mb": 256}\n' \
+    "$1" "$2" "${3:-$PIN}" >"$G256"
+}
+lib256() { # SCALE: the staged library-256.json with py_analyze at SCALE (the committed change the gate's scale needs)
+  python3 -c 'import json,sys; l=json.load(open(sys.argv[1])); l["classes"]["py_analyze"][0]["cmd"]="cd project && PYC_ANALYZE_WORK_SCALE=%s ../venv/bin/python analyze.py" % sys.argv[2]; json.dump(l, open(sys.argv[3], "w"))' \
+    "$RIG/../workload/library-256.json" "$1" "$LIB256"
+}
+g2q() { python3 -c 'import json,sys; v=json.load(open(sys.argv[1]))
+for k in sys.argv[2].split("."): v = v[int(k)] if isinstance(v, list) else v[k]
+print(json.dumps(v, sort_keys=True))' "$G256" "$1" 2>/dev/null || echo unreadable; }
 listed() { sed -n '2,$p' "$TMP/c.out" | awk '{print $1 ":" $2}' | tr '\n' ' '; }
 
 STAGES_WANT="smoke:- cal-pycache-sbx:- cal-pycache-ship-300:- cal-pycache-ship-300-nd:- gate-pycache-low:- gate-256:- \
@@ -230,9 +276,9 @@ test_refuses_unsealed() {
   check "seal: a seal stage alone is refused while unsealed, nothing run" "$out" "lat-pycache-ship-300-nd-n128=1:0 squeeze-ship-300=1:0 ownwalk=1:0 verdict=1:0 "
   check "seal: a ram256 or opt stage needs the seal too" \
     "$(chain E17C_RAM256=1 -- --from ram256-pycache-sbx-n1 --to ram256-pycache-sbx-n1)/$(chain E17C_OPTIONAL=1 -- --from ladder-default-sbx --to ladder-default-sbx)/$(grep -c . "$CLOG")" "1/1/0"
-  check "seal: the gate stages run before the seal (not refused as needing it; gate-256 dies as not built yet)" \
-    "$(chain -- --from gate-pycache-low --to gate-pycache-low)/$(grep -c 'REFUSED' "$TMP/c.out")/$(grep -c 'E17C gate-pycache-low DONE' "$TMP/c.out")/$(chain -- --from gate-256 --to gate-256)/$(grep -c 'not built yet (Task 10)' "$T/e17c/gate-256.log")" \
-    "0/0/1/1/1"
+  check "seal: the gate stages run before the seal (not refused as needing it)" \
+    "$(chain -- --from gate-pycache-low --to gate-pycache-low)/$(grep -c 'REFUSED' "$TMP/c.out")/$(grep -c 'E17C gate-pycache-low DONE' "$TMP/c.out")/$(chain -- --from gate-256 --to gate-256)/$(grep -c 'REFUSED' "$TMP/c.out")/$(grep -c 'E17C gate-256 DONE' "$TMP/c.out")" \
+    "0/0/1/0/0/1"
 }
 
 test_bringup_unsealed() {
@@ -266,8 +312,8 @@ test_bringup_unsealed() {
   check "smoke: the commit preflight covers E17c's three arms (another commit's ship-300-nd rung refuses the stage)" \
     "$(mkdir -p "$T/runs/pycache/ship-300-nd/N1-old"; printf '{"arm": "ship-300-nd", "moca_commit": "c13d55649777e69ec7649d6fa8c08f4acb1f4e2e"}\n' >"$T/runs/pycache/ship-300-nd/N1-old/params.json"; chain -- --from smoke --to smoke)/$(grep -c 'is not from E17C_MOCA_PIN' "$T/e17c/smoke.log")/$(grep -c . "$CLOG")" "1/1/0"
   reset
-  check "bring-up: --to gate-256 runs smoke, the cal stages and gate-pycache-low, then stops at gate-256 (not built yet)" \
-    "$(chain -- --to gate-256)/$(grep -c 'E17C gate-pycache-low DONE' "$TMP/c.out")/$(grep -c 'E17C gate-256 FAILED rc=1 .*resume with --from gate-256' "$TMP/c.out")" "1/1/1"
+  check "bring-up: --to gate-256 runs smoke, the cal stages and both gates, every one before the seal" \
+    "$(chain -- --to gate-256)/$(grep -c 'E17C gate-pycache-low DONE' "$TMP/c.out")/$(grep -c 'E17C gate-256 DONE' "$TMP/c.out")" "0/1/1"
 }
 
 test_sealed_stages() {
@@ -282,7 +328,9 @@ test_sealed_stages() {
     "0/vm_age_lease pycache/ship-300-nd/N128-lat --sbx pycache/sbx/N128-lat"
   check "ownwalk: 10000 then 100000 files (the seal stage), under E17C=1" \
     "$(chain -- --from ownwalk --to ownwalk)/$(sed 's/ tag=.* e17c=/ e17c=/; s/ e17b=.*//' "$CLOG" | tr '\n' ';')" "0/ownwalk 10000 e17c=1;ownwalk 100000 e17c=1;"
-  check "ram256: SKIP without E17C_RAM256=1; with it the pycache-d64 N=1 rungs at 256 MiB" \
+  g256_file true 8
+  lib256 8
+  check "ram256: SKIP without E17C_RAM256=1; with it (and a passing gate-256 whose scale is committed) the pycache-d64 N=1 rungs at 256 MiB" \
     "$(chain -- --from ram256-pycache-sbx-n1 --to ram256-squeeze-sbx)/$(grep -c 'SKIP (ram256: E17C_RAM256=1 runs it)' "$TMP/c.out")/$(chain E17C_RAM256=1 -- --from ram256-pycache-sbx-n1 --to ram256-pycache-ship-300-n1)/$(sed 's/ seed=.* ram=/ ram=/; s/ win=.*//' "$CLOG" | tr '\n' ';')" \
     "0/6/0/rung sbx 1 pycache-d64 tag=ram256 ram=256;rung ship-300 1 pycache-d64 tag=ram256 ram=256;"
   check "opt: SKIP without E17C_OPTIONAL=1; with it the default ladders run" \
@@ -390,6 +438,81 @@ test_gate_low() {
     "0/baseline pycache-low sbx zero=1 win=1800;baseline pycache-low ship-300 zero=1 win=1800;rung sbx 128 pycache-low zero=unset win=unset;rung ship-300 128 pycache-low zero=unset win=unset;"
 }
 
+# Task 10 (SPEC §13.5, R45): gate-256 runs py_analyze 20 times per candidate scale and arm in a 256 MiB guest, through a
+# gate library that measures its peak RSS inside the command; the chosen scale is the largest with peak RSS <= 120 MiB and
+# zero OOM kills in all 20 runs of both arms. It writes $E15_RUNS/pycache-d64/gate-256.json (ruling R-x) either way.
+SCALES="32 16 8 4 2 1"
+test_gate_256() {
+  reset
+  rm -f "$PRED"
+  local s want=""
+  for s in $SCALES; do want+="rung sbx 1 pycache-d64 tag=g256-s$s;rung ship-300 1 pycache-d64 tag=g256-s$s;"; done
+  check "gate-256: runs before the seal; per candidate scale ($SCALES) sbx then ship-300, pycache-d64 N=1, tags g256-s<scale>" \
+    "$(chain -- --from gate-256 --to gate-256)/$(sed 's/ seed=.*//' "$CLOG" | tr '\n' ';')" "0/$want"
+  check "gate-256: every rung from the first call, at 256 MiB, a 3600 s window, under E17C=1" \
+    "$(sed 's/.* seed=/seed=/; s/ memmax=[^ ]*//; s/ e17b=[^ ]*//' "$CLOG" | sort -u | tr '\n' ';')" "seed=unset zero=1 e17c=1 ram=256 win=3600;"
+  check "gate-256: each rung replays the py_analyze probe corpus, one session, no warm-up or spread, with its scale's gate library" \
+    "$(head -1 "$TMP/g256.log")/$(grep -c . "$TMP/g256.log")/$(sed 's/ .*//' "$TMP/g256.log" | LC_ALL=C sort -u | tr '\n' ' ')" \
+    "lib=library-s32.json ovr=runs/pycache-d64/gate-256-inputs/probe/py_analyze/corpus.jsonl maxs=1 warm=0 spread=0/12/lib=library-s1.json lib=library-s16.json lib=library-s2.json lib=library-s32.json lib=library-s4.json lib=library-s8.json "
+  check "gate-256: the gate library carries its scale and the RSS wrapper; the probe corpus has 20 py_analyze calls" \
+    "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["classes"]["py_analyze"][0]["cmd"][:57])' "$T/runs/pycache-d64/gate-256-inputs/library-s8.json")/$(python3 -c 'import json,sys; c=json.loads(open(sys.argv[1]).readline())["calls"]; print(len(c), sorted({x["class"] for x in c}))' "$T/runs/pycache-d64/gate-256-inputs/probe/py_analyze/corpus.jsonl")" \
+    "cd project && PYC_ANALYZE_WORK_SCALE=8 python3 -c 'import/20 ['py_analyze']"
+  check "gate-256: every scale passes here -> the largest (32); gate-256.json with its settings, the DONE line says PASS" \
+    "$(g2q pass)/$(g2q chosen_scale)/$(g2q candidates)/$(g2q runs_per_arm)/$(g2q rss_max_mib)/$(g2q moca_commit)/$(grep -c 'E17C gate-256 DONE .*(gate-256: PASS: scale 32' "$TMP/c.out")" \
+    "true/32/[32, 16, 8, 4, 2, 1]/20/120/\"$PIN\"/1"
+  check "gate-256: its rungs are calibration only: no lease analysis is run on them" "$(grep -c . "$TMP/alog")" "0"
+  reset
+  check "gate-256: an OOM kill at 32 (sbx, 1 of 20) and 121 MiB at 16 (ship-300) -> scale 8" \
+    "$(chain STUB_G256="sbx/32=100/1 ship-300/16=121/0" -- --from gate-256 --to gate-256)/$(g2q chosen_scale)/$(g2q results.32.sbx.oom_kills)/$(g2q results.32.ship-300.pass)/$(g2q results.16.ship-300.peak_rss_mib)/$(g2q results.16.ship-300.pass)/$(g2q results.8.sbx.runs)" \
+    "0/8/1/true/121.0/false/20"
+  reset
+  check "gate-256: no scale passes -> pass false, chosen_scale null, the stage is DONE (exit 0) and says FAIL" \
+    "$(chain STUB_G256="sbx/32=100/20 sbx/16=100/20 sbx/8=100/2 sbx/4=130/0 sbx/2=130/0 sbx/1=130/0" -- --from gate-256 --to gate-256)/$(g2q pass)/$(g2q chosen_scale)/$(grep -c 'E17C gate-256 DONE .*(gate-256: FAIL' "$TMP/c.out")" \
+    "0/false/null/1"
+  reset
+  g256_file true 8
+  check "gate-256: a rung failure fails the stage (a rig error): no .done, the old gate file removed first" \
+    "$(chain FAIL_ON="rung ship-300 1 pycache-d64 tag=g256-s8" -- --from gate-256 --to gate-256)/$([ -f "$T/e17c/gate-256.done" ] && echo "done" || echo open)/$([ -f "$G256" ] && echo gate || echo nogate)/$(grep -c 'rung.sh ship-300 1 pycache-d64 (scale 8) failed' "$T/e17c/gate-256.log")" \
+    "1/open/nogate/1"
+  reset
+  mkdir -p "$T/runs/pycache-d64/ship-300/N1-old"
+  printf '{"arm": "ship-300", "moca_commit": "c13d55649777e69ec7649d6fa8c08f4acb1f4e2e"}\n' >"$T/runs/pycache-d64/ship-300/N1-old/params.json"
+  g256_file true 8
+  check "gate-256: the commit preflight covers pycache-d64's arms; the old gate file is removed before it" \
+    "$(chain -- --from gate-256 --to gate-256)/$(grep -c 'is not from E17C_MOCA_PIN' "$T/e17c/gate-256.log")/$(grep -c . "$CLOG")/$([ -f "$G256" ] && echo gate || echo nogate)" "1/1/0/nogate"
+  check "gate-256: E17C_GATE_LIBRARY in the caller's environment is refused like a knob (only the gate sets it)" \
+    "$(chain E17C_GATE_LIBRARY=/tmp/x -- --list)/$(grep -c 'E17C REFUSED: .*E17C_GATE_LIBRARY' "$TMP/c.out")" "1/1"
+
+  # the ram256 stages read gate-256.json and library-256.json first (ruling R-x)
+  reset
+  seal true
+  local st out=""
+  RAM256="ram256-pycache-sbx-n1 ram256-pycache-ship-300-n1 ram256-base-squeeze-sbx ram256-base-squeeze-ship-300 ram256-squeeze-ship-300 ram256-squeeze-sbx"
+  for st in $RAM256; do
+    out+="$st=$(chain E17C_RAM256=1 E17B_SQUEEZE256_MEMMAX_MB=16384 -- --from "$st" --to "$st"):$(grep -c 'no .*gate-256.json.*run gate-256' "$T/e17c/$st.log"):$(grep -c . "$CLOG") "
+  done
+  check "ram256: each stage refuses without gate-256.json, naming the gate, nothing run" "$out" \
+    "$(for st in $RAM256; do printf '%s=1:1:0 ' "$st"; done)"
+  lib256 8
+  g256_file true 8 1111111111111111111111111111111111111111
+  check "ram256: a gate-256.json from another moca_commit refuses" \
+    "$(chain E17C_RAM256=1 -- --from ram256-pycache-sbx-n1 --to ram256-pycache-sbx-n1)/$(grep -c 'moca_commit .*re-run gate-256' "$T/e17c/ram256-pycache-sbx-n1.log")/$(grep -c . "$CLOG")" "1/1/0"
+  g256_file false null
+  check "ram256: a failed gate refuses, with the gate's reason" \
+    "$(chain E17C_RAM256=1 -- --from ram256-pycache-sbx-n1 --to ram256-pycache-sbx-n1)/$(grep -c 'did not pass.*scale 1: 3 OOM kill' "$T/e17c/ram256-pycache-sbx-n1.log")/$(grep -c . "$CLOG")" "1/1/0"
+  g256_file true 8
+  lib256 0
+  check "ram256: a passing gate while library-256.json still has the placeholder scale refuses (commit the gate's scale)" \
+    "$(chain E17C_RAM256=1 -- --from ram256-pycache-sbx-n1 --to ram256-pycache-sbx-n1)/$(grep -c 'placeholder.*commit' "$T/e17c/ram256-pycache-sbx-n1.log")/$(grep -c . "$CLOG")" "1/1/0"
+  lib256 16
+  check "ram256: a library-256.json scale other than the gate's refuses" \
+    "$(chain E17C_RAM256=1 -- --from ram256-pycache-sbx-n1 --to ram256-pycache-sbx-n1)/$(grep -c 'scale 16.*chose 8' "$T/e17c/ram256-pycache-sbx-n1.log")/$(grep -c . "$CLOG")" "1/1/0"
+  lib256 8
+  check "ram256: the gate passed at this pin and its scale is committed -> the stages run (the squeeze-256 climb too)" \
+    "$(chain E17C_RAM256=1 E17B_SQUEEZE256_MEMMAX_MB=16384 -- --from ram256-pycache-sbx-n1 --to ram256-squeeze-ship-300)/$(sed 's/ tag=.*//' "$CLOG" | tr '\n' ';')" \
+    "0/rung sbx 1 pycache-d64;rung ship-300 1 pycache-d64;baseline squeeze-256 sbx;baseline squeeze-256 ship-300;ladder squeeze-256 ship-300;"
+}
+
 test_guards() {
   reset
   seal true
@@ -411,6 +534,7 @@ test_refuses_unsealed
 test_bringup_unsealed
 test_sealed_stages
 test_gate_low
+test_gate_256
 test_guards
 
 echo

@@ -420,3 +420,107 @@ def test_project_tests_cache_dir_puts_bytecode_there(tmp_path):
     assert re.search(r"\b40 passed\b", r.stdout), r.stdout
     pyc = [f for f in files_under(cache) if f.startswith("pyc/") and f.endswith(".pyc")]
     assert any("/numpy/" in f for f in pyc), pyc[:5]
+
+
+# --- E17c Task 10 (SPEC §13.5, R45): the 256 MiB library ------------------------------------------------------------
+LIBRARY_256 = HERE / "library-256.json"
+CMD_256 = re.compile(r"^cd project && PYC_ANALYZE_WORK_SCALE=(\d+) \.\./venv/bin/python analyze\.py$")
+sys.path.insert(0, str(ROOT / "e17-lease" / "analysis"))
+import gate256  # noqa: E402
+
+
+def default_scale():
+    cfg = (HERE / "project" / "src" / "pyc" / "config.py").read_text()
+    return int(re.search(r"(?m)^ANALYZE_WORK_SCALE = (\d+)$", cfg).group(1))
+
+
+def test_library_256_differs_from_library_only_in_py_analyze_scale():
+    base, l256 = library(), json.loads(LIBRARY_256.read_text())
+    (inv,) = l256["classes"]["py_analyze"]
+    m = CMD_256.match(inv["cmd"])
+    assert m, inv["cmd"]
+    # the only difference: the py_analyze command carries the 256 library's ANALYZE_WORK_SCALE
+    assert inv["cmd"].replace("PYC_ANALYZE_WORK_SCALE=%s " % m.group(1), "") == base["classes"]["py_analyze"][0]["cmd"]
+    l256["classes"]["py_analyze"][0]["cmd"] = base["classes"]["py_analyze"][0]["cmd"]
+    assert l256 == base
+    # a scale below the default, or 0: the placeholder until gate-256's scale is committed (ruling R-x); 0 cannot run
+    scale = int(m.group(1))
+    assert scale == 0 or 1 <= scale < default_scale(), scale
+    assert gate256.library_scale(str(LIBRARY_256)) == scale
+
+
+def test_config_reads_the_scale_from_the_environment(tmp_path):
+    ws = tmp_path / "ws"
+    stage(ws, "--dataset-mib", "1")
+    probe = "import sys; sys.path.insert(0, 'src'); from pyc import config; print(config.ANALYZE_WORK_SCALE)"
+
+    def scale(env):
+        e = {k: v for k, v in os.environ.items() if k != "PYC_ANALYZE_WORK_SCALE"}
+        e.update(env)
+        r = subprocess.run([sys.executable, "-B", "-c", probe], cwd=ws / "project", capture_output=True, text=True, env=e)
+        return r.stdout.strip() if r.returncode == 0 else "error: " + r.stderr.strip().splitlines()[-1]
+
+    assert scale({}) == str(default_scale())  # unset: config.py's line, as in E17a/E17b
+    assert scale({"PYC_ANALYZE_WORK_SCALE": ""}) == str(default_scale())
+    assert scale({"PYC_ANALYZE_WORK_SCALE": "7"}) == "7"
+    assert scale({"PYC_ANALYZE_WORK_SCALE": "0"}) == "0"  # fit_repeated then refuses it: the placeholder never runs
+    assert scale({"PYC_ANALYZE_WORK_SCALE": "x"}).startswith("error: ValueError")
+
+
+def test_library_256_scale_reaches_analyze(tmp_path):
+    need_stack()
+    ws = tmp_path / "ws"
+    stage(ws, "--dataset-mib", "4", "--dataset-seed", "1")
+    shim_venv(ws)
+    cmd = json.loads(LIBRARY_256.read_text())["classes"]["py_analyze"][0]["cmd"]
+    one = analyze_line(run_cmd(ws, CMD_256.sub(r"cd project && PYC_ANALYZE_WORK_SCALE=1 ../venv/bin/python analyze.py", cmd)))
+    assert one[1] == build_field(ws, "dataset_sha256")
+    r = run_cmd(ws, CMD_256.sub(r"cd project && PYC_ANALYZE_WORK_SCALE=0 ../venv/bin/python analyze.py", cmd))
+    assert r.returncode != 0 and "repeats must be >= 1" in r.stderr, r.stderr
+
+
+def fake_analyze(ws, body):
+    """venv/bin/python as a shell script standing in for analyze.py (no numpy here): BODY runs instead."""
+    b = ws / "venv" / "bin"
+    b.mkdir(parents=True)
+    (b / "python").write_text("#!/bin/sh\n" + body)
+    (b / "python").chmod(0o755)
+
+
+def test_gate_library_measures_peak_rss_inside_the_command(tmp_path):
+    lib = tmp_path / "lib-s8.json"
+    gate256.write_gate_library(str(LIBRARY_256), 8, str(lib))
+    g = json.loads(lib.read_text())
+    base = json.loads(LIBRARY_256.read_text())
+    cmd = g["classes"]["py_analyze"][0]["cmd"]
+    assert cmd.startswith("cd project && PYC_ANALYZE_WORK_SCALE=8 python3 -c ")
+    g["classes"]["py_analyze"][0]["cmd"] = base["classes"]["py_analyze"][0]["cmd"]
+    assert g == base  # only py_analyze's command differs from the 256 library
+    ws = tmp_path / "ws"
+    stage(ws, "--dataset-mib", "1")
+    # a child that grows to ~40 MiB and prints analyze's line; the scale reaches it through the environment
+    fake_analyze(ws, "echo \"rows=1 scale=$PYC_ANALYZE_WORK_SCALE\"\n"
+                 "exec python3 -c 'b = bytearray(40 << 20); b[::4096] = b\"x\" * len(b[::4096])'\n")
+    r = run_cmd(ws, cmd)
+    assert r.returncode == 0, r.stderr
+    lines = r.stdout.splitlines()
+    assert lines[0] == "rows=1 scale=8", r.stdout
+    peak = gate256.peak_rss_kb(r.stdout)
+    # ru_maxrss is KiB on Linux (the guest), bytes on macOS: either way at least the 40 MiB the child touched
+    assert peak is not None and peak >= 40 << 10, r.stdout
+    # killed by SIGKILL (the guest's OOM killer): exit 137, as the driver's failed_rc records it
+    ws2 = tmp_path / "ws2"
+    stage(ws2, "--dataset-mib", "1")
+    fake_analyze(ws2, "kill -9 $$\n")
+    r = run_cmd(ws2, cmd)
+    assert r.returncode == 137, (r.returncode, r.stderr)
+    ws3 = tmp_path / "ws3"
+    stage(ws3, "--dataset-mib", "1")
+    fake_analyze(ws3, "exit 3\n")
+    assert run_cmd(ws3, cmd).returncode == 3  # any other exit passes through
+
+
+def test_gate_library_refuses_a_bad_scale(tmp_path):
+    for s in (0, -1):
+        with pytest.raises(ValueError):
+            gate256.write_gate_library(str(LIBRARY_256), s, str(tmp_path / "x.json"))

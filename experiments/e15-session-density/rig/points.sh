@@ -55,6 +55,12 @@
 # squeeze-256 (ruling E17B-R21): the same at 256 MiB guests (rung.sh requires E17B_GUEST_RAM_MB=256 there, and 1024
 # at squeeze) with D scaled to keep the dataset-to-RAM ratio: 768 x 256/1024 = 192 (template-pycache-d192, built by
 # experiments/e17-lease/rig/bringup.sh under E17B=1). e15_is_squeeze POINT is true for both.
+#
+# The 256 MiB points under E17c (E17C=1; experiments/e17-lease/SPEC.md §13.5, R45; PLAN-E17C Task 10): pycache-d64 and
+# squeeze-256 replay experiments/e17-lease/workload/library-256.json (py_analyze at gate-256's ANALYZE_WORK_SCALE) and
+# their own corpus pycache-256 (experiments/e17-lease/rig/gen_corpora.sh --gate-256: pycache's, with that py_analyze
+# duration). Library and corpus are in the settings, so their point_sig is not E17b's and their baselines are their
+# own: the 256 MiB rungs are compared only with each other. With E17C unset both resolve exactly as before.
 
 E15_MEM512_SCAN_CLASSES=read,shell_read,search,test,interpreter,lint_check
 E15_MEM512_SCAN_CMD='cat /workspace/data.bin >/dev/null'
@@ -110,6 +116,13 @@ e15_point() {
     E15_P_CORPUS=pycache
     [ "$1" != pycache-low ] || E15_P_CORPUS=pycache-low
     E15_P_LIBRARY=$E15_ROOT/src/e17/workload/library.json
+    if [ "${E17C:-}" = 1 ]; then
+      case "$1" in pycache-d64 | squeeze-256)
+        E15_P_LIBRARY=$E15_ROOT/src/e17/workload/library-256.json
+        E15_P_CORPUS=pycache-256
+        ;;
+      esac
+    fi
     case "$1" in
     pycache-d64) E15_P_DATASET_MIB=64 ;;
     pycache-d768 | squeeze) E15_P_DATASET_MIB=768 ;;

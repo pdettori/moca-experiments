@@ -464,6 +464,26 @@ def test_reported_256_mib_stages(tmp_path):
     assert crit(r, "5a_prime")["value"]["pooled"]["follows_fp_true"] == 0
 
 
+def test_reported_256_mib_reads_the_ram256_rungs_not_the_gate_256_rungs(tmp_path):
+    """Task 10: gate-256's calibration rungs (pycache-d64 N1-g256-s<scale>, the probe corpus and a gate library) are
+    never read as the 256 MiB stage; its gate-256.json is reported beside it."""
+    root = str(tmp_path / "runs")
+    lat(root, "pycache-d64", "sbx", "N1-ram256", 1, 400, 1000)
+    lat(root, "pycache-d64", "ship-300", "N1-ram256", 1, 100, 600, vm_age_lease_json=vmf(t=9, f=0))
+    for s in (16, 8):  # slow gate rungs: read, they would pull the gain down and add to 5a
+        lat(root, "pycache-d64", "sbx", "N1-g256-s%d" % s, 1, 400, 1000)
+        lat(root, "pycache-d64", "ship-300", "N1-g256-s%d" % s, 1, 400, 1000, vm_age_lease_json=vmf(t=5, f=0))
+    json.dump({"stage": "gate-256", "pass": True, "chosen_scale": 8, "reason": "scale 8 passed"},
+              open(os.path.join(root, "pycache-d64", "gate-256.json"), "w"))
+    d64 = V(root, preds(tmp_path))["reported"]["ram256"]["pycache-d64"]
+    assert d64["latency"]["ship-300"]["1"]["py_short"] == pytest.approx(0.75)
+    assert d64["5a"]["ship-300"]["pooled"]["follows_fp_true"] == 9
+    assert d64["gate"] == {"pass": True, "chosen_scale": 8, "reason": "scale 8 passed",
+                           "path": os.path.join(root, "pycache-d64", "gate-256.json")}
+    os.remove(os.path.join(root, "pycache-d64", "gate-256.json"))
+    assert V(root, preds(tmp_path))["reported"]["ram256"]["pycache-d64"]["gate"] is None
+
+
 def test_reported_ownership_walk_per_size(tmp_path):
     root = str(tmp_path / "runs")
     for n, ms in ((10000, 91.0), (100000, 756.0)):
