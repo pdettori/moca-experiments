@@ -2852,24 +2852,17 @@ test_e17c_profile_off_is_unchanged() {
     "$(t17c unset 1 'echo $E15_MOCA_PIN $E15_MOCA' E15_TEST_PINS="$TMP/e17b-test-pins.sh")" "$E17B_FIXPIN $TROOT/moca-e17b"
   check "e17c off: E17C=0 or empty is E17C unset" \
     "$(t17c 0 1 'echo $E15_MOCA_PIN $E15_MOCA')/$(t17c '' unset 'echo $E15_MOCA_PIN $E15_MOCA')" "$(t17c unset 1 'echo $E15_MOCA_PIN $E15_MOCA')/$(t17c unset unset 'echo $E15_MOCA_PIN $E15_MOCA')"
-  if git -C "$RIG" rev-parse --verify -q e17c/plan:experiments/e15-session-density/rig/lib.sh >/dev/null; then
-    local old="$TMP/e17c-old" b
-    mkdir -p "$old/e15-session-density/rig" "$old/e17-lease/rig"
-    git -C "$RIG" show e17c/plan:experiments/e15-session-density/rig/lib.sh >"$old/e15-session-density/rig/lib.sh"
-    git -C "$RIG" show e17c/plan:experiments/e15-session-density/rig/pins.sh >"$old/e15-session-density/rig/pins.sh"
-    git -C "$RIG" show e17c/plan:experiments/e17-lease/rig/e17b-pins.sh >"$old/e17-lease/rig/e17b-pins.sh"
-    dump17() { # dump17 LIB E17B-value|unset: every E15_*/E17B_*/E17C_* variable and the exported environment, hashed
-      local ea=(-u E17C)
-      if [ "$2" = unset ]; then ea+=(-u E17B); else ea+=(E17B="$2"); fi
-      env "${ea[@]}" E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; for v in $(compgen -v E15_; compgen -v E17B; compgen -v E17C); do declare -p "$v"; done; env | grep -v "^_=" | sort' _ "$1" 2>&1 | sha256sum
-    }
-    for b in unset 1; do
-      check "e17c off: with E17C unset and E17B $b every variable lib.sh defines (and its environment) equals e17c/plan's" \
-        "$([ "$(dump17 "$RIG/lib.sh" "$b")" = "$(dump17 "$old/e15-session-density/rig/lib.sh" "$b")" ] && echo same || echo differ)" "same"
-    done
-  else
-    check "e17c off: e17c/plan ref available for the full-variable comparison" "missing" "present"
-  fi
+  # The goldens were written from the pre-E17c lib.sh (tests/golden/dump.sh says how), so no git ref is needed.
+  local b g ea
+  for b in unset 1; do
+    if [ "$b" = unset ]; then g="$GOLD/profile-e17b-off.txt"; else g="$GOLD/profile-e17b-on.txt"; fi
+    t17c unset "$b" '. "'"$GOLD/dump.sh"'"; e15_golden_profile' >"$TMP/gold.out"
+    check "e17c off: with E17C unset and E17B $b every E15_/E17B/E17C variable lib.sh defines (flags, values) equals the pre-E17c golden" \
+      "$(gsame "$g")" "same"
+    check "e17c off: with E17C unset and E17B $b sourcing lib.sh exports no new variable" \
+      "$(if [ "$b" = unset ]; then ea=(-u E17B); else ea=(E17B="$b"); fi
+        env -u E17C "${ea[@]}" E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'b=$(env | cut -d= -f1 | sort); source "$1"; comm -13 <(echo "$b") <(env | cut -d= -f1 | sort) | tr "\n" " "' _ "$RIG/lib.sh" 2>&1)" ""
+  done
   check "e17c: pins.sh and e17b-pins.sh are not touched by the profile (no E17C in them)" "$(grep -c 'E17C' "$RIG/pins.sh" "$RE17B/e17b-pins.sh" | cut -d: -f2 | tr '\n' ' ')" "0 0 "
 }
 test_e17c_profile_on() {
