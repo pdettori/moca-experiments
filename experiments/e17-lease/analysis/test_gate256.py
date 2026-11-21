@@ -126,13 +126,16 @@ def test_library_scale(tmp_path):
     p = tmp_path / "l.json"
     lib = json.load(open(LIB256))
     for s in (0, 8, 16):
-        lib["classes"]["py_analyze"][0]["cmd"] = "cd project && PYC_ANALYZE_WORK_SCALE=%d ../venv/bin/python analyze.py" % s
+        lib["classes"]["py_analyze"][0]["cmd"] = G.analyze_cmd(s)
         p.write_text(json.dumps(lib))
         assert G.library_scale(str(p)) == s
-    lib["classes"]["py_analyze"][0]["cmd"] = "cd project && ../venv/bin/python analyze.py"
-    p.write_text(json.dumps(lib))
-    with pytest.raises(ValueError):
-        G.library_scale(str(p))
+    for bad in ("cd project && ../venv/bin/python analyze.py",
+                "cd project && PYC_ANALYZE_WORK_SCALE=8 ../venv/bin/python analyze.py",  # the env form R-z1 retired
+                G.wrapper_cmd(8)):
+        lib["classes"]["py_analyze"][0]["cmd"] = bad
+        p.write_text(json.dumps(lib))
+        with pytest.raises(ValueError):
+            G.library_scale(str(p))
 
 
 # ---- the CLI: write (from rung trees) and state (the ram256 stages' check) -----------------------------------------
@@ -219,7 +222,7 @@ def gate_doc(tmp_path, **kw):
 
 def lib_at(tmp_path, scale):
     lib = json.load(open(LIB256))
-    lib["classes"]["py_analyze"][0]["cmd"] = "cd project && PYC_ANALYZE_WORK_SCALE=%d ../venv/bin/python analyze.py" % scale
+    lib["classes"]["py_analyze"][0]["cmd"] = G.analyze_cmd(scale)
     p = tmp_path / "library-256.json"
     p.write_text(json.dumps(lib))
     return str(p)
@@ -254,4 +257,5 @@ def test_library_cli(tmp_path):
     out = tmp_path / "g.json"
     r = cli("library", "--base", LIB256, "--scale", "4", "--out", str(out))
     assert r.returncode == 0, r.stderr
-    assert "PYC_ANALYZE_WORK_SCALE=4 python3 -c " in json.load(open(out))["classes"]["py_analyze"][0]["cmd"]
+    assert json.load(open(out))["classes"]["py_analyze"][0]["cmd"] == G.wrapper_cmd(4)
+    assert G.wrapper_cmd(4).startswith("cd project && ../venv/bin/python -c 'import resource, ")

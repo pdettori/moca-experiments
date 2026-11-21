@@ -423,10 +423,21 @@ def test_project_tests_cache_dir_puts_bytecode_there(tmp_path):
 
 
 # --- E17c Task 10 (SPEC §13.5, R45): the 256 MiB library ------------------------------------------------------------
+# Ruling R-z1: config.py stays as it was at deb53c3 (no E17c line in the project's sources); library-256.json's
+# py_analyze command sets ANALYZE_WORK_SCALE itself (gate256.analyze_cmd) before it runs analyze.py.
 LIBRARY_256 = HERE / "library-256.json"
-CMD_256 = re.compile(r"^cd project && PYC_ANALYZE_WORK_SCALE=(\d+) \.\./venv/bin/python analyze\.py$")
+CHAIN_E17C = ROOT / "e17-lease" / "rig" / "chain-e17c.sh"
+BRINGUP = ROOT / "e17-lease" / "rig" / "bringup.sh"
 sys.path.insert(0, str(ROOT / "e17-lease" / "analysis"))
 import gate256  # noqa: E402
+
+# bringup.sh's template inputs (its §5 key: builder, wheels.lock, project) at deb53c3, the E17b procedure's sources.
+# An E17C-unset bring-up must find these, or it rebuilds the E17a/E17b templates in place (Global Constraint 1).
+E17B_TEMPLATE_INPUTS = {
+    "builder": "9133f777cdeb0a444cca39b683cfb8caa919b9205250dcab08c9cfe67859dcf0",
+    "wheels.lock": "568b1ba4af3eda30db8a2991ef10f3db5ae78014cacba72c07cf896b08edae41",
+    "project": "f2871d26721dbb91f9d96741691533b78730ae67716bb2ab5838e52d97ebe548",
+}
 
 
 def default_scale():
@@ -434,37 +445,102 @@ def default_scale():
     return int(re.search(r"(?m)^ANALYZE_WORK_SCALE = (\d+)$", cfg).group(1))
 
 
-def test_library_256_differs_from_library_only_in_py_analyze_scale():
-    base, l256 = library(), json.loads(LIBRARY_256.read_text())
+def gate_candidates():
+    """chain-e17c.sh's G256_SCALES, the scales gate-256 may choose."""
+    m = re.search(r'(?m)^G256_SCALES="([\d ]+)"$', CHAIN_E17C.read_text())
+    assert m, "chain-e17c.sh has no G256_SCALES line"
+    return tuple(int(s) for s in m.group(1).split())
+
+
+def project_sha(project):
+    """bringup.sh's proj_sha: find . -type f (no __pycache__, .pytest_cache, *.pyc) | LC_ALL=C sort -z | sha256sum."""
+    paths = []
+    for dirpath, dirnames, files in os.walk(project):
+        rel = os.path.relpath(dirpath, project)
+        for f in files:
+            q = "./" + f if rel == "." else "./" + rel + "/" + f
+            if "/__pycache__/" in q or "/.pytest_cache/" in q or f.endswith(".pyc"):
+                continue
+            paths.append(q)
+    out = b""
+    for q in sorted(paths, key=lambda x: x.encode()):
+        out += ("%s  %s\n" % (hashlib.sha256((project / q[2:]).read_bytes()).hexdigest(), q)).encode()
+    return hashlib.sha256(out).hexdigest()
+
+
+def test_template_inputs_are_e17bs():
+    txt = BRINGUP.read_text()
+    # the key this mirrors (if bringup.sh's own hashing changes, so must this check)
+    assert ("proj_sha=$(cd \"$WL/project\" && find . -type f ! -path '*/__pycache__/*' ! -path '*/.pytest_cache/*' "
+            "! -name '*.pyc' -print0 |") in txt
+    assert "LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)" in txt
+    assert "BUILDER=$WL/build_pycache_workspace.sh" in txt and "LOCK=$WL/wheels.lock" in txt
+    got = {"builder": hashlib.sha256(SCRIPT.read_bytes()).hexdigest(),
+           "wheels.lock": hashlib.sha256(LOCK.read_bytes()).hexdigest(),
+           "project": project_sha(HERE / "project")}
+    assert got == E17B_TEMPLATE_INPUTS
+
+
+def check_library_256(path):
+    """The committed library-256.json: library.json but py_analyze's command, which is gate256.analyze_cmd(scale)
+    for the placeholder 0 (ruling R-x) or one of gate-256's candidates. Returns the scale."""
+    base, l256 = library(), json.loads(pathlib.Path(path).read_text())
     (inv,) = l256["classes"]["py_analyze"]
-    m = CMD_256.match(inv["cmd"])
-    assert m, inv["cmd"]
-    # the only difference: the py_analyze command carries the 256 library's ANALYZE_WORK_SCALE
-    assert inv["cmd"].replace("PYC_ANALYZE_WORK_SCALE=%s " % m.group(1), "") == base["classes"]["py_analyze"][0]["cmd"]
+    scale = gate256.library_scale(str(path))
+    assert inv["cmd"] == gate256.analyze_cmd(scale), inv["cmd"]
     l256["classes"]["py_analyze"][0]["cmd"] = base["classes"]["py_analyze"][0]["cmd"]
     assert l256 == base
-    # a scale below the default, or 0: the placeholder until gate-256's scale is committed (ruling R-x); 0 cannot run
-    scale = int(m.group(1))
-    assert scale == 0 or 1 <= scale < default_scale(), scale
-    assert gate256.library_scale(str(LIBRARY_256)) == scale
+    assert scale == gate256.PLACEHOLDER or scale in gate_candidates(), scale
+    return scale
 
 
-def test_config_reads_the_scale_from_the_environment(tmp_path):
+def test_library_256_differs_from_library_only_in_py_analyze_scale():
+    check_library_256(LIBRARY_256)
+
+
+def test_committed_scale_check_accepts_every_gate_candidate_and_the_placeholder(tmp_path):
+    assert gate_candidates() == (32, 16, 8, 4, 2, 1)
+    assert gate_candidates()[0] == default_scale()
+    lib = json.loads(LIBRARY_256.read_text())
+    p = tmp_path / "library-256.json"
+    for s in (0,) + gate_candidates():
+        lib["classes"]["py_analyze"][0]["cmd"] = gate256.analyze_cmd(s)
+        p.write_text(json.dumps(lib))
+        assert check_library_256(p) == s
+    for s in (3, 64):
+        lib["classes"]["py_analyze"][0]["cmd"] = gate256.analyze_cmd(s)
+        p.write_text(json.dumps(lib))
+        with pytest.raises(AssertionError):
+            check_library_256(p)
+
+
+def probe_analyze(ws, body):
+    """The staged project's analyze.py replaced by BODY (no numpy here); venv/bin/python is this interpreter."""
+    shim_venv(ws)
+    (ws / "project" / "analyze.py").write_text(body)
+
+
+def test_library_256_command_sets_the_scale_without_touching_the_sources(tmp_path):
     ws = tmp_path / "ws"
     stage(ws, "--dataset-mib", "1")
-    probe = "import sys; sys.path.insert(0, 'src'); from pyc import config; print(config.ANALYZE_WORK_SCALE)"
-
-    def scale(env):
-        e = {k: v for k, v in os.environ.items() if k != "PYC_ANALYZE_WORK_SCALE"}
-        e.update(env)
-        r = subprocess.run([sys.executable, "-B", "-c", probe], cwd=ws / "project", capture_output=True, text=True, env=e)
-        return r.stdout.strip() if r.returncode == 0 else "error: " + r.stderr.strip().splitlines()[-1]
-
-    assert scale({}) == str(default_scale())  # unset: config.py's line, as in E17a/E17b
-    assert scale({"PYC_ANALYZE_WORK_SCALE": ""}) == str(default_scale())
-    assert scale({"PYC_ANALYZE_WORK_SCALE": "7"}) == "7"
-    assert scale({"PYC_ANALYZE_WORK_SCALE": "0"}) == "0"  # fit_repeated then refuses it: the placeholder never runs
-    assert scale({"PYC_ANALYZE_WORK_SCALE": "x"}).startswith("error: ValueError")
+    cfg = (ws / "project" / "src" / "pyc" / "config.py").read_bytes()
+    assert cfg == (HERE / "project" / "src" / "pyc" / "config.py").read_bytes()
+    probe_analyze(ws, "import os, sys\n"  # analyze.py's own path line, so __file__ must be set as for a script
+                      "sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))\n"
+                      "from pyc import config\n"
+                      "print(config.ANALYZE_WORK_SCALE, sys.pycache_prefix, __name__)\n")
+    env = {k: v for k, v in os.environ.items() if k != "PYC_CACHE_DIR"}
+    for s in (7, 0):
+        r = subprocess.run(["bash", "-c", gate256.analyze_cmd(s)], cwd=ws, capture_output=True, text=True, env=env)
+        assert (r.returncode, r.stdout) == (0, "%d None __main__\n" % s), r.stderr
+    # a tmpfs session: the bytecode prefix is set before pyc.config is first imported, as analyze.py sets it
+    r = run_cmd(ws, gate256.analyze_cmd(5), env={"PYC_CACHE_DIR": str(tmp_path / "c")})
+    assert (r.returncode, r.stdout) == (0, "5 %s __main__\n" % (tmp_path / "c" / "pyc")), r.stderr
+    assert any(p.name.startswith("config.") for p in (tmp_path / "c" / "pyc").rglob("*.pyc"))
+    assert (ws / "project" / "src" / "pyc" / "config.py").read_bytes() == cfg  # the command edits no source
+    # unset, the project's own scale stands: library.json's command is E17a/E17b's
+    r = run_cmd(ws, library()["classes"]["py_analyze"][0]["cmd"])
+    assert r.stdout.split()[0] == str(default_scale()), r.stderr
 
 
 def test_library_256_scale_reaches_analyze(tmp_path):
@@ -472,19 +548,10 @@ def test_library_256_scale_reaches_analyze(tmp_path):
     ws = tmp_path / "ws"
     stage(ws, "--dataset-mib", "4", "--dataset-seed", "1")
     shim_venv(ws)
-    cmd = json.loads(LIBRARY_256.read_text())["classes"]["py_analyze"][0]["cmd"]
-    one = analyze_line(run_cmd(ws, CMD_256.sub(r"cd project && PYC_ANALYZE_WORK_SCALE=1 ../venv/bin/python analyze.py", cmd)))
+    one = analyze_line(run_cmd(ws, gate256.analyze_cmd(1)))
     assert one[1] == build_field(ws, "dataset_sha256")
-    r = run_cmd(ws, CMD_256.sub(r"cd project && PYC_ANALYZE_WORK_SCALE=0 ../venv/bin/python analyze.py", cmd))
+    r = run_cmd(ws, gate256.analyze_cmd(0))
     assert r.returncode != 0 and "repeats must be >= 1" in r.stderr, r.stderr
-
-
-def fake_analyze(ws, body):
-    """venv/bin/python as a shell script standing in for analyze.py (no numpy here): BODY runs instead."""
-    b = ws / "venv" / "bin"
-    b.mkdir(parents=True)
-    (b / "python").write_text("#!/bin/sh\n" + body)
-    (b / "python").chmod(0o755)
 
 
 def test_gate_library_measures_peak_rss_inside_the_command(tmp_path):
@@ -493,14 +560,15 @@ def test_gate_library_measures_peak_rss_inside_the_command(tmp_path):
     g = json.loads(lib.read_text())
     base = json.loads(LIBRARY_256.read_text())
     cmd = g["classes"]["py_analyze"][0]["cmd"]
-    assert cmd.startswith("cd project && PYC_ANALYZE_WORK_SCALE=8 python3 -c ")
+    # the wrapper runs as the venv's interpreter (the guest is only sure to have that and python3.9), never python3
+    assert cmd.startswith("cd project && ../venv/bin/python -c ") and "python3" not in cmd, cmd
     g["classes"]["py_analyze"][0]["cmd"] = base["classes"]["py_analyze"][0]["cmd"]
     assert g == base  # only py_analyze's command differs from the 256 library
     ws = tmp_path / "ws"
     stage(ws, "--dataset-mib", "1")
-    # a child that grows to ~40 MiB and prints analyze's line; the scale reaches it through the environment
-    fake_analyze(ws, "echo \"rows=1 scale=$PYC_ANALYZE_WORK_SCALE\"\n"
-                 "exec python3 -c 'b = bytearray(40 << 20); b[::4096] = b\"x\" * len(b[::4096])'\n")
+    # a child that grows to ~40 MiB and prints analyze's line; the gate's scale reaches it through pyc.config
+    probe_analyze(ws, "from pyc import config\nprint('rows=1 scale=%d' % config.ANALYZE_WORK_SCALE, flush=True)\n"
+                      "b = bytearray(40 << 20)\nb[::4096] = b'x' * len(b[::4096])\n")
     r = run_cmd(ws, cmd)
     assert r.returncode == 0, r.stderr
     lines = r.stdout.splitlines()
@@ -508,15 +576,17 @@ def test_gate_library_measures_peak_rss_inside_the_command(tmp_path):
     peak = gate256.peak_rss_kb(r.stdout)
     # ru_maxrss is KiB on Linux (the guest), bytes on macOS: either way at least the 40 MiB the child touched
     assert peak is not None and peak >= 40 << 10, r.stdout
+    assert (ws / "project" / "src" / "pyc" / "config.py").read_bytes() == (
+        HERE / "project" / "src" / "pyc" / "config.py").read_bytes()
     # killed by SIGKILL (the guest's OOM killer): exit 137, as the driver's failed_rc records it
     ws2 = tmp_path / "ws2"
     stage(ws2, "--dataset-mib", "1")
-    fake_analyze(ws2, "kill -9 $$\n")
+    probe_analyze(ws2, "import os, signal\nos.kill(os.getpid(), signal.SIGKILL)\n")
     r = run_cmd(ws2, cmd)
     assert r.returncode == 137, (r.returncode, r.stderr)
     ws3 = tmp_path / "ws3"
     stage(ws3, "--dataset-mib", "1")
-    fake_analyze(ws3, "exit 3\n")
+    probe_analyze(ws3, "raise SystemExit(3)\n")
     assert run_cmd(ws3, cmd).returncode == 3  # any other exit passes through
 
 

@@ -4,7 +4,7 @@
     "py_analyze": [
       {
         "id": "analyze",
-        "cmd": "cd project && PYC_ANALYZE_WORK_SCALE=0 ../venv/bin/python analyze.py",
+        "cmd": "cd project && ../venv/bin/python -c 'import os, runpy, sys; d = os.environ.get(\"PYC_CACHE_DIR\"); sys.pycache_prefix = os.path.join(d, \"pyc\") if d else None; sys.path.insert(0, \"src\"); from pyc import config; config.ANALYZE_WORK_SCALE = 0; runpy.run_path(\"analyze.py\", run_name=\"__main__\")'",
         "exit": 0,
         "nominal_ms": 15000,
         "run_ms": null,
