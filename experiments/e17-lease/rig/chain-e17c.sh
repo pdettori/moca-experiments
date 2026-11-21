@@ -39,14 +39,18 @@
 #     at most 12 seeds in all.
 #   gate-pycache-low (Task 9; SPEC §13.5, R47): pycache-low's N = 1 seeds from the first call, as its baselines will
 #     run them: for sbx then ship-300, seeds k = 1..4 (rung.sh ARM 1 pycache-low, E15_START_ZERO=1, E15_WINDOW_S=1800,
-#     E15_SEED=k, E15_TAG=gk: N1-g<k>, apart from the baselines' N1-s<k>). It passes only when every seed has at least 3
-#     in-window ok calls (holds.window_ok_calls, baseline.sh's population) of the classes criterion 2 reads, py_short
-#     and py_import. Pass or fail, it writes $E15_RUNS/pycache-low/gate-pycache-low.json (ruling R-q: per arm and seed
-#     the counts by class, pass and reason) and is DONE; a rung that fails is a rig error and fails the stage (no file).
-#     Every pycache-low stage (base-pycache-low-*, lat-pycache-low-*) reads that file first: none refuses the stage,
-#     naming the gate; a failed gate makes it a SKIP, "pycache-low cut by gate-pycache-low: <reason>" (exit 0, ruling
-#     R-n's form), so the chain goes on; a passed gate runs it. The baselines run with the gate's E15_START_ZERO=1 and
-#     1800 s window (baseline-low); the N = 128 rungs as before.
+#     E15_SEED=k, E15_TAG=gk: N1-g<k>, calibration only, apart from the baselines' N1-s<k>). Counted calls are the
+#     in-window ok ones (holds.window_ok_calls, baseline.sh's population) of the classes criterion 2 reads, py_short
+#     and py_import. It passes only when (R-t) every seed has at least 3 of them combined AND at least 1 of each class,
+#     and (R-u, the N = 128 rungs' class-matched baseline) each arm's seeds pooled have at least holds.MIN_CLASS_CALLS
+#     (5) of EACH class. Pass or fail, it writes $E15_RUNS/pycache-low/gate-pycache-low.json (ruling R-q: per arm and
+#     seed the counts by class, per arm the pooled counts, pass and reason) and is DONE; a rung that fails is a rig
+#     error and fails the stage (no file). An old gate file is removed before anything else, the preflight included.
+#     Every pycache-low stage (base-pycache-low-*, lat-pycache-low-*) reads that file first: none, an unreadable one,
+#     or one whose moca_commit, window_s or start_zero differ from the chain's (R-w) refuses the stage, naming why; a
+#     failed gate makes it a SKIP, "pycache-low cut by gate-pycache-low: <reason>" (exit 0, ruling R-n's form), so the
+#     chain goes on; a passed gate runs it. The baselines run with the gate's E15_START_ZERO=1 and 1800 s window
+#     (baseline-low); the N = 128 rungs as before.
 #   gate-256 (Task 10): the 256 MiB calibration gate; not built yet, it fails naming the task.
 #   seal: the pycache N=128 rungs (three arms); pycache-low's baselines and N=128 rungs (sbx, ship-300); the squeeze
 #     baselines, the ship-300 climb at E17B_SQUEEZE_MEMMAX_MB 24576 (fixed by the chain, passed to ladder.sh as
@@ -140,7 +144,7 @@ STAGES=(
   "cal-pycache-sbx|-|cal pycache sbx"
   "cal-pycache-ship-300|-|cal pycache ship-300"
   "cal-pycache-ship-300-nd|-|cal pycache ship-300-nd"
-  "gate-pycache-low|-|gate-pycache-low|Task 9: pycache-low's baseline gate (E15_START_ZERO=1, 1800 s window, >= 3 in-window calls per seed)"
+  "gate-pycache-low|-|gate-pycache-low|Task 9: pycache-low's baseline gate (E15_START_ZERO=1, 1800 s window; per seed >= 3 in-window py_short+py_import with >= 1 of each, per arm >= MIN_CLASS_CALLS of each pooled)"
   "gate-256|-|gate-256|Task 10: the 256 MiB library's calibration (peak RSS <= 120 MiB, zero OOM kills in 20 runs per arm)"
   # pycache N = 128, three arms
   "lat-pycache-sbx-n128|seal|rung sbx 128 pycache"
@@ -470,21 +474,34 @@ for arm in arms:
         by = {c: sum(1 for x in ok if x.get("class") == c) for c in classes}
         n = sum(by.values())
         why = None
-        if n < need:
+        if n < need or min(by.values()) < 1:  # R-t: >= need combined AND >= 1 of each class
             rr = rec.get("reason")
-            why = "%s seed %d (%s): %d in-window %s call(s) (%s%s), need %d" % (
+            why = "%s seed %d (%s): %d in-window %s call(s) (%s%s), need %d with at least 1 of each" % (
                 arm, k, name, n, "/".join(classes), ", ".join("%s %d" % (c, by[c]) for c in classes),
                 "; record reason %s" % rr if rr and rr != "ok" else "", need)
             fails.append(why)
         res[arm].append({"seed": k, "rung": "pycache-low/%s/%s" % (arm, name), "record_reason": rec.get("reason"),
                          "in_window": by, "calls": n, "pass": why is None, "reason": why})
+# R-u: the N = 128 rungs' class-matched baseline needs MIN_CLASS_CALLS of each class per arm, pooled over its seeds
+pooled = {}
+for arm in arms:
+    by = {c: sum(s["in_window"][c] for s in res[arm]) for c in classes}
+    short = [c for c in classes if by[c] < H.MIN_CLASS_CALLS]
+    why = None
+    if short:
+        why = "%s pooled over its %d gate seeds: %s, need %d of each (holds.MIN_CLASS_CALLS: the N=128 rungs' " \
+              "class-matched baseline)" % (arm, seeds, ", ".join("%s %d" % (c, by[c]) for c in short),
+                                           H.MIN_CLASS_CALLS)
+        fails.append(why)
+    pooled[arm] = {"in_window": by, "pass": why is None, "reason": why}
 passed = not fails
-reason = ("every seed of %s has >= %d in-window %s calls" % (" and ".join(arms), need, "/".join(classes))
-          if passed else "; ".join(fails))
+reason = ("every seed of %s has >= %d in-window %s calls with >= 1 of each, and each arm pools >= %d of each" % (
+    " and ".join(arms), need, "/".join(classes), H.MIN_CLASS_CALLS) if passed else "; ".join(fails))
 doc = {"stage": "gate-pycache-low", "spec": "SPEC §13.5 (R47)", "point": "pycache-low", "moca_commit": pin,
-       "start_zero": True, "window_s": window, "seeds_per_arm": seeds, "min_calls": need, "classes": classes,
-       "counted": "in-window calls with status ok (holds.window_ok_calls)", "arms": res, "pass": passed,
-       "reason": reason}
+       "start_zero": True, "window_s": window, "seeds_per_arm": seeds, "min_calls": need, "min_per_class_per_seed": 1,
+       "min_class_calls_pooled": H.MIN_CLASS_CALLS, "classes": classes,
+       "counted": "in-window calls with status ok (holds.window_ok_calls)", "arms": res, "pooled": pooled,
+       "pass": passed, "reason": reason}
 tmp = out + ".tmp"
 with open(tmp, "w") as f:
     json.dump(doc, f, indent=1, sort_keys=True)
@@ -494,16 +511,24 @@ print(("PASS: " + reason) if passed else ("FAIL: %s; pycache-low is cut (its bas
 PY
 }
 
-# low_gate_state: "pass" or "cut <reason>" from LOW_GATE; non-zero when the file is missing, unreadable, or has no
-# boolean "pass".
+# low_gate_state: "pass", "cut <reason>" or "refuse <why>" from LOW_GATE: refused when the file is unreadable, has no
+# boolean "pass", or (R-w) was written for another moca_commit, window_s or start_zero than the chain's.
 low_gate_state() {
-  python3 - "$LOW_GATE" <<'PY'
+  python3 - "$LOW_GATE" "$E15_MOCA_PIN" "$LOW_WINDOW_S" <<'PY'
 import json, sys
+path, pin, window = sys.argv[1], sys.argv[2], int(sys.argv[3])
 try:
-    g = json.load(open(sys.argv[1]))
+    g = json.load(open(path))
 except (OSError, ValueError):
-    sys.exit(1)
+    g = None
 if not isinstance(g, dict) or not isinstance(g.get("pass"), bool):
+    print("refuse %s is unreadable (no boolean \"pass\"): re-run gate-pycache-low" % path)
+    sys.exit(1)
+want = {"moca_commit": pin, "window_s": window, "start_zero": True}
+bad = ["%s %s, not %s" % (k, json.dumps(g.get(k)), json.dumps(v)) for k, v in want.items()
+       if json.dumps(g.get(k)) != json.dumps(v)]  # strict: 1 is not true
+if bad:
+    print("refuse %s is not this chain's gate (%s): re-run gate-pycache-low" % (path, "; ".join(bad)))
     sys.exit(1)
 print("pass" if g["pass"] else "cut %s" % (g.get("reason") or "no reason recorded"))
 PY
@@ -518,7 +543,7 @@ run_cmd() {
   # Task 9: a pycache-low stage runs only after gate-pycache-low passed; a failed gate cuts it (a SKIP, R-n's form).
   case " $* " in *" pycache-low "*)
     [ -f "$LOW_GATE" ] || die "no $LOW_GATE: run gate-pycache-low first (SPEC §13.5: pycache-low runs only after its gate)"
-    out=$(low_gate_state) || die "$LOW_GATE is unreadable (no boolean \"pass\"): re-run gate-pycache-low"
+    out=$(low_gate_state) || die "${out:+${out#refuse }}${out:-$LOW_GATE could not be checked: re-run gate-pycache-low}"
     if [ "$out" != pass ]; then
       echo "$SKIP_MARK pycache-low cut by gate-pycache-low: ${out#cut } ($LOW_GATE; SPEC §13.5, R47)"
       return 0
@@ -548,9 +573,9 @@ run_cmd() {
     done
     ;;
   gate-pycache-low) # pycache-low's N = 1 seeds from the first call, 1800 s window; LOW_GATE either way (Task 9)
+    rm -f "$LOW_GATE" # R-w: before the preflight, so a refused one leaves no old gate behind
     # shellcheck disable=SC2086 # LOW_ARMS is a word list
     preflight pycache-low $LOW_ARMS
-    rm -f "$LOW_GATE"
     for arm in $LOW_ARMS; do
       for k in $(seq 1 "$LOW_SEEDS"); do
         echo "gate-pycache-low: $arm seed $k (E15_START_ZERO=1, E15_WINDOW_S=$LOW_WINDOW_S, tag g$k)"

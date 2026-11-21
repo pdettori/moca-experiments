@@ -432,6 +432,26 @@ def test_reported_pycache_low_gains_and_its_cut(tmp_path):
     assert V(root, gate_pycache_low=other)["reported"]["pycache-low"]["gate"]["value"] == {"pass": True}
 
 
+def test_reported_pycache_low_n1_reads_the_baseline_seeds_not_the_gate_rungs(tmp_path):
+    """R-v: pycache-low's reported N=1 is its baseline seeds N1-s<k> (evaluable ones); the gate's N1-g<k> rungs are
+    calibration only and never read."""
+    root = str(tmp_path / "runs")
+    rec = {"holds": True, "reason": None}
+    for k in (1, 2):
+        lat(root, "pycache-low", "sbx", "N1-s%d" % k, 1, 400, 1000, record_json=rec)
+        lat(root, "pycache-low", "ship-300", "N1-s%d" % k, 1, 100, 600, record_json=rec)
+    lat(root, "pycache-low", "ship-300", "N1-s3", 1, 400, 1000, record_json={"reason": "empty_window"})
+    for k in (1, 2, 3, 4):  # slow gate rungs: read, they would pull the N=1 gain down
+        lat(root, "pycache-low", "sbx", "N1-g%d" % k, 1, 400, 1000, record_json=rec)
+        lat(root, "pycache-low", "ship-300", "N1-g%d" % k, 1, 400, 1000, record_json=rec)
+    pl = V(root)["reported"]["pycache-low"]
+    assert pl["latency"]["ship-300"]["1"]["py_short"] == pytest.approx(0.75)
+    assert pl["latency"]["ship-300"]["1"]["py_import"] == pytest.approx(0.40)
+    names = sorted(os.path.basename(d) for d in pl["inputs"])
+    assert names == ["N1-s1", "N1-s1", "N1-s2", "N1-s2"]
+    assert pl["latency_error"] is None
+
+
 def test_reported_256_mib_stages(tmp_path):
     root = str(tmp_path / "runs")
     lat(root, "pycache-d64", "sbx", "N1-ram256", 1, 400, 1000)
