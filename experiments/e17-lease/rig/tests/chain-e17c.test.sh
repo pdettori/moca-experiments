@@ -64,7 +64,7 @@ printf '#!/usr/bin/env bash\n[ "$1" = -n ] && shift\nexec "$@"\n' >"$TMP/stub/su
 chmod +x "$TMP/stub/systemctl" "$TMP/stub/sudo"
 # a stage stub KIND: logs "KIND ARGS tag=<E15_TAG> seed=<E15_SEED> zero=<E15_START_ZERO> memmax=<...> e17c=<E17C>
 # e17b=<E17B> ram=<E17B_GUEST_RAM_MB> win=<E15_WINDOW_S>"; fails when the logged call starts with $FAIL_ON. rung writes the
-# rung's params.json, record.json (reason STUB_REASON) and calls.jsonl from STUB_CALLS ("class:in_window[:status],...";
+# rung's params.json, record.json (reason STUB_REASON; STUB_REASON_<tag> overrides it for that tag) and calls.jsonl from STUB_CALLS ("class:in_window[:status],...";
 # STUB_CALLS_<tag> overrides it for that tag, for every arm or, with STUB_LOW_ARM, that arm only); baseline writes
 # seeds N1-s1..N1-s$STUB_SEEDS (default 3) and N1/baseline.json; ladder at a squeeze point a ladder.json with squeeze.stop_n 40 and the memmax it ran under.
 mkstub() {
@@ -114,7 +114,8 @@ PYG
 }
 case "$1" in
 rung)
-  rungdir "\$E15_ROOT/runs/\$3/\$1/N\$2\${E15_TAG:+-\$E15_TAG}" "\$1" "\${STUB_REASON:-ok}"
+  r=STUB_REASON_\${E15_TAG:-none}; r=\${r//-/_}
+  rungdir "\$E15_ROOT/runs/\$3/\$1/N\$2\${E15_TAG:+-\$E15_TAG}" "\$1" "\${!r:-\${STUB_REASON:-ok}}"
   [ -z "\${E17C_GATE_LIBRARY:-}" ] || g256calls "\$E15_ROOT/runs/\$3/\$1/N\$2\${E15_TAG:+-\$E15_TAG}" "\$1" ;;
 baseline)
   for s in \$(seq 1 "\${STUB_SEEDS:-3}"); do rungdir "\$E15_ROOT/runs/\$1/\$2/N1-s\$s" "\$2" ok; done
@@ -535,8 +536,8 @@ test_guards() {
     "$(chain -- --from nowhere)/$(chain -- --from verdict --to smoke)/$(chain -- --bogus)/$(grep -c . "$CLOG")" "2/2/2/0"
 }
 
-# Ruling R-z2 (SPEC §13.6): the gated N = 1 seeds run after the seal, 4 fresh ones per arm (11..14, N1-l<k>), from the
-# first call, sbx first; R-z3: each ship rung's vm_age_lease.py gets --sbx the same-named sbx rung.
+# Ruling R-z2 (SPEC §13.6): the gated N = 1 seeds run after the seal, fresh ones per arm (N1-l<k>, from 11 until 4 are
+# evaluable, R-z6), from the first call, sbx first; R-z3: each ship rung's vm_age_lease.py gets --sbx the same-named sbx rung.
 test_seal_seeds() {
   reset
   rm -f "$PRED"
@@ -555,8 +556,26 @@ test_seal_seeds() {
   check "seal seeds (R-z3): every gated ship rung is analysed with --sbx its same-named sbx rung" \
     "$(grep '^vm_age_lease' "$TMP/alog" | sed "s#$T/runs/##g" | tr '\n' ';')" "$want"
   reset
-  check "seal seeds: exactly 4 per arm, never topped up (an empty_window seed is the verdict's to drop, not the chain's)" \
-    "$(chain STUB_REASON=empty_window -- --from lat-pycache-sbx-n1 --to lat-pycache-sbx-n1)/$(grep -c . "$CLOG")" "0/4"
+  # ruling R-z6: seeds in order from 11 until 4 are evaluable (record.json, not empty_window: cal's rule), capped at
+  # 11 + CAL_MAX_SEEDS - 1 = 22; seed 12 empty_window -> 11..15
+  check "seal seeds (R-z6): an empty_window seed does not count; seeds run in order 11..15 and stop at 4 evaluable" \
+    "$(chain STUB_REASON_l12=empty_window -- --from lat-pycache-sbx-n1 --to lat-pycache-sbx-n1)/$(sed 's/ seed=.*//' "$CLOG" | tr '\n' ';')/$(grep -c 'sbx at pycache has 4 evaluable seal seed(s) (need 4)' "$T/e17c/lat-pycache-sbx-n1.log")" \
+    "0/rung sbx 1 pycache tag=l11;rung sbx 1 pycache tag=l12;rung sbx 1 pycache tag=l13;rung sbx 1 pycache tag=l14;rung sbx 1 pycache tag=l15;/1"
+  check "seal seeds (R-z6): every top-up seed is E15_SEED=k, tag l<k>, E15_START_ZERO=1" \
+    "$(grep -c 'tag=l15 seed=15 zero=1 ' "$CLOG")" "1"
+  reset
+  want=""
+  for k in $(seq 11 22); do want+="rung sbx 1 pycache tag=l$k;"; done
+  check "seal seeds (R-z6): all empty_window -> seeds 11..22 (the cap), then the stage fails naming the counts, no .done" \
+    "$(chain STUB_REASON=empty_window -- --from lat-pycache-sbx-n1 --to lat-pycache-sbx-n1)/$(sed 's/ seed=.*//' "$CLOG" | tr '\n' ';')/$(grep -c 'seal seeds 11..22 gave 0 evaluable N=1 runs at pycache sbx (12 run, 12 empty_window; need 4' "$T/e17c/lat-pycache-sbx-n1.log")/$([ -f "$T/e17c/lat-pycache-sbx-n1.done" ] && echo "done" || echo open)" \
+    "1/$want/1/open"
+  reset
+  # an unreadable record (a --from resume over a corrupt N1-l*/record.json) fails the stage before any seed runs
+  mkdir -p "$T/runs/pycache/sbx/N1-l11"
+  printf '{"reason": ' >"$T/runs/pycache/sbx/N1-l11/record.json"
+  check "seal seeds (R-z6): a corrupt N1-l* record.json fails the stage (unreadable seeds), no .done, no rung" \
+    "$(chain -- --from lat-pycache-sbx-n1 --to lat-pycache-sbx-n1)/$(grep -c 'seeds under .*pycache/sbx are unreadable' "$T/e17c/lat-pycache-sbx-n1.log")/$([ -f "$T/e17c/lat-pycache-sbx-n1.done" ] && echo "done" || echo open)/$(grep -c . "$CLOG")" \
+    "1/1/open/0"
   reset
   check "seal seeds: the commit preflight runs first (another commit's sbx rung refuses the stage, nothing run)" \
     "$(mkdir -p "$T/runs/pycache/sbx/N1-old"; printf '{"arm": "sbx", "moca_commit": "c13d55649777e69ec7649d6fa8c08f4acb1f4e2e"}\n' >"$T/runs/pycache/sbx/N1-old/params.json"; chain -- --from lat-pycache-sbx-n1 --to lat-pycache-sbx-n1)/$(grep -c . "$CLOG")" "1/0"

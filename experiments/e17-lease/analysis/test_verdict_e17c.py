@@ -14,7 +14,7 @@ from test_warmcold_lease import exec_line, start_line  # noqa: E402
 
 
 # ---- fixtures: small synthetic rung trees ------------------------------------------------------------------------
-# Ruling R-z2: the gated N=1 rungs are the seal stages' seeds N1-l<k> (seeds 11..14), read only when evaluable.
+# Ruling R-z2: the gated N=1 rungs are the seal stages' seeds N1-l<k> (from 11 until 4 are evaluable, R-z6), read only when evaluable.
 EVAL = {"holds": True, "reason": None}
 
 
@@ -86,7 +86,9 @@ def squeeze_tree(root, point="squeeze", **kw):
 
 
 def c5a_tree(root, **kw):
-    """ship-300 at pycache: one N=1 seed and N128-lat (pooled); ship-300-nd beside them (reported only)."""
+    """ship-300 at pycache: one N=1 seed and N128-lat (pooled); ship-300-nd beside them (reported only). sbx has the
+    same-named evaluable seed, so 5b' pairs ship-300's N1-l11 (R-z3)."""
+    write_rung(root, "pycache", "sbx", "N1-l11", 1, record_json=EVAL)
     write_rung(root, "pycache", "ship-300", "N1-l11", 1, record_json=EVAL, vm_age_lease_json=vmf(**kw.get("s1", {})))
     write_rung(root, "pycache", "ship-300", "N128-lat", 128, vm_age_lease_json=vmf(**kw.get("n128", {})))
     write_rung(root, "pycache", "ship-300-nd", "N128-lat", 128,
@@ -308,6 +310,7 @@ def test_2_reports_ship_300_nd_and_never_gates_it(tmp_path):
 def test_5b_every_ship_rung_within_1_5(tmp_path):
     root = str(tmp_path / "runs")
     c5a_tree(root, s1=dict(ratio=1.5), n128=dict(ratio=0.8), nd=dict(ratio=1.2))
+    write_rung(root, "pycache", "sbx", "N1-l12", 1, record_json=EVAL)
     write_rung(root, "pycache", "ship-300", "N1-l12", 1, record_json=EVAL, vm_age_lease_json=vmf(ratio=None, first_ms=None))
     c = crit(V(root), "5b_prime")
     assert c["pass"] is True
@@ -334,6 +337,26 @@ def test_5b_an_arm_with_no_ratio_is_null(tmp_path):
     c5a_tree(root, nd=dict(ratio=None, first_ms=None))
     c = crit(V(root), "5b_prime")
     assert c["pass"] is None and any("ship-300-nd" in m for m in c["missing"])
+
+
+def test_5b_ship_seed_without_an_evaluable_sbx_seed_is_excluded_and_listed(tmp_path):
+    # R-z6: the seal seeds top up per arm, so a ship arm can hold an evaluable N1-l<k> that sbx lacks (sbx stopped at
+    # 4 evaluable before k) or has as empty_window; R-z3 pairs same-named rungs, so that rung leaves 5b's pool, listed,
+    # and the criterion is judged on the rest (never null for it, never read: its readings would fail the bar)
+    root = str(tmp_path / "runs")
+    c5a_tree(root)
+    write_rung(root, "pycache", "ship-300", "N1-l15", 1, record_json=EVAL, vm_age_lease_json=vmf(ratio=None))
+    write_rung(root, "pycache", "ship-300-nd", "N1-l16", 1, record_json=EVAL, vm_age_lease_json=vmf(ratio=9.9))
+    write_rung(root, "pycache", "sbx", "N1-l16", 1, record_json={"holds": False, "reason": "empty_window"})
+    c = crit(V(root), "5b_prime")
+    assert c["pass"] is True and c["missing"] == []
+    ex = c["value"]["rungs_excluded"]
+    assert [(os.path.basename(os.path.dirname(x["rung"])), os.path.basename(x["rung"])) for x in ex] == \
+        [("ship-300-nd", "N1-l16"), ("ship-300", "N1-l15")]
+    assert "no evaluable same-named sbx rung" in ex[1]["reason"] and "no_rung" in ex[1]["reason"]
+    assert "empty_window" in ex[0]["reason"]
+    assert not any(x["rung"].endswith(("N1-l15", "N1-l16")) for x in c["value"]["rungs"])
+    assert not any(p.endswith(("N1-l15/vm_age_lease.json", "N1-l16/vm_age_lease.json")) for p in c["inputs"])
 
 
 def test_5b_ship_rung_without_vm_age_lease_is_null(tmp_path):

@@ -68,11 +68,14 @@
 #     change: gate256.analyze_cmd(<scale>), replacing the placeholder 0; config.py is never edited, R-z1), runs gen_corpora.sh --gate-256 (the
 #     pycache-256 corpus), sync.sh and E17C=1 setup.sh, then the ram256 stages.
 #   seal: first the gated pycache N = 1 seeds (ruling R-z2; SPEC §13.6 puts them after the seal): for each arm, sbx
-#     first, then ship-300 and ship-300-nd (lat-pycache-ARM-n1), SEAL_SEEDS (11 12 13 14) fresh seeds, rung.sh ARM 1
-#     pycache with E15_SEED=k, E15_TAG=lk (rung N1-l<k>) and E15_START_ZERO=1, all set by the chain (R-h); exactly 4,
-#     never topped up (verdict_e17c.py judges the N = 1 half on the evaluable ones, >= 4 per arm, else null; the cal-*
-#     seeds N1-s<k> stay calibration). sbx runs first, so each ship rung's analysis finds the same-named sbx rung
-#     (--sbx, R-z3). Then the pycache N=128 rungs (three arms); pycache-low's baselines and N=128 rungs (sbx, ship-300); the squeeze
+#     first, then ship-300 and ship-300-nd (lat-pycache-ARM-n1), fresh seeds, rung.sh ARM 1 pycache with
+#     E15_SEED=k, E15_TAG=lk (rung N1-l<k>) and E15_START_ZERO=1, all set by the chain (R-h). Ruling R-z6: the seeds
+#     are taken in order from 11 (never chosen) until 4 of the arm's N1-l<k> are evaluable (cal's rule: record.json,
+#     reason not empty_window), at most CAL_MAX_SEEDS (12: seeds 11..22), else the stage fails naming the counts; an
+#     unreadable record.json fails it too. verdict_e17c.py judges the N = 1 half on the evaluable ones, >= 4 per arm,
+#     else null; the cal-* seeds N1-s<k> stay calibration. sbx runs first, so each ship rung's analysis finds the
+#     same-named sbx rung (--sbx, R-z3); a ship seed with no evaluable same-named sbx seed (the arms' empty_window
+#     seeds differ) is left out of 5b' by the verdict, listed. Then the pycache N=128 rungs (three arms); pycache-low's baselines and N=128 rungs (sbx, ship-300); the squeeze
 #     baselines, the ship-300 climb at E17B_SQUEEZE_MEMMAX_MB 24576 (fixed by the chain, passed to ladder.sh as
 #     E15_SQUEEZE_MEMMAX_MB) and sbx at its stop N; ownwalk 10000 100000.
 #   ram256: pycache-d64 N=1 and the squeeze-256 point at 256 MiB guests (E17B_GUEST_RAM_MB=256), as E17b's, on
@@ -151,7 +154,11 @@ ANALYSIS=${E17C_ANALYSIS:-$E17_SRC/analysis}
 L=$E15_ROOT/e17c
 CAL_SEEDS=4      # SPEC §13.5 (R52): at least 4 seeds per arm at N = 1
 CAL_MAX_SEEDS=12 # baseline.sh's own cap
-SEAL_SEEDS="11 12 13 14" # ruling R-z2: the gated N = 1 seeds, after the seal (N1-l<k>), apart from cal's N1-s<k>
+# ruling R-z2: the gated N = 1 seeds, after the seal (N1-l<k>), apart from cal's N1-s<k>; ruling R-z6: taken in order
+# from SEAL_SEED_FIRST until SEAL_SEEDS_NEED are evaluable (cal's rule), at most CAL_MAX_SEEDS of them
+SEAL_SEED_FIRST=11
+SEAL_SEEDS_NEED=4
+SEAL_SEED_LAST=$((SEAL_SEED_FIRST + CAL_MAX_SEEDS - 1)) # 22
 SKIP_MARK="E17C-STAGE-SKIPPED: skipped:" # a stage's log line that turns its success into a SKIP (ownwalk-500k, R-n)
 GATE_MARK="E17C-GATE:"                   # a gate stage's log line with its verdict, shown on the DONE line
 # gate-pycache-low (SPEC §13.5, R47): its seeds, window, threshold, classes (criterion 2's) and arms
@@ -181,10 +188,10 @@ STAGES=(
   "cal-pycache-ship-300-nd|-|cal pycache ship-300-nd"
   "gate-pycache-low|-|gate-pycache-low|Task 9: pycache-low's baseline gate (E15_START_ZERO=1, 1800 s window; per seed >= 3 in-window py_short+py_import with >= 1 of each, per arm >= MIN_CLASS_CALLS of each pooled)"
   "gate-256|-|gate-256|Task 10: the 256 MiB library's calibration (peak RSS <= 120 MiB, zero OOM kills in 20 runs per arm)"
-  # pycache N = 1 after the seal (ruling R-z2, SPEC §13.6): 4 fresh seeds per arm, the gated N = 1 half; sbx first
-  "lat-pycache-sbx-n1|seal|seal-seeds pycache sbx|seeds 11-14 (N1-l<k>), E15_START_ZERO=1 (R-z2)"
-  "lat-pycache-ship-300-n1|seal|seal-seeds pycache ship-300|seeds 11-14 (N1-l<k>), E15_START_ZERO=1 (R-z2)"
-  "lat-pycache-ship-300-nd-n1|seal|seal-seeds pycache ship-300-nd|seeds 11-14 (N1-l<k>), E15_START_ZERO=1 (R-z2)"
+  # pycache N = 1 after the seal (ruling R-z2, SPEC §13.6): fresh seeds per arm up to 4 evaluable (R-z6); sbx first
+  "lat-pycache-sbx-n1|seal|seal-seeds pycache sbx|seeds from 11 until 4 evaluable, at most 11..22 (N1-l<k>), E15_START_ZERO=1 (R-z2, R-z6)"
+  "lat-pycache-ship-300-n1|seal|seal-seeds pycache ship-300|seeds from 11 until 4 evaluable, at most 11..22 (N1-l<k>), E15_START_ZERO=1 (R-z2, R-z6)"
+  "lat-pycache-ship-300-nd-n1|seal|seal-seeds pycache ship-300-nd|seeds from 11 until 4 evaluable, at most 11..22 (N1-l<k>), E15_START_ZERO=1 (R-z2, R-z6)"
   # pycache N = 128, three arms
   "lat-pycache-sbx-n128|seal|rung sbx 128 pycache"
   "lat-pycache-ship-300-n128|seal|rung ship-300 128 pycache"
@@ -472,14 +479,15 @@ sq_point() {
   esac
 }
 
-# cal_seeds POINT ARM: "<evaluable> <highest k>" over $E15_RUNS/POINT/ARM/N1-s<k>: a seed is evaluable when its
-# record.json exists and its reason is not empty_window (baseline.sh's rule).
+# cal_seeds POINT ARM [PREFIX]: "<evaluable> <highest k>" over $E15_RUNS/POINT/ARM/N1-<PREFIX><k> (PREFIX s, cal's
+# seeds, by default; l, the seal seeds): a seed is evaluable when its record.json exists and its reason is not
+# empty_window (baseline.sh's rule). An unreadable record.json exits non-zero.
 cal_seeds() {
-  python3 - "$E15_RUNS/$1/$2" <<'PY'
+  python3 - "$E15_RUNS/$1/$2" "${3:-s}" <<'PY'
 import json, os, re, sys
-root, ok, top = sys.argv[1], 0, 0
+root, pre, ok, top = sys.argv[1], sys.argv[2], 0, 0
 for n in os.listdir(root) if os.path.isdir(root) else []:
-    m = re.fullmatch(r"N1-s([0-9]+)", n)
+    m = re.fullmatch(r"N1-" + re.escape(pre) + r"([0-9]+)", n)
     if not m:
         continue
     top = max(top, int(m.group(1)))
@@ -622,11 +630,23 @@ run_cmd() {
       E15_START_ZERO=1 E15_SEED=$n E15_TAG=s$n bash "$RUNG" "$2" 1 "$1" || die "rung.sh $2 1 $1 (seed $n) failed"
     done
     ;;
-  seal-seeds) # POINT ARM: the gated N = 1 seeds after the seal (ruling R-z2), SEAL_SEEDS, exactly these
+  seal-seeds) # POINT ARM: the gated N = 1 seeds after the seal (R-z2), in order from 11 until 4 are evaluable (R-z6)
     preflight "$1" "$2"
-    for k in $SEAL_SEEDS; do
-      echo "seal-seeds: $2 at $1 seed $k (E15_START_ZERO=1, tag l$k)"
-      E15_START_ZERO=1 E15_SEED=$k E15_TAG=l$k bash "$RUNG" "$2" 1 "$1" || die "rung.sh $2 1 $1 (seed $k) failed"
+    while :; do
+      # an unreadable record.json fails the stage (cal's review fix 1), never passes as "enough seeds"
+      out=$(cal_seeds "$1" "$2" l) || die "the seeds under $E15_RUNS/$1/$2 are unreadable (a corrupt N1-l*/record.json?): no seal seeds"
+      read -r ok top <<<"$out"
+      [[ ${ok:-} =~ ^[0-9]+$ && ${top:-} =~ ^[0-9]+$ ]] ||
+        die "the seeds under $E15_RUNS/$1/$2 are unreadable (seed count '${out}'): no seal seeds"
+      n=$((top < SEAL_SEED_FIRST ? SEAL_SEED_FIRST : top + 1))
+      if [ "$ok" -ge "$SEAL_SEEDS_NEED" ]; then
+        echo "seal-seeds: $2 at $1 has $ok evaluable seal seed(s) (need $SEAL_SEEDS_NEED)"
+        break
+      fi
+      [ "$n" -le "$SEAL_SEED_LAST" ] ||
+        die "seal seeds $SEAL_SEED_FIRST..$SEAL_SEED_LAST gave $ok evaluable N=1 runs at $1 $2 ($((n - SEAL_SEED_FIRST)) run, $((n - SEAL_SEED_FIRST - ok)) empty_window; need $SEAL_SEEDS_NEED, R-z6)"
+      echo "seal-seeds: $2 at $1 has $ok evaluable seal seed(s); seed $n (E15_START_ZERO=1, tag l$n)"
+      E15_START_ZERO=1 E15_SEED=$n E15_TAG=l$n bash "$RUNG" "$2" 1 "$1" || die "rung.sh $2 1 $1 (seed $n) failed"
     done
     ;;
   gate-pycache-low) # pycache-low's N = 1 seeds from the first call, 1800 s window; LOW_GATE either way (Task 9)

@@ -12,11 +12,12 @@ under `missing`, never guessed. --predictions defaults to predictions-e17c.json 
 chain stages it); 5a' reads its "criterion5a_reading".
 
 Gated (`criteria`), ruling R-z2 (SPEC §13.6: the N = 1 seeds run after the seal): every gated pool reads only the
-seal stages' rungs at pycache, the fresh N = 1 seeds N1-l<k> (chain-e17c.sh's lat-pycache-ARM-n1: seeds 11..14, from
-the first call) that are evaluable, and N128-lat (gated_rungs). Never the bring-up smoke (N1-smoke), the class probes
-(N1-probe-*), the calibration seeds N1-s<k> (cal-*: the predictions are drafted from them), a gate rung (N1-g*) or an
-empty_window seed. A seed is evaluable when its record.json exists and its reason is not empty_window (rig/
-chain-e17c.sh's cal rule, R-l'); non-evaluable seeds are listed and not read; an unreadable record.json is missing.
+seal stages' rungs at pycache, the fresh N = 1 seeds N1-l<k> (chain-e17c.sh's lat-pycache-ARM-n1: seeds in order
+from 11 until 4 are evaluable, at most 11..22, R-z6; from the first call; any N1-l<k> is read) that are evaluable,
+and N128-lat (gated_rungs). Never the bring-up smoke (N1-smoke), the class probes (N1-probe-*), the calibration
+seeds N1-s<k> (cal-*: the predictions are drafted from them), a gate rung (N1-g*) or an empty_window seed.
+A seed is evaluable when its record.json exists and its reason is not empty_window (rig/chain-e17c.sh's cal rule,
+R-l'); non-evaluable seeds are listed and not read; an unreadable record.json is missing.
   5a_prime  At pycache, ship-300 pooled over the gated rungs, by summing counts from each vm_age_lease.json's E17c
             fpr keys (never averaging shares): follow share = follows_fp_true /
             (follows_fp_true + follows_fp_false) >= 0.50, and pinned share <= 0.50 on the reading predictions-e17c.json
@@ -34,7 +35,9 @@ chain-e17c.sh's cal rule, R-l'); non-evaluable seeds are listed and not read; an
             N128-lat names, so the chain pairs each ship rung with its same-named sbx rung, R-z3). A rung with no
             replacement lease with a first py_grep has no reading (counted, not a failure); a rung with one but no
             sbx median, a ship rung without vm_age_lease.json, or an arm with no ratio at all leaves it null (ruling
-            R-r, E17b's sealed rule: a half with no judged reading is null, not a pass).
+            R-r, E17b's sealed rule: a half with no judged reading is null, not a pass). The seal seeds top up per
+            arm (R-z6), so a ship N1-l<k> whose same-named sbx seed is absent or not evaluable is left out of the
+            pool, listed in rungs_excluded with the reason (never a null for the criterion).
   3_prime   E17b's criterion 3 (verdict.reclaim) at squeeze for the ship-300 climb only.
 
 Top-level `pass`: true only when all four are true; null when any is null; false otherwise.
@@ -254,8 +257,26 @@ def c2(g):
 
 # ---- 5b' ------------------------------------------------------------------------------------------------------------
 
+def pair_seal_seeds(g):
+    """R-z3/R-z6: 5b' pairs each ship rung with its same-named sbx rung. The seal seeds top up per arm (from 11 until
+    4 are evaluable), so a ship arm can hold an evaluable N1-l<k> whose sbx namesake is absent or not evaluable; that
+    rung leaves 5b's pool, listed with the reason. -> (rungs, excluded)."""
+    sbx = {r["name"] for r in g["rungs"] if r["point"] == POINT and r["arm"] == "sbx"}
+    state = {os.path.basename(x["rung"]): x["state"] for x in g["not_evaluable"]
+             if os.path.basename(os.path.dirname(x["rung"])) == "sbx"}
+    keep, excluded = [], []
+    for r in g["rungs"]:
+        if r["point"] == POINT and V.is_ship(r) and N1_SEAL.match(r["name"]) and r["name"] not in sbx:
+            excluded.append({"rung": r["dir"], "reason": "no evaluable same-named sbx rung (sbx/%s: %s)"
+                             % (r["name"], state.get(r["name"], "no_rung"))})
+            continue
+        keep.append(r)
+    return keep, sorted(excluded, key=lambda x: x["rung"])
+
+
 def c5b(g):
-    fv, inputs, missing = V.fpr_point(g["rungs"], POINT)
+    rungs, excluded = pair_seal_seeds(g)
+    fv, inputs, missing = V.fpr_point(rungs, POINT)
     missing = missing + g["unreadable"]
     rows = fv["second_half"]["rungs"]
     why, unknown, none = [], [], 0
@@ -278,7 +299,7 @@ def c5b(g):
     ratios = [x["ratio_to_sbx"] for x in rows if x["ratio_to_sbx"] is not None]
     value = {"point": POINT, "bar": RATIO_MAX, "rungs": rows, "ratio_to_sbx_max": max(ratios) if ratios else None,
              "ratio_to_sbx_min": min(ratios) if ratios else None, "rungs_without_replacement": none,
-             "rungs_with_ratio": arms}
+             "rungs_with_ratio": arms, "rungs_excluded": excluded}
     return criterion("replacement reads (5b)", value, inputs, missing, V.judged(why, missing), why)
 
 
