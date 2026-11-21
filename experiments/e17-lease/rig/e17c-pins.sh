@@ -8,4 +8,4 @@
 # PLACEHOLDER until moca #974 merges: the controller must replace it with that upstream/main sha before any rig run
 # (and record it in the commit message). lib.sh e17c_require_pin refuses to start setup.sh or rung.sh while it is
 # the placeholder or is not a full sha.
-E17C_MOCA_PIN=0000000000000000000000000000000000000000
+E17C_MOCA_PIN=e5ae5151bbedf47764c0c8e804146c6b1e830fff
