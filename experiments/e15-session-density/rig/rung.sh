@@ -410,7 +410,8 @@ else
     *) die "the worker's banner has no lease= field (a worker without lease mode?): $banner; the driver was not started" ;;
     esac
     # E17c (E17C=1, ruling R-a): a ship arm's banner must carry lease_cache_drop= (moca #974) and match the arm:
-    # ship-300-nd needs off (SH_LEASE_CACHE_DROP_S=0), every other ship arm a drop that is on (the 30s default).
+    # ship-300-nd needs off (SH_LEASE_CACHE_DROP_S=0), ship-300 exactly 30s (the worker's default: 5a's +45 s reading,
+    # R-o, assumes it; final review M3), any other ship arm a drop that is on.
     if [ "${E17C:-}" = 1 ] && e17b_lease_arm "$ARM"; then
       case " $banner " in
       *" lease_cache_drop="*)
@@ -426,6 +427,8 @@ else
       else
         [ "$lease_cache_drop" != off ] ||
           die "the worker's banner says lease_cache_drop=off but $ARM needs the drop on (SH_LEASE_CACHE_DROP_S unset: the worker's default). The driver was not started. Banner: $banner"
+        [ "$ARM" != ship-300 ] || [ "$lease_cache_drop" = 30s ] ||
+          die "the worker's banner says lease_cache_drop=$lease_cache_drop but $ARM needs exactly 30s (the default 5a's +45 s reading assumes; SH_LEASE_CACHE_DROP_S unset). The driver was not started. Banner: $banner"
       fi
       lease_cache_drop_rec=1
       log "worker banner: lease_cache_drop=$lease_cache_drop ($ARM)"
