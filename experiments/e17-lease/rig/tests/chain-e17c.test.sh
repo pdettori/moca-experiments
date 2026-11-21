@@ -204,12 +204,13 @@ print(json.dumps(v, sort_keys=True))' "$G256" "$1" 2>/dev/null || echo unreadabl
 listed() { sed -n '2,$p' "$TMP/c.out" | awk '{print $1 ":" $2}' | tr '\n' ' '; }
 
 STAGES_WANT="smoke:- cal-pycache-sbx:- cal-pycache-ship-300:- cal-pycache-ship-300-nd:- gate-pycache-low:- gate-256:- \
+lat-pycache-sbx-n1:seal lat-pycache-ship-300-n1:seal lat-pycache-ship-300-nd-n1:seal \
 lat-pycache-sbx-n128:seal lat-pycache-ship-300-n128:seal lat-pycache-ship-300-nd-n128:seal \
 base-pycache-low-sbx:seal base-pycache-low-ship-300:seal lat-pycache-low-sbx-n128:seal lat-pycache-low-ship-300-n128:seal \
 base-squeeze-sbx:seal base-squeeze-ship-300:seal squeeze-ship-300:seal squeeze-sbx:seal ownwalk:seal \
 ram256-pycache-sbx-n1:ram256 ram256-pycache-ship-300-n1:ram256 ram256-base-squeeze-sbx:ram256 ram256-base-squeeze-ship-300:ram256 \
 ram256-squeeze-ship-300:ram256 ram256-squeeze-sbx:ram256 \
-ladder-default-sbx:opt ladder-default-ship-300:opt ownwalk-500k:opt verdict:seal "
+base-default-sbx:opt base-default-ship-300:opt ladder-default-sbx:opt ladder-default-ship-300:opt ownwalk-500k:opt verdict:seal "
 
 test_list() {
   reset
@@ -266,7 +267,7 @@ test_refuses_unsealed() {
   check "seal: refused up front (exit 1, nothing run) unless predictions-e17c.json says \"sealed\": true (the boolean)" \
     "$(cat "$TMP/ref.out")" 'missing:1:1:0 false:1:1:0 "true":1:1:0 broken:1:1:0 '
   check "seal: the refusal names the stages that need it and how to stop before them" \
-    "$(grep -c 'stages that need the seal: lat-pycache-sbx-n128 .* (stop before them with --to gate-256)' "$TMP/c.out")" "1"
+    "$(grep -c 'stages that need the seal: lat-pycache-sbx-n1 .* (stop before them with --to gate-256)' "$TMP/c.out")" "1"
   reset
   rm -f "$PRED"
   local st out=""
@@ -333,6 +334,12 @@ test_sealed_stages() {
   check "ram256: SKIP without E17C_RAM256=1; with it (and a passing gate-256 whose scale is committed) the pycache-d64 N=1 rungs at 256 MiB" \
     "$(chain -- --from ram256-pycache-sbx-n1 --to ram256-squeeze-sbx)/$(grep -c 'SKIP (ram256: E17C_RAM256=1 runs it)' "$TMP/c.out")/$(chain E17C_RAM256=1 -- --from ram256-pycache-sbx-n1 --to ram256-pycache-ship-300-n1)/$(sed 's/ seed=.* ram=/ ram=/; s/ win=.*//' "$CLOG" | tr '\n' ';')" \
     "0/6/0/rung sbx 1 pycache-d64 tag=ram256 ram=256;rung ship-300 1 pycache-d64 tag=ram256 ram=256;"
+  check "opt (R-z4): each default ladder's baseline at the pin runs before the ladders (ladder.sh needs default/ARM/N1/baseline.json)" \
+    "$(chain E17C_OPTIONAL=1 -- --from base-default-sbx --to ladder-default-ship-300)/$(calls)" \
+    "0/baseline default sbx;baseline default ship-300;ladder default sbx 56;ladder default ship-300 80;"
+  check "opt (R-z4): base-default-ARM comes before ladder-default-ARM in the stage order, for both arms" \
+    "$(chain -- --list >/dev/null; for a in sbx ship-300; do b=$(awk -v s="base-default-$a" '$1 == s {print NR}' "$TMP/c.out"); l=$(awk -v s="ladder-default-$a" '$1 == s {print NR}' "$TMP/c.out"); [ -n "$b" ] && [ "$b" -lt "$l" ] && printf '%s ' "$a"; done)" \
+    "sbx ship-300 "
   check "opt: SKIP without E17C_OPTIONAL=1; with it the default ladders run" \
     "$(chain -- --from ladder-default-sbx --to ladder-default-ship-300)/$(grep -c 'SKIP (optional: E17C_OPTIONAL=1 runs it)' "$TMP/c.out")/$(chain E17C_OPTIONAL=1 -- --from ladder-default-sbx --to ladder-default-ship-300)/$(calls)" \
     "0/2/0/ladder default sbx 56;ladder default ship-300 80;"
@@ -528,7 +535,57 @@ test_guards() {
     "$(chain -- --from nowhere)/$(chain -- --from verdict --to smoke)/$(chain -- --bogus)/$(grep -c . "$CLOG")" "2/2/2/0"
 }
 
+# Ruling R-z2 (SPEC §13.6): the gated N = 1 seeds run after the seal, 4 fresh ones per arm (11..14, N1-l<k>), from the
+# first call, sbx first; R-z3: each ship rung's vm_age_lease.py gets --sbx the same-named sbx rung.
+test_seal_seeds() {
+  reset
+  rm -f "$PRED"
+  check "seal seeds: refused while unsealed, nothing run" \
+    "$(chain -- --from lat-pycache-sbx-n1 --to lat-pycache-sbx-n1)/$(grep -c 'stages that need the seal: lat-pycache-sbx-n1 (stop before' "$TMP/c.out")/$(grep -c . "$CLOG")" "1/1/0"
+  seal true
+  local want="" a k
+  for a in sbx ship-300 ship-300-nd; do for k in 11 12 13 14; do want+="rung $a 1 pycache tag=l$k seed=$k zero=1;"; done; done
+  check "seal seeds: sbx, ship-300, ship-300-nd at pycache N=1, seeds 11..14, tags l<k>, E15_START_ZERO=1, set by the chain" \
+    "$(chain -- --from lat-pycache-sbx-n1 --to lat-pycache-ship-300-nd-n1)/$(sed 's/ memmax=.*//' "$CLOG" | tr '\n' ';')" "0/$want"
+  check "seal seeds: they write N1-l11..N1-l14 per arm, under E17C=1" \
+    "$(cd "$T/runs/pycache" && find . -mindepth 2 -maxdepth 2 -name 'N1-l*' | sed 's#^\./##' | LC_ALL=C sort | tr '\n' ' ')/$(grep -vc 'e17c=1 e17b=1 ' "$CLOG")" \
+    "sbx/N1-l11 sbx/N1-l12 sbx/N1-l13 sbx/N1-l14 ship-300-nd/N1-l11 ship-300-nd/N1-l12 ship-300-nd/N1-l13 ship-300-nd/N1-l14 ship-300/N1-l11 ship-300/N1-l12 ship-300/N1-l13 ship-300/N1-l14 /0"
+  want=""
+  for a in ship-300 ship-300-nd; do for k in 11 12 13 14; do want+="vm_age_lease pycache/$a/N1-l$k --sbx pycache/sbx/N1-l$k;"; done; done
+  check "seal seeds (R-z3): every gated ship rung is analysed with --sbx its same-named sbx rung" \
+    "$(grep '^vm_age_lease' "$TMP/alog" | sed "s#$T/runs/##g" | tr '\n' ';')" "$want"
+  reset
+  check "seal seeds: exactly 4 per arm, never topped up (an empty_window seed is the verdict's to drop, not the chain's)" \
+    "$(chain STUB_REASON=empty_window -- --from lat-pycache-sbx-n1 --to lat-pycache-sbx-n1)/$(grep -c . "$CLOG")" "0/4"
+  reset
+  check "seal seeds: the commit preflight runs first (another commit's sbx rung refuses the stage, nothing run)" \
+    "$(mkdir -p "$T/runs/pycache/sbx/N1-old"; printf '{"arm": "sbx", "moca_commit": "c13d55649777e69ec7649d6fa8c08f4acb1f4e2e"}\n' >"$T/runs/pycache/sbx/N1-old/params.json"; chain -- --from lat-pycache-sbx-n1 --to lat-pycache-sbx-n1)/$(grep -c . "$CLOG")" "1/0"
+}
+
+# Final review M1: gate-256's inputs directory is a checked leaf; an earlier one is moved aside (timestamped), never
+# deleted (the earlier gate rungs' params.json name its libraries and probe corpus).
+test_gate256_inputs_aside() {
+  reset
+  rm -f "$PRED"
+  local gin="$T/runs/pycache-d64/gate-256-inputs"
+  chain -- --from gate-256 --to gate-256 >/dev/null
+  printf 'earlier\n' >"$gin/marker"
+  check "gate-256 inputs: a second run moves the first run's inputs aside to gate-256-inputs.prev-<ts>, with its files" \
+    "$(chain -- --from gate-256 --to gate-256)/$(find "$T/runs/pycache-d64" -maxdepth 1 -name 'gate-256-inputs.prev-*' | wc -l | tr -d ' ')/$(cat "$gin".prev-*/marker)/$(find "$T/runs/pycache-d64" -path '*/gate-256-inputs.prev-*/library-s8.json' | wc -l | tr -d ' ')/$([ -e "$gin/marker" ] && echo stale || echo fresh)/$(grep -c 'earlier gate inputs moved aside to .*gate-256-inputs.prev-' "$T/e17c/gate-256.log")" \
+    "0/1/earlier/1/fresh/1"
+  reset
+  mkdir -p "$TMP/outside" "$T/runs/pycache-d64"
+  printf 'keep\n' >"$TMP/outside/keep"
+  ln -s "$TMP/outside" "$gin"
+  check "gate-256 inputs: a leaf that leads outside \$E15_ROOT (a symlink) refuses the stage; nothing there is touched, no rung runs" \
+    "$(chain -- --from gate-256 --to gate-256)/$(grep -c 'outside' "$T/e17c/gate-256.log")/$(cat "$TMP/outside/keep")/$([ -L "$gin" ] && echo link)/$(grep -c . "$CLOG")" \
+    "1/1/keep/link/0"
+  rm -f "$gin"
+}
+
 test_list
+test_seal_seeds
+test_gate256_inputs_aside
 test_refuses_knobs
 test_refuses_unsealed
 test_bringup_unsealed

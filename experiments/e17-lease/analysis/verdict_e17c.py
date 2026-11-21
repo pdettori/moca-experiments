@@ -11,31 +11,36 @@ reading and criterion 3's reclaim reading, and criterion 5's replacement rows. A
 under `missing`, never guessed. --predictions defaults to predictions-e17c.json beside this directory (where the
 chain stages it); 5a' reads its "criterion5a_reading".
 
-Gated (`criteria`):
-  5a_prime  At pycache, ship-300 pooled over every rung (the N=1 seeds N1-s<k> and N128-lat), by summing counts from
-            each vm_age_lease.json's E17c fpr keys (never averaging shares): follow share = follows_fp_true /
+Gated (`criteria`), ruling R-z2 (SPEC §13.6: the N = 1 seeds run after the seal): every gated pool reads only the
+seal stages' rungs at pycache, the fresh N = 1 seeds N1-l<k> (chain-e17c.sh's lat-pycache-ARM-n1: seeds 11..14, from
+the first call) that are evaluable, and N128-lat (gated_rungs). Never the bring-up smoke (N1-smoke), the class probes
+(N1-probe-*), the calibration seeds N1-s<k> (cal-*: the predictions are drafted from them), a gate rung (N1-g*) or an
+empty_window seed. A seed is evaluable when its record.json exists and its reason is not empty_window (rig/
+chain-e17c.sh's cal rule, R-l'); non-evaluable seeds are listed and not read; an unreadable record.json is missing.
+  5a_prime  At pycache, ship-300 pooled over the gated rungs, by summing counts from each vm_age_lease.json's E17c
+            fpr keys (never averaging shares): follow share = follows_fp_true /
             (follows_fp_true + follows_fp_false) >= 0.50, and pinned share <= 0.50 on the reading predictions-e17c.json
             names (ruling R-c): "plus45" -> fp_45s_pinned / fp_45s_readings, "idle_tail" -> fp_idle_tail_pinned /
             fp_idle_tail_readings, over ALL heavy readings (R-p). The *_of_judged variants and the +15 s reading are
             reported. Absent or unsealed predictions, or any other reading value: pass null, the reason in `missing`.
             A rung without vm_age_lease.json, with mapping_valid not true, or without the vm_fp keys: null.
-  2_prime   E17b's criterion 2 (verdict.latency) for ship-300 against sbx at pycache: warm py_short gain >= 0.50 and
-            py_import >= 0.30 at N=1 (the evaluable seed rungs N1-s<k> pooled, ruling R-l': a seed is evaluable when
-            its record.json exists and its reason is not empty_window, rig/chain-e17c.sh's cal rule; non-evaluable
-            seeds are listed and not read; fewer than 4 evaluable per arm for sbx or ship-300 leaves the N=1 half
-            null, and an unreadable record.json is listed as missing) and N=128 (N128-lat). As in E17b, a failing
-            gain makes it false even when the other half is null. Gains are over all warm calls; Task 5's
-            after_drop / kept split rides in `groups` (classes[].warm_by_cache), reported, not gated.
-  5b_prime  Every ship-* rung at pycache (ship-300 and ship-300-nd): replacement-lease median first py_grep within
-            1.5x of sbx (vm_age_lease --sbx ratio_to_sbx). A rung with no replacement lease with a first py_grep has
-            no reading (counted, not a failure); a rung with one but no sbx median, a ship rung without
-            vm_age_lease.json, or an arm with no ratio at all leaves it null (ruling R-r, E17b's sealed rule: a
-            half with no judged reading is null, not a pass).
+  2_prime   E17b's criterion 2 (verdict.latency over the gated rungs) for ship-300 against sbx at pycache: warm
+            py_short gain >= 0.50 and py_import >= 0.30 at N=1 (the evaluable N1-l<k> pooled; fewer than 4 evaluable
+            per arm for sbx or ship-300 leaves the N=1 half null) and N=128 (N128-lat). As in E17b, a failing gain
+            makes it false even when the other half is null. Gains are over all warm calls; Task 5's after_drop /
+            kept split rides in `groups` (classes[].warm_by_cache), reported, not gated.
+  5b_prime  Every gated ship-* rung at pycache (ship-300 and ship-300-nd): replacement-lease median first py_grep
+            within 1.5x of sbx (vm_age_lease --sbx ratio_to_sbx; the seal stages give sbx the same N1-l<k> and
+            N128-lat names, so the chain pairs each ship rung with its same-named sbx rung, R-z3). A rung with no
+            replacement lease with a first py_grep has no reading (counted, not a failure); a rung with one but no
+            sbx median, a ship rung without vm_age_lease.json, or an arm with no ratio at all leaves it null (ruling
+            R-r, E17b's sealed rule: a half with no judged reading is null, not a pass).
   3_prime   E17b's criterion 3 (verdict.reclaim) at squeeze for the ship-300 climb only.
 
 Top-level `pass`: true only when all four are true; null when any is null; false otherwise.
 
-Reported, never gated (`reported`): ship-300-nd on every reading (5a's pooled readings, its warm gains); pycache-low
+Reported, never gated (`reported`): ship-300-nd on every reading (5a's pooled readings and its warm gains, over the
+same gated rungs); pycache-low
 (its warm gains from its baseline seeds N1-s<k>, evaluable ones, and N128-lat, never the gate's calibration rungs
 N1-g<k> (ruling R-v), and gate-pycache-low.json when the gate wrote one: --gate-pycache-low, else
 RUNS/pycache-low/gate-pycache-low.json, else gate-pycache-low.json beside --out); the 256 MiB stages (pycache-d64:
@@ -65,7 +70,9 @@ FOLLOW_MIN = 0.50
 PINNED_MAX = 0.50
 RATIO_MAX = 1.5  # SPEC §13.4 5b': within 1.5x of sbx
 MIN_SEEDS = 4  # SPEC §13.4 2' / §13.5 (R52): at least 4 N=1 seeds per arm
-N1_SEED = re.compile(r"^N1-s[0-9]+$")
+N1_SEED = re.compile(r"^N1-s[0-9]+$")  # cal-*'s seeds (pycache) and pycache-low's baseline seeds
+N1_SEAL = re.compile(r"^N1-l[0-9]+$")  # R-z2: the seal stages' fresh N=1 seeds at pycache (lat-pycache-ARM-n1)
+N128 = "N128-lat"
 GATE_LOW = "gate-pycache-low.json"
 GATE_256 = "gate-256.json"
 GATE_256_RUNG = re.compile(r"^N1-g256-s[0-9]+$")  # Task 10: gate-256's calibration rungs at pycache-d64
@@ -157,8 +164,9 @@ def fp_pool(rungs, point, arm):
     return {"point": point, "arm": arm, "rungs": rows, "pooled": pool, "follow_share": follow}, inputs, missing
 
 
-def c5a(rungs, preds_path):
-    value, inputs, missing = fp_pool(rungs, POINT, ARM)
+def c5a(g, preds_path):
+    value, inputs, missing = fp_pool(g["rungs"], POINT, ARM)
+    missing = missing + g["unreadable"]
     info, reading, why_pred = predictions_reading(preds_path)
     value.update(reading=reading, predictions=info,
                  bars={"follow_share_min": FOLLOW_MIN, "pinned_share_max": PINNED_MAX},
@@ -199,27 +207,36 @@ def seed_state(r):
     return "empty_window" if rec.get("reason") == "empty_window" else "evaluable"
 
 
-def c2(rungs):
-    seeds, not_eval, unreadable, drop = {"sbx": 0, ARM: 0}, [], [], set()
+def gated_rungs(rungs):
+    """R-z2/R-z3: the rungs every gated pool reads: at pycache, sbx and the ship-* arms, N128-lat and the evaluable
+    seal seeds N1-l<k>. -> {"rungs", "seeds" (evaluable N1-l<k> per gated arm), "not_evaluable", "unreadable"}."""
+    keep, seeds, not_eval, unreadable = [], {"sbx": 0, ARM: 0}, [], []
     for r in rungs:
-        if r["point"] != POINT or not N1_SEED.match(r["name"]) or not (r["arm"] == "sbx" or V.is_ship(r)):
+        if r["point"] != POINT or not (r["arm"] == "sbx" or V.is_ship(r)):
             continue
-        st = seed_state(r)
-        if st == "evaluable":
-            if r["arm"] in seeds:
-                seeds[r["arm"]] += 1
-            continue
-        drop.add(r["dir"])  # judged on the evaluable seeds only
-        not_eval.append({"rung": r["dir"], "state": st})
-        if st == "unreadable":
-            unreadable.append("%s/record.json unreadable" % r["dir"])
-    # R-l: N=1 is the seed rungs; a pycache N1-lat (E17b's stage, not E17c's) is not read
-    lat_rungs = [r for r in rungs if r["dir"] not in drop and not (r["point"] == POINT and r["name"] == "N1-lat")]
-    c = V.latency(lat_rungs)
+        if r["name"] == N128:
+            keep.append(r)
+        elif N1_SEAL.match(r["name"]):
+            st = seed_state(r)
+            if st == "evaluable":
+                keep.append(r)
+                if r["arm"] in seeds:
+                    seeds[r["arm"]] += 1
+                continue
+            not_eval.append({"rung": r["dir"], "state": st})
+            if st == "unreadable":
+                unreadable.append("%s/record.json unreadable" % r["dir"])
+    return {"rungs": keep, "seeds": seeds, "not_evaluable": sorted(not_eval, key=lambda x: x["rung"]),
+            "unreadable": unreadable}
+
+
+def c2(g):
+    seeds, unreadable = g["seeds"], g["unreadable"]
+    c = V.latency(g["rungs"], select=lambda r: True)
     gated = c["value"]["gated"]
-    short = ["pycache N=1 %s has %d evaluable seed(s) N1-s<k> (record.json, reason not empty_window; need %d): "
+    short = ["pycache N=1 %s has %d evaluable seed(s) N1-l<k> (record.json, reason not empty_window; need %d): "
              "the N=1 half is not judged" % (a, n, MIN_SEEDS) for a, n in sorted(seeds.items()) if n < MIN_SEEDS]
-    c["value"].update(seeds=seeds, min_seeds=MIN_SEEDS, seeds_not_evaluable=sorted(not_eval, key=lambda x: x["rung"]),
+    c["value"].update(seeds=seeds, min_seeds=MIN_SEEDS, seeds_not_evaluable=g["not_evaluable"],
                       n1_judged=not short)
     fails = []
     for n, v in sorted(gated.items()):
@@ -237,8 +254,9 @@ def c2(rungs):
 
 # ---- 5b' ------------------------------------------------------------------------------------------------------------
 
-def c5b(rungs):
-    fv, inputs, missing = V.fpr_point(rungs, POINT)
+def c5b(g):
+    fv, inputs, missing = V.fpr_point(g["rungs"], POINT)
+    missing = missing + g["unreadable"]
     rows = fv["second_half"]["rungs"]
     why, unknown, none = [], [], 0
     arms = {}
@@ -327,9 +345,9 @@ def lat_point(rungs, point):
     return {"groups": rep["groups"], "error": None}
 
 
-def reported(root, rungs, c2v, gate_path, out):
+def reported(root, rungs, g, c2v, gate_path, out):
     groups = c2v["value"]["groups"]
-    nd5a = fp_pool(rungs, POINT, ARM_ND)[0]
+    nd5a = fp_pool(g["rungs"], POINT, ARM_ND)[0]
     # Task 10: gate-256's calibration rungs (N1-g256-s<scale>: a probe corpus, a gate library) are never read here
     r256 = [r for r in rungs if not (r["point"] == "pycache-d64" and GATE_256_RUNG.match(r["name"]))]
     d64 = lat_point(r256, "pycache-d64")
@@ -353,8 +371,9 @@ def reported(root, rungs, c2v, gate_path, out):
 
 def verdict(root, moca_commit=None, predictions=None, gate_pycache_low=None, out=None):
     rungs, excluded = V.find_rungs(root, moca_commit)
-    c2v = c2(rungs)
-    crit = {"5a_prime": c5a(rungs, predictions), "2_prime": c2v, "5b_prime": c5b(rungs), "3_prime": c3(root, rungs)}
+    g = gated_rungs(rungs)
+    c2v = c2(g)
+    crit = {"5a_prime": c5a(g, predictions), "2_prime": c2v, "5b_prime": c5b(g), "3_prime": c3(root, rungs)}
     ps = [crit[k]["pass"] for k in GATED]
     top = True if all(p is True for p in ps) else (None if any(p is None for p in ps) else False)
     why = ["%s: %s" % (k, "not judged" if crit[k]["pass"] is None else "failed") for k in GATED
@@ -362,7 +381,7 @@ def verdict(root, moca_commit=None, predictions=None, gate_pycache_low=None, out
     return {"runs": root, "moca_commit": moca_commit, "excluded_rungs": excluded,
             "predictions": predictions_reading(predictions)[0], "pass": top, "why": why,
             "note": "SPEC 13.4: pass is true only when 5a', 2', 5b' and 3' all hold, null when any is null",
-            "criteria": crit, "reported": reported(root, rungs, c2v, gate_pycache_low, out)}
+            "criteria": crit, "reported": reported(root, rungs, g, c2v, gate_pycache_low, out)}
 
 
 def main(argv=None):

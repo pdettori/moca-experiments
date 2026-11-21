@@ -67,14 +67,20 @@
 #     The gate REPORTS the scale; it never edits library-256.json. The controller commits it there (a reviewed
 #     change: gate256.analyze_cmd(<scale>), replacing the placeholder 0; config.py is never edited, R-z1), runs gen_corpora.sh --gate-256 (the
 #     pycache-256 corpus), sync.sh and E17C=1 setup.sh, then the ram256 stages.
-#   seal: the pycache N=128 rungs (three arms); pycache-low's baselines and N=128 rungs (sbx, ship-300); the squeeze
+#   seal: first the gated pycache N = 1 seeds (ruling R-z2; SPEC §13.6 puts them after the seal): for each arm, sbx
+#     first, then ship-300 and ship-300-nd (lat-pycache-ARM-n1), SEAL_SEEDS (11 12 13 14) fresh seeds, rung.sh ARM 1
+#     pycache with E15_SEED=k, E15_TAG=lk (rung N1-l<k>) and E15_START_ZERO=1, all set by the chain (R-h); exactly 4,
+#     never topped up (verdict_e17c.py judges the N = 1 half on the evaluable ones, >= 4 per arm, else null; the cal-*
+#     seeds N1-s<k> stay calibration). sbx runs first, so each ship rung's analysis finds the same-named sbx rung
+#     (--sbx, R-z3). Then the pycache N=128 rungs (three arms); pycache-low's baselines and N=128 rungs (sbx, ship-300); the squeeze
 #     baselines, the ship-300 climb at E17B_SQUEEZE_MEMMAX_MB 24576 (fixed by the chain, passed to ladder.sh as
 #     E15_SQUEEZE_MEMMAX_MB) and sbx at its stop N; ownwalk 10000 100000.
 #   ram256: pycache-d64 N=1 and the squeeze-256 point at 256 MiB guests (E17B_GUEST_RAM_MB=256), as E17b's, on
 #     library-256.json and the pycache-256 corpus (points.sh under E17C=1). Each reads gate-256.json first
 #     (analysis/gate256.py state): none, an unreadable one, one from another moca_commit, one that did not pass, or a
 #     library-256.json whose scale is not the gate's chosen one (the placeholder 0 included) refuses the stage, naming why.
-#   opt: the default ladders (sbx, ship-300); ownwalk-500k, which needs a snapshot whose workspace drive is >= 4 GiB
+#   opt: the default baselines (base-default-ARM: baseline.sh default ARM at the pin, ruling R-z4, as chain-e17b.sh's
+#     cal-default-*: ladder.sh needs default/ARM/N1/baseline.json), then the default ladders (sbx, ship-300); ownwalk-500k, which needs a snapshot whose workspace drive is >= 4 GiB
 #     (moca #907's open half): the snapshot manifest records no workspace drive size yet, so it is SKIPPED with that
 #     reason (ruling R-n: exit 0, its .done and .log say skipped), and the chain goes on to verdict.
 #   verdict (last, seal): analysis/verdict_e17c.py over $E15_RUNS at the pin to $L/verdict.json (Task 7 writes it; a
@@ -145,6 +151,7 @@ ANALYSIS=${E17C_ANALYSIS:-$E17_SRC/analysis}
 L=$E15_ROOT/e17c
 CAL_SEEDS=4      # SPEC §13.5 (R52): at least 4 seeds per arm at N = 1
 CAL_MAX_SEEDS=12 # baseline.sh's own cap
+SEAL_SEEDS="11 12 13 14" # ruling R-z2: the gated N = 1 seeds, after the seal (N1-l<k>), apart from cal's N1-s<k>
 SKIP_MARK="E17C-STAGE-SKIPPED: skipped:" # a stage's log line that turns its success into a SKIP (ownwalk-500k, R-n)
 GATE_MARK="E17C-GATE:"                   # a gate stage's log line with its verdict, shown on the DONE line
 # gate-pycache-low (SPEC §13.5, R47): its seeds, window, threshold, classes (criterion 2's) and arms
@@ -174,6 +181,10 @@ STAGES=(
   "cal-pycache-ship-300-nd|-|cal pycache ship-300-nd"
   "gate-pycache-low|-|gate-pycache-low|Task 9: pycache-low's baseline gate (E15_START_ZERO=1, 1800 s window; per seed >= 3 in-window py_short+py_import with >= 1 of each, per arm >= MIN_CLASS_CALLS of each pooled)"
   "gate-256|-|gate-256|Task 10: the 256 MiB library's calibration (peak RSS <= 120 MiB, zero OOM kills in 20 runs per arm)"
+  # pycache N = 1 after the seal (ruling R-z2, SPEC §13.6): 4 fresh seeds per arm, the gated N = 1 half; sbx first
+  "lat-pycache-sbx-n1|seal|seal-seeds pycache sbx|seeds 11-14 (N1-l<k>), E15_START_ZERO=1 (R-z2)"
+  "lat-pycache-ship-300-n1|seal|seal-seeds pycache ship-300|seeds 11-14 (N1-l<k>), E15_START_ZERO=1 (R-z2)"
+  "lat-pycache-ship-300-nd-n1|seal|seal-seeds pycache ship-300-nd|seeds 11-14 (N1-l<k>), E15_START_ZERO=1 (R-z2)"
   # pycache N = 128, three arms
   "lat-pycache-sbx-n128|seal|rung sbx 128 pycache"
   "lat-pycache-ship-300-n128|seal|rung ship-300 128 pycache"
@@ -197,7 +208,9 @@ STAGES=(
   "ram256-base-squeeze-ship-300|ram256|baseline256 squeeze-256 ship-300"
   "ram256-squeeze-ship-300|ram256|squeeze-ladder squeeze-256 ship-300|budget = MemoryMax - 8192 (its own E17B_SQUEEZE256_MEMMAX_MB)"
   "ram256-squeeze-sbx|ram256|squeeze-rung squeeze-256 sbx"
-  # optional: the default ladder pair (SPEC §13.2), and the 500 000-file walk
+  # optional: the default ladder pair (SPEC §13.2), each after its baseline at the pin (R-z4), and the 500 000-file walk
+  "base-default-sbx|opt|baseline default sbx"
+  "base-default-ship-300|opt|baseline default ship-300"
   "ladder-default-sbx|opt|ladder default sbx 56"
   "ladder-default-ship-300|opt|ladder default ship-300 80"
   "ownwalk-500k|opt|ownwalk-big 500000|needs a snapshot whose workspace drive is >= 4 GiB (moca #907's open half); skipped until the manifest records one"
@@ -566,7 +579,7 @@ PY
 
 # run_cmd KIND ARGS...: one stage's work (its output goes to the stage log).
 run_cmd() {
-  local kind=$1 n mm ok top out arm k s gin
+  local kind=$1 n mm ok top out arm k s gin prev
   shift
   # E17B-R51: 8 MiB per workspace at the pycache family and the squeeze points (run_cmd runs in a subshell).
   case " $* " in *" pycache"* | *" squeeze"*) export E15_WS_DELTA_MB=8 ;; esac
@@ -609,6 +622,13 @@ run_cmd() {
       E15_START_ZERO=1 E15_SEED=$n E15_TAG=s$n bash "$RUNG" "$2" 1 "$1" || die "rung.sh $2 1 $1 (seed $n) failed"
     done
     ;;
+  seal-seeds) # POINT ARM: the gated N = 1 seeds after the seal (ruling R-z2), SEAL_SEEDS, exactly these
+    preflight "$1" "$2"
+    for k in $SEAL_SEEDS; do
+      echo "seal-seeds: $2 at $1 seed $k (E15_START_ZERO=1, tag l$k)"
+      E15_START_ZERO=1 E15_SEED=$k E15_TAG=l$k bash "$RUNG" "$2" 1 "$1" || die "rung.sh $2 1 $1 (seed $k) failed"
+    done
+    ;;
   gate-pycache-low) # pycache-low's N = 1 seeds from the first call, 1800 s window; LOW_GATE either way (Task 9)
     rm -f "$LOW_GATE" # R-w: before the preflight, so a refused one leaves no old gate behind
     # shellcheck disable=SC2086 # LOW_ARMS is a word list
@@ -630,7 +650,16 @@ run_cmd() {
     preflight pycache-d64 $G256_ARMS
     [ -f "$LIB256" ] || die "no $LIB256 (sync.sh stages experiments/e17-lease/workload/)"
     gin=$E15_RUNS/pycache-d64/gate-256-inputs
-    rm -rf -- "${gin:?}"
+    # an earlier gate run's inputs (its probe corpus and gate libraries, which its moved-aside N1-g256-s*.prev-* rungs
+    # name) are moved aside, never deleted; the leaf is checked first, as every other path the chain writes
+    refuse_outside_root "$gin"
+    if [ -e "$gin" ] || [ -L "$gin" ]; then
+      [ -d "$gin" ] && [ ! -L "$gin" ] || die "$gin is not a directory (or is a symlink): refusing to move it aside"
+      prev="$gin.prev-$(date -u +%Y%m%dT%H%M%SZ)"
+      [ ! -e "$prev" ] || die "$prev exists: refusing to overwrite it"
+      mv -- "$gin" "$prev" || die "could not move $gin aside to $prev"
+      echo "gate-256: the earlier gate inputs moved aside to $prev"
+    fi
     mkdir -p "$gin"
     # one session of G256_RUNS py_analyze calls, drawn from the pycache corpus as classprobe.sh draws a class probe
     python3 "$E15_SRC/analysis/make_probe.py" "$E15_CORPORA/pycache/corpus.jsonl" "$LIB256" "$gin/probe" \

@@ -14,6 +14,9 @@ from test_warmcold_lease import exec_line, start_line  # noqa: E402
 
 
 # ---- fixtures: small synthetic rung trees ------------------------------------------------------------------------
+# Ruling R-z2: the gated N=1 rungs are the seal stages' seeds N1-l<k> (seeds 11..14), read only when evaluable.
+EVAL = {"holds": True, "reason": None}
+
 
 def preds(tmp_path, reading="plus45", sealed=True, name="predictions-e17c.json"):
     p = str(tmp_path / name)
@@ -65,10 +68,10 @@ def c2_tree(root, seeds=4, sbx_seeds=None, short_ms=100, import_ms=600, n128=Tru
     is evaluable (record.json, reason `reason`); n128_import_ms overrides the lease arms' N=128 py_import."""
     rec = {"holds": True, "reason": reason}
     for k in range(1, (sbx_seeds if sbx_seeds is not None else seeds) + 1):
-        lat(root, "pycache", "sbx", "N1-s%d" % k, 1, 400, 1000, record_json=rec)
+        lat(root, "pycache", "sbx", "N1-l%d" % (10 + k), 1, 400, 1000, record_json=rec)
     for arm in arms:
         for k in range(1, seeds + 1):
-            lat(root, "pycache", arm, "N1-s%d" % k, 1, short_ms, import_ms, record_json=rec)
+            lat(root, "pycache", arm, "N1-l%d" % (10 + k), 1, short_ms, import_ms, record_json=rec)
     if n128:
         lat(root, "pycache", "sbx", "N128-lat", 128, 400, 1000)
         for arm in arms:
@@ -84,7 +87,7 @@ def squeeze_tree(root, point="squeeze", **kw):
 
 def c5a_tree(root, **kw):
     """ship-300 at pycache: one N=1 seed and N128-lat (pooled); ship-300-nd beside them (reported only)."""
-    write_rung(root, "pycache", "ship-300", "N1-s1", 1, vm_age_lease_json=vmf(**kw.get("s1", {})))
+    write_rung(root, "pycache", "ship-300", "N1-l11", 1, record_json=EVAL, vm_age_lease_json=vmf(**kw.get("s1", {})))
     write_rung(root, "pycache", "ship-300", "N128-lat", 128, vm_age_lease_json=vmf(**kw.get("n128", {})))
     write_rung(root, "pycache", "ship-300-nd", "N128-lat", 128,
                vm_age_lease_json=vmf(**kw.get("nd", dict(t=0, f=4, p45=4, ptail=2))))
@@ -94,7 +97,7 @@ def full_tree(root):
     """Every gated criterion passes."""
     c2_tree(root)
     # the vm_age_lease outputs ride on the latency rungs, as the chain's analysis gate writes them
-    for name in ("N1-s1", "N1-s2", "N1-s3", "N1-s4", "N128-lat"):
+    for name in ("N1-l11", "N1-l12", "N1-l13", "N1-l14", "N128-lat"):
         json.dump(vmf(), open(os.path.join(root, "pycache", "ship-300", name, "vm_age_lease.json"), "w"))
     # 5b' reads every ship-* rung at pycache, ship-300-nd's too
     write_rung(root, "pycache", "ship-300-nd", "N128-lat", 128, vm_age_lease_json=vmf(ratio=0.9))
@@ -181,10 +184,10 @@ def test_5a_without_a_sealed_reading_is_null_never_a_default(tmp_path, kind):
 def test_5a_rung_without_its_reading_is_null_and_listed(tmp_path):
     root = str(tmp_path / "runs")
     c5a_tree(root, n128=dict(fp=False))  # an E17b-shaped vm_age_lease.json: no vm_fp keys
-    write_rung(root, "pycache", "ship-300", "N1-s2", 1)  # no vm_age_lease.json at all
+    write_rung(root, "pycache", "ship-300", "N1-l12", 1, record_json=EVAL)  # no vm_age_lease.json at all
     c = crit(V(root, preds(tmp_path)), "5a_prime")
     assert c["pass"] is None
-    assert any("N1-s2/vm_age_lease.json" in m for m in c["missing"])
+    assert any("N1-l12/vm_age_lease.json" in m for m in c["missing"])
     assert any("N128-lat" in m and "vm_fp" in m for m in c["missing"])
 
 
@@ -249,7 +252,7 @@ def test_2_counts_evaluable_seeds_only_4_dirs_one_empty_window_is_null(tmp_path)
     # R-l': 4 seed directories, one with reason empty_window -> 3 evaluable ship-300 seeds
     root = str(tmp_path / "runs")
     c2_tree(root, seeds=4)
-    mark_empty_window(root, "ship-300", "N1-s2")
+    mark_empty_window(root, "ship-300", "N1-l12")
     c = crit(V(root), "2_prime")
     assert c["value"]["seeds"] == {"sbx": 4, "ship-300": 3}
     assert c["pass"] is None and any("ship-300 has 3 evaluable seed" in m for m in c["missing"])
@@ -260,11 +263,11 @@ def test_2_four_evaluable_plus_one_empty_window_is_judged_on_the_4(tmp_path):
     root = str(tmp_path / "runs")
     c2_tree(root, seeds=4)
     # a fifth ship-300 seed, empty_window, whose calls would fail the bar were it read
-    lat(root, "pycache", "ship-300", "N1-s5", 1, 99999, 99999, record_json={"holds": False, "reason": "empty_window"})
+    lat(root, "pycache", "ship-300", "N1-l15", 1, 99999, 99999, record_json={"holds": False, "reason": "empty_window"})
     c = crit(V(root), "2_prime")
     assert c["value"]["seeds"] == {"sbx": 4, "ship-300": 4} and c["value"]["n1_judged"] is True
     assert c["value"]["gated"]["1"]["py_short"] == pytest.approx(0.75)
-    assert not any(p.endswith("ship-300/N1-s5") for p in c["inputs"])
+    assert not any(p.endswith("ship-300/N1-l15") for p in c["inputs"])
     assert c["pass"] is True
 
 
@@ -272,9 +275,9 @@ def test_2_four_evaluable_plus_one_empty_window_is_judged_on_the_4(tmp_path):
 def test_2_seed_without_a_readable_record_is_not_evaluable(tmp_path, state):
     root = str(tmp_path / "runs")
     c2_tree(root, seeds=4)
-    lat(root, "pycache", "sbx", "N1-s5", 1, 400, 1000)
+    lat(root, "pycache", "sbx", "N1-l15", 1, 400, 1000)
     if state == "unreadable":
-        open(os.path.join(root, "pycache", "sbx", "N1-s5", "record.json"), "w").write("{")
+        open(os.path.join(root, "pycache", "sbx", "N1-l15", "record.json"), "w").write("{")
     c = crit(V(root), "2_prime")
     assert c["value"]["seeds"]["sbx"] == 4 and c["value"]["seeds_not_evaluable"][0]["state"] == state
     # an unreadable record is unknown, never read as fine: null; a seed with no record is simply not one
@@ -291,7 +294,7 @@ def test_2_reports_ship_300_nd_and_never_gates_it(tmp_path):
     root = str(tmp_path / "runs")
     c2_tree(root, arms=("ship-300",))
     for k in range(1, 5):
-        lat(root, "pycache", "ship-300-nd", "N1-s%d" % k, 1, 390, 990,  # fails the bars: reported only
+        lat(root, "pycache", "ship-300-nd", "N1-l%d" % (10 + k), 1, 390, 990,  # fails the bars: reported only
             record_json={"reason": None})
     lat(root, "pycache", "ship-300-nd", "N128-lat", 128, 390, 990)
     r = V(root)
@@ -305,7 +308,7 @@ def test_2_reports_ship_300_nd_and_never_gates_it(tmp_path):
 def test_5b_every_ship_rung_within_1_5(tmp_path):
     root = str(tmp_path / "runs")
     c5a_tree(root, s1=dict(ratio=1.5), n128=dict(ratio=0.8), nd=dict(ratio=1.2))
-    write_rung(root, "pycache", "ship-300", "N1-s2", 1, vm_age_lease_json=vmf(ratio=None, first_ms=None))
+    write_rung(root, "pycache", "ship-300", "N1-l12", 1, record_json=EVAL, vm_age_lease_json=vmf(ratio=None, first_ms=None))
     c = crit(V(root), "5b_prime")
     assert c["pass"] is True
     assert c["value"]["ratio_to_sbx_max"] == 1.5 and c["value"]["bar"] == 1.5
@@ -336,9 +339,9 @@ def test_5b_an_arm_with_no_ratio_is_null(tmp_path):
 def test_5b_ship_rung_without_vm_age_lease_is_null(tmp_path):
     root = str(tmp_path / "runs")
     c5a_tree(root)
-    write_rung(root, "pycache", "ship-300-nd", "N1-s1", 1)
+    write_rung(root, "pycache", "ship-300-nd", "N1-l11", 1, record_json=EVAL)
     c = crit(V(root), "5b_prime")
-    assert c["pass"] is None and any("ship-300-nd/N1-s1/vm_age_lease.json" in m for m in c["missing"])
+    assert c["pass"] is None and any("ship-300-nd/N1-l11/vm_age_lease.json" in m for m in c["missing"])
 
 
 # ---- 3': E17b's criterion 3 at squeeze, ship-300 -----------------------------------------------------------------
@@ -500,9 +503,9 @@ def test_reported_ownership_walk_per_size(tmp_path):
 def test_other_commit_is_excluded(tmp_path):
     root = str(tmp_path / "runs")
     c5a_tree(root)
-    write_rung(root, "pycache", "ship-300", "N1-s9", 1, commit="2" * 40, vm_age_lease_json=vmf(t=0, f=99))
+    write_rung(root, "pycache", "ship-300", "N1-l19", 1, commit="2" * 40, record_json=EVAL, vm_age_lease_json=vmf(t=0, f=99))
     r = VC.verdict(root, moca_commit=PIN, predictions=preds(tmp_path))
-    assert [e["rung"].split(os.sep)[-1] for e in r["excluded_rungs"]] == ["N1-s9"]
+    assert [e["rung"].split(os.sep)[-1] for e in r["excluded_rungs"]] == ["N1-l19"]
     assert crit(r, "5a_prime")["value"]["pooled"]["follows_fp_false"] == 2
 
 
@@ -533,12 +536,13 @@ def test_5a_reads_the_producers_numbers(tmp_path):
     os.makedirs(str(tmp_path / "runs" / "pycache" / "ship-300"))
     # follows on vm_fp, +45 s and idle tail at 150 MiB (not pinned); then one that stays at 950 MiB and drops to
     # 1000 MiB (follows false, pinned at +45 s and at the idle tail)
-    specs = (("N1-s1", 1, {}), ("N128-lat", 128, dict(fp_after=950, fp_drop=1000)))
+    specs = (("N1-l11", 1, {}), ("N128-lat", 128, dict(fp_after=950, fp_drop=1000)))
     fprs = []
     for name, n, kw in specs:
         d = TL.fp_fixture(tmp_path, name="runs/pycache/ship-300/" + name, **kw)
         json.dump({"arm": "ship-300", "n": n, "point": "pycache", "moca_commit": PIN},
                   open(os.path.join(d, "params.json"), "w"))
+        json.dump(EVAL, open(os.path.join(d, "record.json"), "w"))  # an evaluable seal seed
         VAL.main([d, "--sbx-median-ms", "400"])
         fprs.append(json.load(open(os.path.join(d, "vm_age_lease.json")))["fpr"])
     root = str(tmp_path / "runs")
@@ -557,3 +561,69 @@ def test_5a_reads_the_producers_numbers(tmp_path):
         assert [r["pinned_share_fp_" + infix] for r in v["rungs"]] == [x["pinned_share_fp_" + infix] for x in fprs]
         assert v["pooled"]["plus45"]["judged_readings"] == sum(x["fp_45s_judged_readings"] for x in fprs)
         assert c["missing"] == [] and c["pass"] is True  # 0.50 and 0.50: at both bars
+
+
+# ---- final fix wave, R-z2/R-z3: the gated pools read the seal stages' rungs only ---------------------------------
+
+def noise(root):
+    """Every pycache rung the gated pools must never read, with readings that would move every gated number: the
+    bring-up smoke, a class probe, the cal seeds N1-s<k> (evaluable: the predictions are drafted from them), a gate
+    rung and an empty_window seal seed, in all three arms."""
+    bad = dict(t=0, f=99, r45=50, p45=50, rtail=50, ptail=50, ratio=9.0)
+    ok, empty = {"holds": True, "reason": None}, {"holds": False, "reason": "empty_window"}
+    names = [("N1-smoke", ok), ("N1-probe-py_short", ok), ("N1-g1", ok), ("N1-l15", empty)]
+    names += [("N1-s%d" % k, ok) for k in range(1, 7)]
+    for arm in ("sbx", "ship-300", "ship-300-nd"):
+        for name, rec in names:
+            if arm == "sbx":
+                lat(root, "pycache", arm, name, 1, 50, 50, record_json=rec)  # a fast sbx: every gain would drop
+            else:
+                lat(root, "pycache", arm, name, 1, 99999, 99999, record_json=rec, vm_age_lease_json=vmf(**bad))
+
+
+def gated_numbers(r):
+    c = r["criteria"]
+    return {"pass": [c[k]["pass"] for k in VC.GATED], "top": r["pass"],
+            "2": (c["2_prime"]["value"]["gated"], c["2_prime"]["value"]["seeds"]),
+            "5a": (c["5a_prime"]["value"]["pooled"], c["5a_prime"]["value"]["follow_share"],
+                   c["5a_prime"]["value"]["pinned_share"], len(c["5a_prime"]["value"]["rungs"])),
+            "5b": (c["5b_prime"]["value"]["ratio_to_sbx_max"], c["5b_prime"]["value"]["rungs_with_ratio"],
+                   len(c["5b_prime"]["value"]["rungs"])),
+            "nd": (r["reported"]["ship-300-nd"]["5a"]["pooled"], r["reported"]["ship-300-nd"]["latency"])}
+
+
+def test_smoke_probe_cal_and_gate_rungs_never_move_the_gated_numbers(tmp_path):
+    a, b = str(tmp_path / "a"), str(tmp_path / "b")
+    full_tree(a)
+    full_tree(b)
+    noise(b)
+    ra, rb = V(a, preds(tmp_path)), V(b, preds(tmp_path))
+    assert ra["pass"] is True
+    assert gated_numbers(rb) == gated_numbers(ra)
+    for c in ("2_prime", "5a_prime", "5b_prime"):
+        read = [os.path.basename(os.path.dirname(p)) if p.endswith(".json") else os.path.basename(p)
+                for p in crit(rb, c)["inputs"]]
+        assert read and all(n == "N128-lat" or n in ("N1-l11", "N1-l12", "N1-l13", "N1-l14") for n in read), (c, read)
+    # the empty_window seal seed is listed as not evaluable, never read
+    assert {os.path.basename(x["rung"]) for x in crit(rb, "2_prime")["value"]["seeds_not_evaluable"]} == {"N1-l15"}
+
+
+def test_2_cal_seeds_do_not_count_toward_the_four(tmp_path):
+    root = str(tmp_path / "runs")
+    c2_tree(root, seeds=3)  # 3 seal seeds per arm
+    rec = {"holds": True, "reason": None}
+    for k in range(1, 5):  # 4 evaluable cal seeds per arm: calibration, not the seal's N=1 half
+        lat(root, "pycache", "sbx", "N1-s%d" % k, 1, 400, 1000, record_json=rec)
+        lat(root, "pycache", "ship-300", "N1-s%d" % k, 1, 100, 600, record_json=rec)
+    c = crit(V(root), "2_prime")
+    assert c["value"]["seeds"] == {"sbx": 3, "ship-300": 3} and c["value"]["n1_judged"] is False
+    assert c["pass"] is None and any("evaluable seed(s) N1-l<k>" in m for m in c["missing"])
+
+
+def test_5a_unreadable_seal_seed_record_is_null(tmp_path):
+    root = str(tmp_path / "runs")
+    c5a_tree(root)
+    open(os.path.join(root, "pycache", "ship-300", "N1-l11", "record.json"), "w").write("{")
+    c = crit(V(root, preds(tmp_path)), "5a_prime")
+    assert c["pass"] is None and any("N1-l11/record.json unreadable" in m for m in c["missing"])
+
