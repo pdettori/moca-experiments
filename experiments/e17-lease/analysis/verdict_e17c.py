@@ -36,7 +36,8 @@ Gated (`criteria`):
 Top-level `pass`: true only when all four are true; null when any is null; false otherwise.
 
 Reported, never gated (`reported`): ship-300-nd on every reading (5a's pooled readings, its warm gains); pycache-low
-(its warm gains, and gate-pycache-low.json when the gate wrote one: --gate-pycache-low, else
+(its warm gains from its baseline seeds N1-s<k>, evaluable ones, and N128-lat, never the gate's calibration rungs
+N1-g<k> (ruling R-v), and gate-pycache-low.json when the gate wrote one: --gate-pycache-low, else
 RUNS/pycache-low/gate-pycache-low.json, else gate-pycache-low.json beside --out); the 256 MiB stages (pycache-d64:
 5a's readings and warm gains; squeeze-256: criterion 3 there); the ownership walk (RUNS/ownwalk/ship-300/F<n>/
 ownwalk.json, its top-level scalars per size).
@@ -289,6 +290,20 @@ def ownwalk(root):
     return {"sizes": sizes}
 
 
+def low_lat(rungs):
+    """R-v: pycache-low's reported gains from its baseline seeds N1-s<k> (evaluable ones, the cal rule) and N128-lat
+    (N1-lat too, E17b's name); the gate's N1-g<k> rungs are calibration only and never read."""
+    dirs = [r["dir"] for r in rungs if r["point"] == "pycache-low" and (r["arm"] == "sbx" or V.is_ship(r))
+            and (r["name"] in V.LAT_NAMES or (N1_SEED.match(r["name"]) and seed_state(r) == "evaluable"))]
+    if not dirs:
+        return {"groups": [], "error": None, "inputs": []}
+    try:
+        rep = LR.build(dirs, baseline_arm="sbx")
+    except SystemExit as e:
+        return {"groups": [], "error": str(e), "inputs": sorted(dirs)}
+    return {"groups": rep["groups"], "error": None, "inputs": sorted(dirs)}
+
+
 def lat_point(rungs, point):
     dirs = [r["dir"] for r in rungs if r["point"] == point and (r["arm"] == "sbx" or V.is_ship(r))]
     if not dirs:
@@ -306,11 +321,12 @@ def reported(root, rungs, c2v, gate_path, out):
     d64 = lat_point(rungs, "pycache-d64")
     d64_arms = sorted({r["arm"] for r in rungs if r["point"] == "pycache-d64" and V.is_ship(r)})
     low_arms = sorted({r["arm"] for r in rungs if r["point"] == "pycache-low" and V.is_ship(r)})
+    low = low_lat(rungs)
     s256 = V.reclaim(root, rungs, points=("squeeze-256",))
     return {
         "ship-300-nd": {"5a": nd5a, "latency": gains(groups, POINT, ARM_ND)},
-        "pycache-low": {"latency": {a: gains(groups, "pycache-low", a) for a in low_arms},
-                        "gate": gate_low(root, gate_path, out)},
+        "pycache-low": {"latency": {a: gains(low["groups"], "pycache-low", a) for a in low_arms},
+                        "latency_error": low["error"], "inputs": low["inputs"], "gate": gate_low(root, gate_path, out)},
         "ram256": {"pycache-d64": {"latency": {a: gains(d64["groups"], "pycache-d64", a) for a in d64_arms},
                                    "latency_error": d64["error"],
                                    "5a": {a: fp_pool(rungs, "pycache-d64", a)[0] for a in d64_arms}},

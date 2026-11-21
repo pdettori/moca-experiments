@@ -147,9 +147,10 @@ chain() { # [VAR=val ...] -- ARGS: run the staged chain; rc echoed, output in $T
 calls() { sed 's/ *tag=.*//' "$CLOG" | tr '\n' ';'; }
 reset() { rm -rf "$T/e17c" "$T/runs" && mkdir -p "$T/runs"; }
 GATE="$T/runs/pycache-low/gate-pycache-low.json"
-gate_file() { # PASS REASON: a gate-pycache-low.json as the gate writes it
+gate_file() { # PASS REASON [COMMIT WINDOW START_ZERO]: a gate-pycache-low.json as the gate writes it
   mkdir -p "$T/runs/pycache-low"
-  printf '{"stage": "gate-pycache-low", "pass": %s, "reason": "%s", "arms": {}}\n' "$1" "$2" >"$GATE"
+  printf '{"stage": "gate-pycache-low", "pass": %s, "reason": "%s", "moca_commit": "%s", "window_s": %s, "start_zero": %s, "arms": {}}\n' \
+    "$1" "$2" "${3:-$PIN}" "${4:-1800}" "${5:-true}" >"$GATE"
 }
 gq() { python3 -c 'import json,sys; v=json.load(open(sys.argv[1]))
 for k in sys.argv[2].split("."): v = v[int(k)] if isinstance(v, list) else v[k]
@@ -309,7 +310,7 @@ test_sealed_stages() {
 # with an 1800 s window, 4 per arm (sbx, ship-300); it passes only when every seed has >= 3 in-window ok calls of
 # py_short or py_import (criterion 2's classes). It writes $E15_RUNS/pycache-low/gate-pycache-low.json (ruling R-q)
 # either way; on a fail the pycache-low stages are SKIPPED as cut (exit 0, the gate's reason) and the chain goes on.
-GOOD="py_short:1,py_import:1,py_short:1,build:1,py_short:0" # 3 counted: 2 py_short + 1 py_import in the window
+GOOD="py_short:1,py_import:1,py_short:1,py_import:1,build:1,py_short:0" # 4 counted: 2 + 2 in the window; 8 + 8 pooled
 test_gate_low() {
   reset
   rm -f "$PRED"
@@ -324,7 +325,7 @@ test_gate_low() {
     "true/1800/true/4/3/[\"py_short\", \"py_import\"]/\"$PIN\""
   check "gate: per arm and seed the in-window ok counts by class (not the out-of-window py_short, not build)" \
     "$(gq arms.sbx.0)" \
-    '{"calls": 3, "in_window": {"py_import": 1, "py_short": 2}, "pass": true, "reason": null, "record_reason": "ok", "rung": "pycache-low/sbx/N1-g1", "seed": 1}'
+    '{"calls": 4, "in_window": {"py_import": 2, "py_short": 2}, "pass": true, "reason": null, "record_reason": "ok", "rung": "pycache-low/sbx/N1-g1", "seed": 1}'
   check "gate: four seeds per arm recorded; the stage DONE line says it passed" \
     "$(python3 -c 'import json,sys; a=json.load(open(sys.argv[1]))["arms"]; print(sorted(a), [len(v) for _, v in sorted(a.items())])' "$GATE")/$(grep -c 'E17C gate-pycache-low DONE .*(gate-pycache-low: PASS' "$TMP/c.out")" \
     "['sbx', 'ship-300'] [4, 4]/1"
@@ -334,11 +335,19 @@ test_gate_low() {
     '0/8/false/true/false/{"py_import": 1, "py_short": 1}'
   check "gate: the fail reason names the arm, seed, rung and counts; the DONE line says pycache-low is cut" \
     "$(gq reason)/$(grep -c 'E17C gate-pycache-low DONE .*(gate-pycache-low: FAIL.*pycache-low is cut' "$TMP/c.out")" \
-    '"ship-300 seed 3 (N1-g3): 2 in-window py_short/py_import call(s) (py_short 1, py_import 1), need 3"/1'
+    '"ship-300 seed 3 (N1-g3): 2 in-window py_short/py_import call(s) (py_short 1, py_import 1), need 3 with at least 1 of each"/1'
   reset
   check "gate: an empty-window seed counts 0 calls and fails the gate (R47's case), reason recorded" \
     "$(chain STUB_REASON=empty_window -- --from gate-pycache-low --to gate-pycache-low)/$(gq arms.sbx.0.record_reason)/$(gq pass)/$(gq reason | grep -c 'sbx seed 1 (N1-g1): 0 in-window.*record reason empty_window.*need 3')" \
     '0/"empty_window"/false/1'
+  reset
+  check "gate (R-t): a one-class seed (sbx seed 2: 3 py_short, 0 py_import) fails the gate; the pooled counts still pass" \
+    "$(chain STUB_CALLS="$GOOD" STUB_CALLS_g2="py_short:1,py_short:1,py_short:1" STUB_LOW_ARM=sbx -- --from gate-pycache-low --to gate-pycache-low)/$(gq pass)/$(gq arms.sbx.1.pass)/$(gq arms.sbx.1.calls)/$(gq pooled.sbx.pass)/$(gq reason)" \
+    '0/false/false/3/true/"sbx seed 2 (N1-g2): 3 in-window py_short/py_import call(s) (py_short 3, py_import 0), need 3 with at least 1 of each"'
+  reset
+  check "gate (R-u): every seed passes, but ship-300 pools 4 py_import (< holds.MIN_CLASS_CALLS 5): the gate fails, pooled counts recorded" \
+    "$(chain STUB_CALLS="$GOOD" STUB_CALLS_g1="py_short:1,py_short:1,py_import:1" STUB_CALLS_g2="py_short:1,py_short:1,py_import:1" STUB_CALLS_g3="py_short:1,py_short:1,py_import:1" STUB_CALLS_g4="py_short:1,py_short:1,py_import:1" STUB_LOW_ARM=ship-300 -- --from gate-pycache-low --to gate-pycache-low)/$(gq pass)/$(gq arms.ship-300.0.pass)/$(gq pooled.ship-300.in_window)/$(gq pooled.sbx.pass)/$(gq min_class_calls_pooled)/$(gq reason)" \
+    '0/false/true/{"py_import": 4, "py_short": 8}/true/5/"ship-300 pooled over its 4 gate seeds: py_import 4, need 5 of each (holds.MIN_CLASS_CALLS: the N=128 rungs'"'"' class-matched baseline)"'
   reset
   gate_file true stale
   check "gate: a rung failure fails the stage (rig error, not a cut): no .done, the stale gate file removed" \
@@ -347,8 +356,9 @@ test_gate_low() {
   reset
   mkdir -p "$T/runs/pycache-low/sbx/N1-old"
   printf '{"arm": "sbx", "moca_commit": "c13d55649777e69ec7649d6fa8c08f4acb1f4e2e"}\n' >"$T/runs/pycache-low/sbx/N1-old/params.json"
-  check "gate: the commit preflight covers pycache-low's arms" \
-    "$(chain STUB_CALLS="$GOOD" -- --from gate-pycache-low --to gate-pycache-low)/$(grep -c 'is not from E17C_MOCA_PIN' "$T/e17c/gate-pycache-low.log")/$(grep -c . "$CLOG")" "1/1/0"
+  gate_file true stale
+  check "gate: the commit preflight covers pycache-low's arms; the old gate file is removed before it (R-w)" \
+    "$(chain STUB_CALLS="$GOOD" -- --from gate-pycache-low --to gate-pycache-low)/$(grep -c 'is not from E17C_MOCA_PIN' "$T/e17c/gate-pycache-low.log")/$(grep -c . "$CLOG")/$([ -f "$GATE" ] && echo gate || echo nogate)" "1/1/0/nogate"
 
   # the pycache-low stages after the gate
   reset
@@ -362,6 +372,14 @@ test_gate_low() {
   mkdir -p "$T/runs/pycache-low" && printf '{"pass": ' >"$GATE"
   check "pycache-low: an unreadable gate file refuses too" \
     "$(chain -- --from base-pycache-low-sbx --to base-pycache-low-sbx)/$(grep -c 'gate-pycache-low.json is unreadable' "$T/e17c/base-pycache-low-sbx.log")/$(grep -c . "$CLOG")" "1/1/0"
+  out=""
+  for v in "other:1111111111111111111111111111111111111111 1800 true:moca_commit" "window:$PIN 900 true:window_s" "zero:$PIN 1800 false:start_zero" "int:$PIN 1800 1:start_zero"; do
+    read -r c w z <<<"$(printf '%s' "$v" | cut -d: -f2)"
+    gate_file true ok "$c" "$w" "$z"
+    out+="${v%%:*}=$(chain -- --from base-pycache-low-sbx --to base-pycache-low-sbx):$(grep -c "not this chain's gate (.*${v##*:} .*re-run gate-pycache-low" "$T/e17c/base-pycache-low-sbx.log"):$(grep -c . "$CLOG") "
+  done
+  check "pycache-low (R-w): a gate file from another moca_commit, window_s or start_zero (1 is not true) refuses, naming the field" \
+    "$out" "other=1:1:0 window=1:1:0 zero=1:1:0 int=1:1:0 "
   gate_file false "ship-300 seed 3 (N1-g3): 2 in-window calls, need 3"
   check "pycache-low: after a failed gate the four stages are SKIPPED as cut, with the gate's reason, exit 0, nothing run; the chain goes on" \
     "$(chain -- --from base-pycache-low-sbx --to base-squeeze-sbx)/$(grep -c '^E17C [a-z0-9-]*pycache-low[a-z0-9-]* SKIP (pycache-low cut by gate-pycache-low: ship-300 seed 3 (N1-g3): 2 in-window calls, need 3' "$TMP/c.out")/$(cat "$T"/e17c/*pycache-low*.done | grep -c 'skipped: pycache-low cut')/$(calls)" \
