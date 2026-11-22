@@ -1,10 +1,10 @@
 {
-  "status": "DRAFT",
-  "sealed": false,
+  "status": "SEALED",
+  "sealed": true,
   "spec": "experiments/e17-lease/SPEC.md v0.8",
   "section": "13.4",
   "recordedAt": "2026-11-22",
-  "codeCommit": "2541040",
+  "codeCommit": "668ba0e",
   "note": "E17c predictions (PLAN-E17C Task 12), drafted from the Task 11 calibration at moca e5ae5151 on the AWS rig (chain-e17c.sh smoke .. gate-256, 2026-11-21 14:53Z .. 2026-11-22 12:54Z, rc 0): N=1 baselines + class probes at pycache for sbx, ship-300 and ship-300-nd (evaluable seeds s1-s3, s7; s4-s6 empty_window in every arm), and the two gates. Not sealed until the user approves.",
   "calibration": {
     "host": "AWS m7i.metal-24xl, 96 vCPU, 377 GiB, /srv/e15 XFS reflink, profile fresh-metal",
@@ -183,5 +183,7 @@
   "open_for_the_seal": [
     "py_import's N=1 calibration gain is 0.36 on 3 warm calls, 0.06 above 2′'s 0.30 bar. Prediction 3 says 2′ holds; a miss there would be on py_import.",
     "5a′ is judged on +45 s (criterion5a_reading plus45, user 2026-11-22): at N=1 about half the heavy Execs had no next call within 45 s; N=128 should give hundreds of readings."
-  ]
+  ],
+  "sealedAt": "2026-11-22T14:23:53Z",
+  "sealNote": "Sealed on the user's go-ahead (2026-11-22, 'Seal as drafted'), before any measured E17c rung. Decisions at the seal: criterion5a_reading plus45; pycache-low and the 256 MiB stages cut (cut_before_the_seal E17C-C1, C2)."
 }
