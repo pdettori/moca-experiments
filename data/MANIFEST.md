@@ -7,7 +7,7 @@ the sealed `predictions*.json`, and the analysis code. The raw traces are only n
 re-derive those summaries from scratch.
 
 They are published as release assets of this repository, one archive per experiment arm.
-E17's raw rung traces are published as `data-v3` (E17a) and `data-v5` (E17b), below. E17's derived results are in git under
+E17's raw rung traces are published as `data-v3` (E17a), `data-v5` (E17b) and `data-v6` (E17c), below. E17's derived results are in git under
 `experiments/e17-lease/results/`.
 The `data-v1` and `data-v2` archives were built before the 2026-11 experiments/ reorganization,
 so their members still use the old paths (`e15/results/...`, `e16/results/...`). The fetch
@@ -86,6 +86,27 @@ experiments/e17-lease/results/raw/e17b/runs --moca-commit c3adf4909df48aa9d167d3
 --out /tmp/verdict.json` regenerates the committed `results/e17b/verdict.json` criteria (all five
 identical, paths aside).
 
+### E17c rung traces (`data-v6`)
+
+Every E17c rung, pulled from the rig on 2026-11-23 (moca `e5ae5151`, spec §13): the rig's `/srv/e15/runs/` tree
+(E17c's only; E17b's were moved aside before the run) extracts under `raw/e17c/runs/`. Beside it:
+
+- `stages/` and `chain-logs/`: `chain-e17c.sh`'s per-stage files and its `verdict.json`, and its logs;
+- `rig/`: the rig change manifest (`e17-manifest.md`).
+
+The squeeze climb's rig-error rung `squeeze/ship-300/N56` (deviation E17C-D1) is included and is not a counted rung.
+The gate rungs (`N1-g<k>` for pycache-low, `N1-g256-s<scale>` for 256 MiB) are included with their gate files.
+`calls.jsonl`, `samples.jsonl` and `worker.log` are gzipped and `worker.raw.log` is not included, as in `data-v5`.
+57 MB uncompressed.
+
+| Archive | Files | Size | Extracts under | sha256 |
+|---|---|---|---|---|
+| `moca-experiments-e17c-raw.tar.gz` | 2159 | 17 MB | `experiments/e17-lease/results/raw/e17c/` (members carry full paths) | `ac540c22f1064adc3d133dd98bd69f36ac9fcc348f35820486101f94ec9dda3c` |
+
+The file list is `data/e17c.files`. Example: `python3 experiments/e17-lease/analysis/verdict_e17c.py
+experiments/e17-lease/results/raw/e17c/runs --moca-commit e5ae5151bbedf47764c0c8e804146c6b1e830fff --out
+/tmp/verdict.json` regenerates the criteria of `results/e17c/verdict.json` (all four identical, paths aside).
+
 ### Analysis inputs (`data-v2`)
 
 The tracelab analysis (`analysis/tracelab/`) also needs the E15 AWS preliminary results and the
@@ -104,7 +125,7 @@ the analysis; `data/fetch-data.sh` covers the per-experiment archives only.
 
 ```bash
 data/fetch-data.sh            # all archives
-data/fetch-data.sh e16-sbx    # one archive (e15-metal, e16-resident-inf, e16-sbx, e17-pycache, baseline, e17b)
+data/fetch-data.sh e16-sbx    # one archive (e15-metal, e16-resident-inf, e16-sbx, e17-pycache, baseline, e17b, e17c)
 ```
 
 The script downloads from the release, verifies the sha256 against this table, and extracts
