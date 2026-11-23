@@ -185,5 +185,15 @@
     "5a′ is judged on +45 s (criterion5a_reading plus45, user 2026-11-22): at N=1 about half the heavy Execs had no next call within 45 s; N=128 should give hundreds of readings."
   ],
   "sealedAt": "2026-11-22T14:23:53Z",
-  "sealNote": "Sealed on the user's go-ahead (2026-11-22, 'Seal as drafted'), before any measured E17c rung. Decisions at the seal: criterion5a_reading plus45; pycache-low and the 256 MiB stages cut (cut_before_the_seal E17C-C1, C2)."
+  "sealNote": "Sealed on the user's go-ahead (2026-11-22, 'Seal as drafted'), before any measured E17c rung. Decisions at the seal: criterion5a_reading plus45; pycache-low and the 256 MiB stages cut (cut_before_the_seal E17C-C1, C2).",
+  "deviations": [
+    {
+      "id": "E17C-D1",
+      "at": "2026-11-23",
+      "by": "user",
+      "what": "the squeeze-ship-300 climb ends at N=48, its last valid rung; 3′ is judged as sealed on N=1..48; sbx's squeeze rung runs at N=48",
+      "why": "the climb stopped on a rig error at N=56: the driver aborted because a session's first call ran outside a lease — a VM restore missed its 5 s Firecracker API-socket timeout while the squeezed e15.slice sat at 23.3/24 GiB under memory.high throttling (PSI some up to 69%). The sealed stop (a reclaim in every whole minute) was not met by N=48: reclaims came in bursts (9, 48, 93, 168 at N=24..48). Resuming could not turn 3′ back into a pass: it already counts 6 memory-budget refusals with an idle lease at N=32 and N=48.",
+      "n56": "kept in place as a rig-error rung, not counted; its lease_ends shows 36 memory-budget refusals (30 with an idle lease) and 194 correct reclaims"
+    }
+  ]
 }
