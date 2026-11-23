@@ -1,0 +1,1691 @@
+{
+  "criteria": {
+    "2_prime": {
+      "inputs": [
+        "/srv/e15/runs/pycache/sbx/N1-l11",
+        "/srv/e15/runs/pycache/sbx/N1-l12",
+        "/srv/e15/runs/pycache/sbx/N1-l13",
+        "/srv/e15/runs/pycache/sbx/N1-l14",
+        "/srv/e15/runs/pycache/sbx/N128-lat",
+        "/srv/e15/runs/pycache/ship-300-nd/N1-l11",
+        "/srv/e15/runs/pycache/ship-300-nd/N1-l12",
+        "/srv/e15/runs/pycache/ship-300-nd/N1-l13",
+        "/srv/e15/runs/pycache/ship-300-nd/N1-l14",
+        "/srv/e15/runs/pycache/ship-300-nd/N128-lat",
+        "/srv/e15/runs/pycache/ship-300/N1-l11",
+        "/srv/e15/runs/pycache/ship-300/N1-l12",
+        "/srv/e15/runs/pycache/ship-300/N1-l13",
+        "/srv/e15/runs/pycache/ship-300/N1-l14",
+        "/srv/e15/runs/pycache/ship-300/N128-lat"
+      ],
+      "missing": [],
+      "name": "warm latency at the new pin (Q6)",
+      "pass": true,
+      "value": {
+        "bars": {
+          "py_import": 0.3,
+          "py_short": 0.5
+        },
+        "error": null,
+        "gated": {
+          "1": {
+            "py_import": 0.4180474818663511,
+            "py_short": 0.8164715337266434
+          },
+          "128": {
+            "py_import": 0.39210973991807274,
+            "py_short": 0.8567228397275009
+          }
+        },
+        "gated_arm": "ship-300",
+        "gated_point": "pycache",
+        "groups": [
+          {
+            "arm": "sbx",
+            "classes": {
+              "py_analyze": {
+                "all": {
+                  "median_ms": 16193.000499999998,
+                  "n": 8,
+                  "p95_ms": 16924.965
+                },
+                "cold": {
+                  "median_ms": 16193.000499999998,
+                  "n": 8,
+                  "p95_ms": 16924.965
+                },
+                "unknown": 0,
+                "warm": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                }
+              },
+              "py_grep": {
+                "all": {
+                  "median_ms": 397.124,
+                  "n": 1,
+                  "p95_ms": 397.124
+                },
+                "cold": {
+                  "median_ms": 397.124,
+                  "n": 1,
+                  "p95_ms": 397.124
+                },
+                "unknown": 0,
+                "warm": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                }
+              },
+              "py_import": {
+                "all": {
+                  "median_ms": 777.56,
+                  "n": 1,
+                  "p95_ms": 777.56
+                },
+                "cold": {
+                  "median_ms": 777.56,
+                  "n": 1,
+                  "p95_ms": 777.56
+                },
+                "unknown": 0,
+                "warm": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                }
+              },
+              "py_short": {
+                "all": {
+                  "median_ms": 54.749,
+                  "n": 9,
+                  "p95_ms": 93.297
+                },
+                "cold": {
+                  "median_ms": 54.749,
+                  "n": 9,
+                  "p95_ms": 93.297
+                },
+                "unknown": 0,
+                "warm": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                }
+              },
+              "py_test": {
+                "all": {
+                  "median_ms": 62132.899,
+                  "n": 5,
+                  "p95_ms": 63547.813
+                },
+                "cold": {
+                  "median_ms": 62132.899,
+                  "n": 5,
+                  "p95_ms": 63547.813
+                },
+                "unknown": 0,
+                "warm": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                }
+              }
+            },
+            "countable": null,
+            "excluded_rungs": null,
+            "first_lease": null,
+            "n": 1,
+            "point": "pycache",
+            "warm_share": 0.0
+          },
+          {
+            "arm": "ship-300",
+            "classes": {
+              "py_analyze": {
+                "all": {
+                  "median_ms": 14953.2725,
+                  "n": 8,
+                  "p95_ms": 16825.602
+                },
+                "baseline_median_ms": 16193.000499999998,
+                "cold": {
+                  "median_ms": 16825.602,
+                  "n": 1,
+                  "p95_ms": 16825.602
+                },
+                "gain": 0.07867921081086848,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 14918.948,
+                  "n": 7,
+                  "p95_ms": 16562
+                },
+                "warm_by_cache": {
+                  "after_drop": {
+                    "median_ms": 14953.2725,
+                    "n": 2,
+                    "p95_ms": 14987.597
+                  },
+                  "kept": {
+                    "median_ms": 14852.719,
+                    "n": 5,
+                    "p95_ms": 16562
+                  },
+                  "ratio": 1.0067700398829331
+                }
+              },
+              "py_grep": {
+                "all": {
+                  "median_ms": 289.273,
+                  "n": 1,
+                  "p95_ms": 289.273
+                },
+                "baseline_median_ms": 397.124,
+                "cold": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                },
+                "gain": 0.2715801613601797,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 289.273,
+                  "n": 1,
+                  "p95_ms": 289.273
+                },
+                "warm_by_cache": {
+                  "after_drop": {
+                    "median_ms": null,
+                    "n": 0,
+                    "p95_ms": null
+                  },
+                  "kept": {
+                    "median_ms": 289.273,
+                    "n": 1,
+                    "p95_ms": 289.273
+                  },
+                  "ratio": null
+                }
+              },
+              "py_import": {
+                "all": {
+                  "median_ms": 452.503,
+                  "n": 1,
+                  "p95_ms": 452.503
+                },
+                "baseline_median_ms": 777.56,
+                "cold": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                },
+                "gain": 0.4180474818663511,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 452.503,
+                  "n": 1,
+                  "p95_ms": 452.503
+                },
+                "warm_by_cache": {
+                  "after_drop": {
+                    "median_ms": null,
+                    "n": 0,
+                    "p95_ms": null
+                  },
+                  "kept": {
+                    "median_ms": 452.503,
+                    "n": 1,
+                    "p95_ms": 452.503
+                  },
+                  "ratio": null
+                }
+              },
+              "py_short": {
+                "all": {
+                  "median_ms": 10.528,
+                  "n": 9,
+                  "p95_ms": 124.923
+                },
+                "baseline_median_ms": 54.749,
+                "cold": {
+                  "median_ms": 111.673,
+                  "n": 2,
+                  "p95_ms": 124.923
+                },
+                "gain": 0.8164715337266434,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 10.048,
+                  "n": 7,
+                  "p95_ms": 15.903
+                },
+                "warm_by_cache": {
+                  "after_drop": {
+                    "median_ms": 12.647,
+                    "n": 4,
+                    "p95_ms": 15.903
+                  },
+                  "kept": {
+                    "median_ms": 7.883,
+                    "n": 3,
+                    "p95_ms": 8.187
+                  },
+                  "ratio": 1.6043384498287454
+                }
+              },
+              "py_test": {
+                "all": {
+                  "median_ms": 61266.14,
+                  "n": 5,
+                  "p95_ms": 61538.8
+                },
+                "baseline_median_ms": 62132.899,
+                "cold": {
+                  "median_ms": 61499.3885,
+                  "n": 2,
+                  "p95_ms": 61538.8
+                },
+                "gain": 0.0157689567969459,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 61153.128,
+                  "n": 3,
+                  "p95_ms": 61266.14
+                },
+                "warm_by_cache": {
+                  "after_drop": {
+                    "median_ms": 60916.636,
+                    "n": 1,
+                    "p95_ms": 60916.636
+                  },
+                  "kept": {
+                    "median_ms": 61209.634,
+                    "n": 2,
+                    "p95_ms": 61266.14
+                  },
+                  "ratio": 0.9952132045096038
+                }
+              }
+            },
+            "countable": true,
+            "excluded_rungs": [],
+            "first_lease": {
+              "all": {
+                "median_ms": null,
+                "n": 0,
+                "p95_ms": null
+              },
+              "by_class": {},
+              "calls": 4
+            },
+            "n": 1,
+            "point": "pycache",
+            "warm_share": 0.7916666666666666
+          },
+          {
+            "arm": "ship-300-nd",
+            "classes": {
+              "py_analyze": {
+                "all": {
+                  "median_ms": 14700.2215,
+                  "n": 8,
+                  "p95_ms": 17582.022
+                },
+                "baseline_median_ms": 16193.000499999998,
+                "cold": {
+                  "median_ms": 16725.044,
+                  "n": 1,
+                  "p95_ms": 16725.044
+                },
+                "gain": 0.09789905829991163,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 14607.721,
+                  "n": 7,
+                  "p95_ms": 17582.022
+                }
+              },
+              "py_grep": {
+                "all": {
+                  "median_ms": 376.043,
+                  "n": 1,
+                  "p95_ms": 376.043
+                },
+                "baseline_median_ms": 397.124,
+                "cold": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                },
+                "gain": 0.053084175219830665,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 376.043,
+                  "n": 1,
+                  "p95_ms": 376.043
+                }
+              },
+              "py_import": {
+                "all": {
+                  "median_ms": 453.415,
+                  "n": 1,
+                  "p95_ms": 453.415
+                },
+                "baseline_median_ms": 777.56,
+                "cold": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                },
+                "gain": 0.4168745820258243,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 453.415,
+                  "n": 1,
+                  "p95_ms": 453.415
+                }
+              },
+              "py_short": {
+                "all": {
+                  "median_ms": 9.735,
+                  "n": 9,
+                  "p95_ms": 132.284
+                },
+                "baseline_median_ms": 54.749,
+                "cold": {
+                  "median_ms": 116.388,
+                  "n": 2,
+                  "p95_ms": 132.284
+                },
+                "gain": 0.8259694240990703,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 9.528,
+                  "n": 7,
+                  "p95_ms": 11.45
+                }
+              },
+              "py_test": {
+                "all": {
+                  "median_ms": 61094.562,
+                  "n": 5,
+                  "p95_ms": 62132.645
+                },
+                "baseline_median_ms": 62132.899,
+                "cold": {
+                  "median_ms": 61887.713,
+                  "n": 2,
+                  "p95_ms": 62132.645
+                },
+                "gain": 0.018693880676644348,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 60971.394,
+                  "n": 3,
+                  "p95_ms": 61094.562
+                }
+              }
+            },
+            "countable": true,
+            "excluded_rungs": [],
+            "first_lease": {
+              "all": {
+                "median_ms": null,
+                "n": 0,
+                "p95_ms": null
+              },
+              "by_class": {},
+              "calls": 4
+            },
+            "n": 1,
+            "point": "pycache",
+            "warm_share": 0.7916666666666666
+          },
+          {
+            "arm": "sbx",
+            "classes": {
+              "py_analyze": {
+                "all": {
+                  "median_ms": 18911.6515,
+                  "n": 192,
+                  "p95_ms": 21524.681
+                },
+                "cold": {
+                  "median_ms": 18911.6515,
+                  "n": 192,
+                  "p95_ms": 21524.681
+                },
+                "unknown": 0,
+                "warm": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                }
+              },
+              "py_grep": {
+                "all": {
+                  "median_ms": 1694.156,
+                  "n": 87,
+                  "p95_ms": 2368.931
+                },
+                "cold": {
+                  "median_ms": 1694.156,
+                  "n": 87,
+                  "p95_ms": 2368.931
+                },
+                "unknown": 0,
+                "warm": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                }
+              },
+              "py_import": {
+                "all": {
+                  "median_ms": 929.361,
+                  "n": 86,
+                  "p95_ms": 2154.397
+                },
+                "cold": {
+                  "median_ms": 929.361,
+                  "n": 86,
+                  "p95_ms": 2154.397
+                },
+                "unknown": 0,
+                "warm": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                }
+              },
+              "py_short": {
+                "all": {
+                  "median_ms": 62.7525,
+                  "n": 326,
+                  "p95_ms": 113.782
+                },
+                "cold": {
+                  "median_ms": 62.7525,
+                  "n": 326,
+                  "p95_ms": 113.782
+                },
+                "unknown": 0,
+                "warm": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                }
+              },
+              "py_test": {
+                "all": {
+                  "median_ms": 68521.93849999999,
+                  "n": 84,
+                  "p95_ms": 71442.412
+                },
+                "cold": {
+                  "median_ms": 68521.93849999999,
+                  "n": 84,
+                  "p95_ms": 71442.412
+                },
+                "unknown": 0,
+                "warm": {
+                  "median_ms": null,
+                  "n": 0,
+                  "p95_ms": null
+                }
+              }
+            },
+            "countable": null,
+            "excluded_rungs": null,
+            "first_lease": null,
+            "n": 128,
+            "point": "pycache",
+            "warm_share": 0.0
+          },
+          {
+            "arm": "ship-300",
+            "classes": {
+              "py_analyze": {
+                "all": {
+                  "median_ms": 16702.634,
+                  "n": 184,
+                  "p95_ms": 19629.361
+                },
+                "baseline_median_ms": 18911.6515,
+                "cold": {
+                  "median_ms": 17565.317,
+                  "n": 16,
+                  "p95_ms": 20958.31
+                },
+                "gain": 0.11839653453850929,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 16672.5775,
+                  "n": 168,
+                  "p95_ms": 19534.909
+                },
+                "warm_by_cache": {
+                  "after_drop": {
+                    "median_ms": 16707.997,
+                    "n": 59,
+                    "p95_ms": 19486.569
+                  },
+                  "kept": {
+                    "median_ms": 16652.685,
+                    "n": 109,
+                    "p95_ms": 19573.387
+                  },
+                  "ratio": 1.0033215064117287
+                }
+              },
+              "py_grep": {
+                "all": {
+                  "median_ms": 331.514,
+                  "n": 82,
+                  "p95_ms": 2005.39
+                },
+                "baseline_median_ms": 1694.156,
+                "cold": {
+                  "median_ms": 1999.3719999999998,
+                  "n": 4,
+                  "p95_ms": 2053.744
+                },
+                "gain": 0.81453390360746,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 314.20849999999996,
+                  "n": 78,
+                  "p95_ms": 2000.425
+                },
+                "warm_by_cache": {
+                  "after_drop": {
+                    "median_ms": 306.332,
+                    "n": 27,
+                    "p95_ms": 1963.73
+                  },
+                  "kept": {
+                    "median_ms": 339.404,
+                    "n": 51,
+                    "p95_ms": 2005.39
+                  },
+                  "ratio": 0.9025586027271334
+                }
+              },
+              "py_import": {
+                "all": {
+                  "median_ms": 586.861,
+                  "n": 83,
+                  "p95_ms": 1197.978
+                },
+                "baseline_median_ms": 929.361,
+                "cold": {
+                  "median_ms": 971.443,
+                  "n": 11,
+                  "p95_ms": 1515.739
+                },
+                "gain": 0.39210973991807274,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 564.9495,
+                  "n": 72,
+                  "p95_ms": 993.918
+                },
+                "warm_by_cache": {
+                  "after_drop": {
+                    "median_ms": 665.803,
+                    "n": 16,
+                    "p95_ms": 1027.072
+                  },
+                  "kept": {
+                    "median_ms": 549.434,
+                    "n": 56,
+                    "p95_ms": 993.918
+                  },
+                  "ratio": 1.2117979593545358
+                }
+              },
+              "py_short": {
+                "all": {
+                  "median_ms": 9.577,
+                  "n": 325,
+                  "p95_ms": 105.885
+                },
+                "baseline_median_ms": 62.7525,
+                "cold": {
+                  "median_ms": 104.285,
+                  "n": 41,
+                  "p95_ms": 148.956
+                },
+                "gain": 0.8567228397275009,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 8.991,
+                  "n": 284,
+                  "p95_ms": 30.061
+                },
+                "warm_by_cache": {
+                  "after_drop": {
+                    "median_ms": 10.484,
+                    "n": 103,
+                    "p95_ms": 30.061
+                  },
+                  "kept": {
+                    "median_ms": 7.945,
+                    "n": 181,
+                    "p95_ms": 29.898
+                  },
+                  "ratio": 1.319572057898049
+                }
+              },
+              "py_test": {
+                "all": {
+                  "median_ms": 66168.988,
+                  "n": 77,
+                  "p95_ms": 67998.899
+                },
+                "baseline_median_ms": 68521.93849999999,
+                "cold": {
+                  "median_ms": 66820.5435,
+                  "n": 2,
+                  "p95_ms": 67998.899
+                },
+                "gain": 0.03433864469552317,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 66168.988,
+                  "n": 75,
+                  "p95_ms": 67966.883
+                },
+                "warm_by_cache": {
+                  "after_drop": {
+                    "median_ms": 65998.6795,
+                    "n": 26,
+                    "p95_ms": 68021.625
+                  },
+                  "kept": {
+                    "median_ms": 66313.922,
+                    "n": 49,
+                    "p95_ms": 67945.015
+                  },
+                  "ratio": 0.9952462093857153
+                }
+              }
+            },
+            "countable": true,
+            "excluded_rungs": [],
+            "first_lease": {
+              "all": {
+                "median_ms": 2333.5215,
+                "n": 32,
+                "p95_ms": 71544.22
+              },
+              "by_class": {
+                "py_analyze": {
+                  "median_ms": 19574.252,
+                  "n": 9,
+                  "p95_ms": 22294.06
+                },
+                "py_grep": {
+                  "median_ms": 2305.939,
+                  "n": 7,
+                  "p95_ms": 2338.539
+                },
+                "py_import": {
+                  "median_ms": 2253.125,
+                  "n": 5,
+                  "p95_ms": 2271.783
+                },
+                "py_shmem": {
+                  "median_ms": 406.737,
+                  "n": 1,
+                  "p95_ms": 406.737
+                },
+                "py_short": {
+                  "median_ms": 396.924,
+                  "n": 4,
+                  "p95_ms": 409.952
+                },
+                "py_test": {
+                  "median_ms": 70377.8375,
+                  "n": 6,
+                  "p95_ms": 71708.59
+                }
+              },
+              "calls": 213
+            },
+            "n": 128,
+            "point": "pycache",
+            "warm_share": 0.9014647137150466
+          },
+          {
+            "arm": "ship-300-nd",
+            "classes": {
+              "py_analyze": {
+                "all": {
+                  "median_ms": 16541.566,
+                  "n": 184,
+                  "p95_ms": 19989.437
+                },
+                "baseline_median_ms": 18911.6515,
+                "cold": {
+                  "median_ms": 17687.271500000003,
+                  "n": 16,
+                  "p95_ms": 21317.062
+                },
+                "gain": 0.12618218456489627,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 16525.338000000003,
+                  "n": 168,
+                  "p95_ms": 19973.325
+                }
+              },
+              "py_grep": {
+                "all": {
+                  "median_ms": 349.6625,
+                  "n": 82,
+                  "p95_ms": 2026.58
+                },
+                "baseline_median_ms": 1694.156,
+                "cold": {
+                  "median_ms": 2030.255,
+                  "n": 4,
+                  "p95_ms": 2043.345
+                },
+                "gain": 0.8102503547489133,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 321.4655,
+                  "n": 78,
+                  "p95_ms": 2009.611
+                }
+              },
+              "py_import": {
+                "all": {
+                  "median_ms": 563.0615,
+                  "n": 82,
+                  "p95_ms": 1334.667
+                },
+                "baseline_median_ms": 929.361,
+                "cold": {
+                  "median_ms": 1218.698,
+                  "n": 11,
+                  "p95_ms": 1853.696
+                },
+                "gain": 0.41394893910977537,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 544.653,
+                  "n": 71,
+                  "p95_ms": 996.839
+                }
+              },
+              "py_short": {
+                "all": {
+                  "median_ms": 8.056,
+                  "n": 325,
+                  "p95_ms": 103.958
+                },
+                "baseline_median_ms": 62.7525,
+                "cold": {
+                  "median_ms": 100.872,
+                  "n": 41,
+                  "p95_ms": 146.314
+                },
+                "gain": 0.8750089637863033,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 7.8435,
+                  "n": 284,
+                  "p95_ms": 25.916
+                }
+              },
+              "py_test": {
+                "all": {
+                  "median_ms": 66253.835,
+                  "n": 77,
+                  "p95_ms": 67880.503
+                },
+                "baseline_median_ms": 68521.93849999999,
+                "cold": {
+                  "median_ms": 66885.372,
+                  "n": 2,
+                  "p95_ms": 67962.435
+                },
+                "gain": 0.033100398932817465,
+                "unknown": 0,
+                "warm": {
+                  "median_ms": 66253.835,
+                  "n": 75,
+                  "p95_ms": 67831.98
+                }
+              }
+            },
+            "countable": true,
+            "excluded_rungs": [],
+            "first_lease": {
+              "all": {
+                "median_ms": 2330.343,
+                "n": 32,
+                "p95_ms": 71390.794
+              },
+              "by_class": {
+                "py_analyze": {
+                  "median_ms": 20345.545,
+                  "n": 9,
+                  "p95_ms": 21773.529
+                },
+                "py_grep": {
+                  "median_ms": 2295.313,
+                  "n": 7,
+                  "p95_ms": 2332.148
+                },
+                "py_import": {
+                  "median_ms": 2248.445,
+                  "n": 5,
+                  "p95_ms": 2321.273
+                },
+                "py_shmem": {
+                  "median_ms": 411.83,
+                  "n": 1,
+                  "p95_ms": 411.83
+                },
+                "py_short": {
+                  "median_ms": 406.52250000000004,
+                  "n": 4,
+                  "p95_ms": 414.981
+                },
+                "py_test": {
+                  "median_ms": 70342.2475,
+                  "n": 6,
+                  "p95_ms": 71464.54
+                }
+              },
+              "calls": 213
+            },
+            "n": 128,
+            "point": "pycache",
+            "warm_share": 0.9013333333333333
+          }
+        ],
+        "min_seeds": 4,
+        "n1_judged": true,
+        "seeds": {
+          "sbx": 4,
+          "ship-300": 4
+        },
+        "seeds_not_evaluable": []
+      },
+      "why": []
+    },
+    "3_prime": {
+      "inputs": [
+        "/srv/e15/runs/squeeze/ship-300/N1-repeat/lease_ends.json",
+        "/srv/e15/runs/squeeze/ship-300/N16-repeat/lease_ends.json",
+        "/srv/e15/runs/squeeze/ship-300/N24-repeat/lease_ends.json",
+        "/srv/e15/runs/squeeze/ship-300/N32-repeat/lease_ends.json",
+        "/srv/e15/runs/squeeze/ship-300/N40-repeat/lease_ends.json",
+        "/srv/e15/runs/squeeze/ship-300/N48/lease_ends.json",
+        "/srv/e15/runs/squeeze/ship-300/N8-repeat/lease_ends.json",
+        "/srv/e15/runs/squeeze/ship-300/ladder.json"
+      ],
+      "missing": [],
+      "name": "squeeze reclaim (ship-300)",
+      "pass": false,
+      "value": {
+        "squeeze": {
+          "memmax_mb": 24576,
+          "rungs": [
+            {
+              "dir": "/srv/e15/runs/squeeze/ship-300/N1-repeat",
+              "guard": false,
+              "guards": 0,
+              "guards_pass": true,
+              "host_memory_with_idle_lease": 0,
+              "lease_ends_guards_pass": true,
+              "memory_high": 0,
+              "met": false,
+              "n": 1,
+              "order_pass": null,
+              "reclaims": 0,
+              "refusals_pass": true,
+              "refusals_unclassified": 0,
+              "refusals_with_idle_lease": 0,
+              "unknown": 0,
+              "valid": true,
+              "wrong": 0
+            },
+            {
+              "dir": "/srv/e15/runs/squeeze/ship-300/N8-repeat",
+              "guard": false,
+              "guards": 0,
+              "guards_pass": true,
+              "host_memory_with_idle_lease": 0,
+              "lease_ends_guards_pass": true,
+              "memory_high": 0,
+              "met": false,
+              "n": 8,
+              "order_pass": null,
+              "reclaims": 0,
+              "refusals_pass": true,
+              "refusals_unclassified": 0,
+              "refusals_with_idle_lease": 0,
+              "unknown": 0,
+              "valid": true,
+              "wrong": 0
+            },
+            {
+              "dir": "/srv/e15/runs/squeeze/ship-300/N16-repeat",
+              "guard": false,
+              "guards": 0,
+              "guards_pass": true,
+              "host_memory_with_idle_lease": 0,
+              "lease_ends_guards_pass": false,
+              "memory_high": 13,
+              "met": false,
+              "n": 16,
+              "order_pass": null,
+              "reclaims": 0,
+              "refusals_pass": true,
+              "refusals_unclassified": 0,
+              "refusals_with_idle_lease": 0,
+              "unknown": 0,
+              "valid": true,
+              "wrong": 0
+            },
+            {
+              "dir": "/srv/e15/runs/squeeze/ship-300/N24-repeat",
+              "guard": false,
+              "guards": 0,
+              "guards_pass": true,
+              "host_memory_with_idle_lease": 0,
+              "lease_ends_guards_pass": false,
+              "memory_high": 316,
+              "met": false,
+              "n": 24,
+              "order_pass": true,
+              "reclaims": 9,
+              "refusals_pass": true,
+              "refusals_unclassified": 0,
+              "refusals_with_idle_lease": 0,
+              "unknown": 0,
+              "valid": true,
+              "wrong": 0
+            },
+            {
+              "dir": "/srv/e15/runs/squeeze/ship-300/N32-repeat",
+              "guard": false,
+              "guards": 0,
+              "guards_pass": true,
+              "host_memory_with_idle_lease": 0,
+              "lease_ends_guards_pass": false,
+              "memory_high": 14203,
+              "met": false,
+              "n": 32,
+              "order_pass": true,
+              "reclaims": 48,
+              "refusals_pass": false,
+              "refusals_unclassified": 0,
+              "refusals_with_idle_lease": 1,
+              "unknown": 0,
+              "valid": true,
+              "wrong": 0
+            },
+            {
+              "dir": "/srv/e15/runs/squeeze/ship-300/N40-repeat",
+              "guard": false,
+              "guards": 0,
+              "guards_pass": true,
+              "host_memory_with_idle_lease": 0,
+              "lease_ends_guards_pass": false,
+              "memory_high": 41856,
+              "met": false,
+              "n": 40,
+              "order_pass": true,
+              "reclaims": 93,
+              "refusals_pass": true,
+              "refusals_unclassified": 0,
+              "refusals_with_idle_lease": 0,
+              "unknown": 0,
+              "valid": true,
+              "wrong": 0
+            },
+            {
+              "dir": "/srv/e15/runs/squeeze/ship-300/N48",
+              "guard": false,
+              "guards": 0,
+              "guards_pass": true,
+              "host_memory_with_idle_lease": 0,
+              "lease_ends_guards_pass": false,
+              "memory_high": 122090,
+              "met": false,
+              "n": 48,
+              "order_pass": true,
+              "reclaims": 168,
+              "refusals_pass": false,
+              "refusals_unclassified": 0,
+              "refusals_with_idle_lease": 5,
+              "unknown": 0,
+              "valid": true,
+              "wrong": 0
+            }
+          ],
+          "sbx_rungs": [
+            {
+              "dir": "/srv/e15/runs/squeeze/sbx/N48-sq",
+              "memory_abort": null,
+              "n": 48,
+              "oom_kills": 0
+            }
+          ],
+          "stop_n": 48,
+          "stopped_by": "deviation E17C-D1",
+          "totals": {
+            "guards": 0,
+            "host_memory_with_idle_lease": 0,
+            "memory_high": 178478,
+            "reclaims": 318,
+            "refusals_with_idle_lease": 6,
+            "unknown": 0,
+            "victim_executing": 0,
+            "wrong": 0
+          }
+        }
+      },
+      "why": [
+        "squeeze N=32: refusals while an idle lease existed (memory-budget 1, host-memory 0, unclassified 0)",
+        "squeeze N=48: refusals while an idle lease existed (memory-budget 5, host-memory 0, unclassified 0)"
+      ]
+    },
+    "5a_prime": {
+      "inputs": [
+        "/srv/e15/runs/pycache/ship-300/N1-l11/vm_age_lease.json",
+        "/srv/e15/runs/pycache/ship-300/N1-l12/vm_age_lease.json",
+        "/srv/e15/runs/pycache/ship-300/N1-l13/vm_age_lease.json",
+        "/srv/e15/runs/pycache/ship-300/N1-l14/vm_age_lease.json",
+        "/srv/e15/runs/pycache/ship-300/N128-lat/vm_age_lease.json"
+      ],
+      "missing": [],
+      "name": "charge after a heavy command (Q5)",
+      "pass": false,
+      "value": {
+        "arm": "ship-300",
+        "bars": {
+          "follow_share_min": 0.5,
+          "pinned_share_max": 0.5
+        },
+        "follow_share": 0.27450980392156865,
+        "pinned_share": 0.0,
+        "point": "pycache",
+        "pooled": {
+          "follows_fp_false": 37,
+          "follows_fp_null": 784,
+          "follows_fp_true": 14,
+          "idle_tail": {
+            "pinned": 0,
+            "pinned_share": 0.0,
+            "readings": 277
+          },
+          "not_judged_low_growth_fp": 91,
+          "plus15": {
+            "judged_pinned": 0,
+            "judged_readings": 51,
+            "pinned": 0,
+            "pinned_share": 0.0,
+            "pinned_share_of_judged": 0.0,
+            "readings": 441
+          },
+          "plus45": {
+            "judged_pinned": 0,
+            "judged_readings": 35,
+            "pinned": 0,
+            "pinned_share": 0.0,
+            "pinned_share_of_judged": 0.0,
+            "readings": 309
+          }
+        },
+        "predictions": {
+          "criterion5a_reading": "plus45",
+          "path": "/srv/e15/src/e17/predictions-e17c.json",
+          "sealed": true
+        },
+        "reading": "plus45",
+        "rungs": [
+          {
+            "mapping_valid": true,
+            "n": 1,
+            "pinned_share_fp_15s": 0.0,
+            "pinned_share_fp_45s": null,
+            "pinned_share_fp_45s_of_judged": null,
+            "pinned_share_fp_idle_tail": 0.0,
+            "pinned_share_mem_15s": 0.5,
+            "rung": "/srv/e15/runs/pycache/ship-300/N1-l11",
+            "share_true_fp": null,
+            "share_true_mem": null
+          },
+          {
+            "mapping_valid": true,
+            "n": 1,
+            "pinned_share_fp_15s": 0.0,
+            "pinned_share_fp_45s": 0.0,
+            "pinned_share_fp_45s_of_judged": null,
+            "pinned_share_fp_idle_tail": 0.0,
+            "pinned_share_mem_15s": 0.6,
+            "rung": "/srv/e15/runs/pycache/ship-300/N1-l12",
+            "share_true_fp": null,
+            "share_true_mem": null
+          },
+          {
+            "mapping_valid": true,
+            "n": 1,
+            "pinned_share_fp_15s": 0.0,
+            "pinned_share_fp_45s": null,
+            "pinned_share_fp_45s_of_judged": null,
+            "pinned_share_fp_idle_tail": 0.0,
+            "pinned_share_mem_15s": 0.0,
+            "rung": "/srv/e15/runs/pycache/ship-300/N1-l13",
+            "share_true_fp": null,
+            "share_true_mem": null
+          },
+          {
+            "mapping_valid": true,
+            "n": 1,
+            "pinned_share_fp_15s": 0.0,
+            "pinned_share_fp_45s": 0.0,
+            "pinned_share_fp_45s_of_judged": null,
+            "pinned_share_fp_idle_tail": 0.0,
+            "pinned_share_mem_15s": 0.625,
+            "rung": "/srv/e15/runs/pycache/ship-300/N1-l14",
+            "share_true_fp": null,
+            "share_true_mem": null
+          },
+          {
+            "mapping_valid": true,
+            "n": 128,
+            "pinned_share_fp_15s": 0.0,
+            "pinned_share_fp_45s": 0.0,
+            "pinned_share_fp_45s_of_judged": 0.0,
+            "pinned_share_fp_idle_tail": 0.0,
+            "pinned_share_mem_15s": 0.6447058823529411,
+            "rung": "/srv/e15/runs/pycache/ship-300/N128-lat",
+            "share_true_fp": 0.27450980392156865,
+            "share_true_mem": 0.27450980392156865
+          }
+        ]
+      },
+      "why": [
+        "follow share 0.275 < 0.50"
+      ]
+    },
+    "5b_prime": {
+      "inputs": [
+        "/srv/e15/runs/pycache/ship-300-nd/N1-l11/vm_age_lease.json",
+        "/srv/e15/runs/pycache/ship-300-nd/N1-l12/vm_age_lease.json",
+        "/srv/e15/runs/pycache/ship-300-nd/N1-l13/vm_age_lease.json",
+        "/srv/e15/runs/pycache/ship-300-nd/N1-l14/vm_age_lease.json",
+        "/srv/e15/runs/pycache/ship-300-nd/N128-lat/vm_age_lease.json",
+        "/srv/e15/runs/pycache/ship-300/N1-l11/vm_age_lease.json",
+        "/srv/e15/runs/pycache/ship-300/N1-l12/vm_age_lease.json",
+        "/srv/e15/runs/pycache/ship-300/N1-l13/vm_age_lease.json",
+        "/srv/e15/runs/pycache/ship-300/N1-l14/vm_age_lease.json",
+        "/srv/e15/runs/pycache/ship-300/N128-lat/vm_age_lease.json"
+      ],
+      "missing": [],
+      "name": "replacement reads (5b)",
+      "pass": true,
+      "value": {
+        "bar": 1.5,
+        "point": "pycache",
+        "ratio_to_sbx_max": 0.9469158247801693,
+        "ratio_to_sbx_min": 0.17921017899178118,
+        "rungs": [
+          {
+            "arm": "ship-300",
+            "median_first_py_grep_ms": null,
+            "n": 1,
+            "ratio_to_sbx": null,
+            "replacement_leases": 1,
+            "rung": "/srv/e15/runs/pycache/ship-300/N1-l11",
+            "sbx_median_py_grep_ms": null
+          },
+          {
+            "arm": "ship-300",
+            "median_first_py_grep_ms": 289.273,
+            "n": 1,
+            "ratio_to_sbx": 0.7284198386398203,
+            "replacement_leases": 2,
+            "rung": "/srv/e15/runs/pycache/ship-300/N1-l12",
+            "sbx_median_py_grep_ms": 397.124
+          },
+          {
+            "arm": "ship-300",
+            "median_first_py_grep_ms": null,
+            "n": 1,
+            "ratio_to_sbx": null,
+            "replacement_leases": 1,
+            "rung": "/srv/e15/runs/pycache/ship-300/N1-l13",
+            "sbx_median_py_grep_ms": null
+          },
+          {
+            "arm": "ship-300",
+            "median_first_py_grep_ms": null,
+            "n": 1,
+            "ratio_to_sbx": null,
+            "replacement_leases": 1,
+            "rung": "/srv/e15/runs/pycache/ship-300/N1-l14",
+            "sbx_median_py_grep_ms": null
+          },
+          {
+            "arm": "ship-300",
+            "median_first_py_grep_ms": 303.61,
+            "n": 128,
+            "ratio_to_sbx": 0.17921017899178118,
+            "replacement_leases": 133,
+            "rung": "/srv/e15/runs/pycache/ship-300/N128-lat",
+            "sbx_median_py_grep_ms": 1694.156
+          },
+          {
+            "arm": "ship-300-nd",
+            "median_first_py_grep_ms": null,
+            "n": 1,
+            "ratio_to_sbx": null,
+            "replacement_leases": 1,
+            "rung": "/srv/e15/runs/pycache/ship-300-nd/N1-l11",
+            "sbx_median_py_grep_ms": null
+          },
+          {
+            "arm": "ship-300-nd",
+            "median_first_py_grep_ms": 376.043,
+            "n": 1,
+            "ratio_to_sbx": 0.9469158247801693,
+            "replacement_leases": 2,
+            "rung": "/srv/e15/runs/pycache/ship-300-nd/N1-l12",
+            "sbx_median_py_grep_ms": 397.124
+          },
+          {
+            "arm": "ship-300-nd",
+            "median_first_py_grep_ms": null,
+            "n": 1,
+            "ratio_to_sbx": null,
+            "replacement_leases": 1,
+            "rung": "/srv/e15/runs/pycache/ship-300-nd/N1-l13",
+            "sbx_median_py_grep_ms": null
+          },
+          {
+            "arm": "ship-300-nd",
+            "median_first_py_grep_ms": null,
+            "n": 1,
+            "ratio_to_sbx": null,
+            "replacement_leases": 1,
+            "rung": "/srv/e15/runs/pycache/ship-300-nd/N1-l14",
+            "sbx_median_py_grep_ms": null
+          },
+          {
+            "arm": "ship-300-nd",
+            "median_first_py_grep_ms": 321.4655,
+            "n": 128,
+            "ratio_to_sbx": 0.1897496452510867,
+            "replacement_leases": 134,
+            "rung": "/srv/e15/runs/pycache/ship-300-nd/N128-lat",
+            "sbx_median_py_grep_ms": 1694.156
+          }
+        ],
+        "rungs_excluded": [],
+        "rungs_with_ratio": {
+          "ship-300": 2,
+          "ship-300-nd": 2
+        },
+        "rungs_without_replacement": 6
+      },
+      "why": []
+    }
+  },
+  "excluded_rungs": [],
+  "moca_commit": "e5ae5151bbedf47764c0c8e804146c6b1e830fff",
+  "note": "SPEC 13.4: pass is true only when 5a', 2', 5b' and 3' all hold, null when any is null",
+  "pass": false,
+  "predictions": {
+    "criterion5a_reading": "plus45",
+    "path": "/srv/e15/src/e17/predictions-e17c.json",
+    "sealed": true
+  },
+  "reported": {
+    "note": "SPEC 13.4: reported, not gated",
+    "ownwalk": {
+      "sizes": {
+        "10000": {
+          "build_script_sha256": "edde9f5e880129de0c50b4669e8d11a3122228fb5a8d98d8c31a4e61b18be738",
+          "files": 10000,
+          "idle_timeout_s": 300,
+          "median_a_ms": 178.974,
+          "median_b_ms": 90.231,
+          "median_walk_ms": 88.743,
+          "normalise_us_b_max": 0,
+          "normalise_us_median_a": 94423,
+          "path": "/srv/e15/runs/ownwalk/ship-300/F10000/ownwalk.json",
+          "phase_corrected_walk_median_ms": 94.665,
+          "probe_cmd": "true",
+          "repeats": 5,
+          "run_id": "ownwalk-F10000-1795464622",
+          "sandbox_id": "e15",
+          "tree_dir": "/workspace/ownwalk-tree",
+          "valid": true,
+          "walk_observed_median_ms": 94.423
+        },
+        "100000": {
+          "build_script_sha256": "edde9f5e880129de0c50b4669e8d11a3122228fb5a8d98d8c31a4e61b18be738",
+          "files": 100000,
+          "idle_timeout_s": 300,
+          "median_a_ms": 897.019,
+          "median_b_ms": 136.732,
+          "median_walk_ms": 762.486,
+          "normalise_us_b_max": 0,
+          "normalise_us_median_a": 720217,
+          "path": "/srv/e15/runs/ownwalk/ship-300/F100000/ownwalk.json",
+          "phase_corrected_walk_median_ms": 719.965,
+          "probe_cmd": "true",
+          "repeats": 5,
+          "run_id": "ownwalk-F100000-1795464633",
+          "sandbox_id": "e15",
+          "tree_dir": "/workspace/ownwalk-tree",
+          "valid": true,
+          "walk_observed_median_ms": 720.217
+        }
+      }
+    },
+    "pycache-low": {
+      "gate": {
+        "path": "/srv/e15/runs/pycache-low/gate-pycache-low.json",
+        "value": {
+          "arms": {
+            "sbx": [
+              {
+                "calls": 0,
+                "in_window": {
+                  "py_import": 0,
+                  "py_short": 0
+                },
+                "pass": false,
+                "reason": "sbx seed 1 (N1-g1): 0 in-window py_short/py_import call(s) (py_short 0, py_import 0; record reason empty_window), need 3 with at least 1 of each",
+                "record_reason": "empty_window",
+                "rung": "pycache-low/sbx/N1-g1",
+                "seed": 1
+              },
+              {
+                "calls": 1,
+                "in_window": {
+                  "py_import": 1,
+                  "py_short": 0
+                },
+                "pass": false,
+                "reason": "sbx seed 2 (N1-g2): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each",
+                "record_reason": "empty_window",
+                "rung": "pycache-low/sbx/N1-g2",
+                "seed": 2
+              },
+              {
+                "calls": 1,
+                "in_window": {
+                  "py_import": 0,
+                  "py_short": 1
+                },
+                "pass": false,
+                "reason": "sbx seed 3 (N1-g3): 1 in-window py_short/py_import call(s) (py_short 1, py_import 0; record reason empty_window), need 3 with at least 1 of each",
+                "record_reason": "empty_window",
+                "rung": "pycache-low/sbx/N1-g3",
+                "seed": 3
+              },
+              {
+                "calls": 1,
+                "in_window": {
+                  "py_import": 1,
+                  "py_short": 0
+                },
+                "pass": false,
+                "reason": "sbx seed 4 (N1-g4): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each",
+                "record_reason": "empty_window",
+                "rung": "pycache-low/sbx/N1-g4",
+                "seed": 4
+              }
+            ],
+            "ship-300": [
+              {
+                "calls": 0,
+                "in_window": {
+                  "py_import": 0,
+                  "py_short": 0
+                },
+                "pass": false,
+                "reason": "ship-300 seed 1 (N1-g1): 0 in-window py_short/py_import call(s) (py_short 0, py_import 0; record reason empty_window), need 3 with at least 1 of each",
+                "record_reason": "empty_window",
+                "rung": "pycache-low/ship-300/N1-g1",
+                "seed": 1
+              },
+              {
+                "calls": 1,
+                "in_window": {
+                  "py_import": 1,
+                  "py_short": 0
+                },
+                "pass": false,
+                "reason": "ship-300 seed 2 (N1-g2): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each",
+                "record_reason": "empty_window",
+                "rung": "pycache-low/ship-300/N1-g2",
+                "seed": 2
+              },
+              {
+                "calls": 1,
+                "in_window": {
+                  "py_import": 0,
+                  "py_short": 1
+                },
+                "pass": false,
+                "reason": "ship-300 seed 3 (N1-g3): 1 in-window py_short/py_import call(s) (py_short 1, py_import 0; record reason empty_window), need 3 with at least 1 of each",
+                "record_reason": "empty_window",
+                "rung": "pycache-low/ship-300/N1-g3",
+                "seed": 3
+              },
+              {
+                "calls": 1,
+                "in_window": {
+                  "py_import": 1,
+                  "py_short": 0
+                },
+                "pass": false,
+                "reason": "ship-300 seed 4 (N1-g4): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each",
+                "record_reason": "empty_window",
+                "rung": "pycache-low/ship-300/N1-g4",
+                "seed": 4
+              }
+            ]
+          },
+          "classes": [
+            "py_short",
+            "py_import"
+          ],
+          "counted": "in-window calls with status ok (holds.window_ok_calls)",
+          "min_calls": 3,
+          "min_class_calls_pooled": 5,
+          "min_per_class_per_seed": 1,
+          "moca_commit": "e5ae5151bbedf47764c0c8e804146c6b1e830fff",
+          "pass": false,
+          "point": "pycache-low",
+          "pooled": {
+            "sbx": {
+              "in_window": {
+                "py_import": 2,
+                "py_short": 1
+              },
+              "pass": false,
+              "reason": "sbx pooled over its 4 gate seeds: py_short 1, py_import 2, need 5 of each (holds.MIN_CLASS_CALLS: the N=128 rungs' class-matched baseline)"
+            },
+            "ship-300": {
+              "in_window": {
+                "py_import": 2,
+                "py_short": 1
+              },
+              "pass": false,
+              "reason": "ship-300 pooled over its 4 gate seeds: py_short 1, py_import 2, need 5 of each (holds.MIN_CLASS_CALLS: the N=128 rungs' class-matched baseline)"
+            }
+          },
+          "reason": "sbx seed 1 (N1-g1): 0 in-window py_short/py_import call(s) (py_short 0, py_import 0; record reason empty_window), need 3 with at least 1 of each; sbx seed 2 (N1-g2): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each; sbx seed 3 (N1-g3): 1 in-window py_short/py_import call(s) (py_short 1, py_import 0; record reason empty_window), need 3 with at least 1 of each; sbx seed 4 (N1-g4): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each; ship-300 seed 1 (N1-g1): 0 in-window py_short/py_import call(s) (py_short 0, py_import 0; record reason empty_window), need 3 with at least 1 of each; ship-300 seed 2 (N1-g2): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each; ship-300 seed 3 (N1-g3): 1 in-window py_short/py_import call(s) (py_short 1, py_import 0; record reason empty_window), need 3 with at least 1 of each; ship-300 seed 4 (N1-g4): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each; sbx pooled over its 4 gate seeds: py_short 1, py_import 2, need 5 of each (holds.MIN_CLASS_CALLS: the N=128 rungs' class-matched baseline); ship-300 pooled over its 4 gate seeds: py_short 1, py_import 2, need 5 of each (holds.MIN_CLASS_CALLS: the N=128 rungs' class-matched baseline)",
+          "seeds_per_arm": 4,
+          "spec": "SPEC \u00a713.5 (R47)",
+          "stage": "gate-pycache-low",
+          "start_zero": true,
+          "window_s": 1800
+        }
+      },
+      "inputs": [],
+      "latency": {
+        "ship-300": {}
+      },
+      "latency_error": null
+    },
+    "ram256": {
+      "pycache-d64": {
+        "5a": {},
+        "gate": {
+          "chosen_scale": null,
+          "pass": false,
+          "path": "/srv/e15/runs/pycache-d64/gate-256.json",
+          "reason": "no candidate scale passed: scale 32 (sbx: 20 OOM kill(s); ship-300: 20 OOM kill(s)); scale 16 (sbx: 20 OOM kill(s); ship-300: 20 OOM kill(s)); scale 8 (sbx: 20 OOM kill(s); ship-300: 20 OOM kill(s)); scale 4 (sbx: 20 OOM kill(s); ship-300: 20 OOM kill(s)); scale 2 (sbx: 20 OOM kill(s); ship-300: 20 OOM kill(s)); scale 1 (sbx: 20 OOM kill(s); ship-300: 20 OOM kill(s))"
+        },
+        "latency": {},
+        "latency_error": null
+      },
+      "squeeze-256": {
+        "inputs": [],
+        "missing": [
+          "/srv/e15/runs/squeeze-256/ship-300/ladder.json (no squeeze climb)"
+        ],
+        "name": "squeeze reclaim at 256 MiB (reported)",
+        "pass": true,
+        "value": {
+          "squeeze-256": null
+        },
+        "why": []
+      }
+    },
+    "ship-300-nd": {
+      "5a": {
+        "arm": "ship-300-nd",
+        "follow_share": 1.0,
+        "point": "pycache",
+        "pooled": {
+          "follows_fp_false": 0,
+          "follows_fp_null": 786,
+          "follows_fp_true": 49,
+          "idle_tail": {
+            "pinned": 0,
+            "pinned_share": 0.0,
+            "readings": 268
+          },
+          "not_judged_low_growth_fp": 101,
+          "plus15": {
+            "judged_pinned": 0,
+            "judged_readings": 49,
+            "pinned": 0,
+            "pinned_share": 0.0,
+            "pinned_share_of_judged": 0.0,
+            "readings": 444
+          },
+          "plus45": {
+            "judged_pinned": 0,
+            "judged_readings": 33,
+            "pinned": 0,
+            "pinned_share": 0.0,
+            "pinned_share_of_judged": 0.0,
+            "readings": 307
+          }
+        },
+        "rungs": [
+          {
+            "mapping_valid": true,
+            "n": 1,
+            "pinned_share_fp_15s": 0.0,
+            "pinned_share_fp_45s": null,
+            "pinned_share_fp_45s_of_judged": null,
+            "pinned_share_fp_idle_tail": 0.0,
+            "pinned_share_mem_15s": 0.5,
+            "rung": "/srv/e15/runs/pycache/ship-300-nd/N1-l11",
+            "share_true_fp": null,
+            "share_true_mem": null
+          },
+          {
+            "mapping_valid": true,
+            "n": 1,
+            "pinned_share_fp_15s": 0.0,
+            "pinned_share_fp_45s": 0.0,
+            "pinned_share_fp_45s_of_judged": null,
+            "pinned_share_fp_idle_tail": 0.0,
+            "pinned_share_mem_15s": 0.6,
+            "rung": "/srv/e15/runs/pycache/ship-300-nd/N1-l12",
+            "share_true_fp": null,
+            "share_true_mem": null
+          },
+          {
+            "mapping_valid": true,
+            "n": 1,
+            "pinned_share_fp_15s": 0.0,
+            "pinned_share_fp_45s": null,
+            "pinned_share_fp_45s_of_judged": null,
+            "pinned_share_fp_idle_tail": 0.0,
+            "pinned_share_mem_15s": 0.0,
+            "rung": "/srv/e15/runs/pycache/ship-300-nd/N1-l13",
+            "share_true_fp": null,
+            "share_true_mem": null
+          },
+          {
+            "mapping_valid": true,
+            "n": 1,
+            "pinned_share_fp_15s": 0.0,
+            "pinned_share_fp_45s": 0.0,
+            "pinned_share_fp_45s_of_judged": null,
+            "pinned_share_fp_idle_tail": 0.0,
+            "pinned_share_mem_15s": 0.625,
+            "rung": "/srv/e15/runs/pycache/ship-300-nd/N1-l14",
+            "share_true_fp": null,
+            "share_true_mem": null
+          },
+          {
+            "mapping_valid": true,
+            "n": 128,
+            "pinned_share_fp_15s": 0.0,
+            "pinned_share_fp_45s": 0.0,
+            "pinned_share_fp_45s_of_judged": 0.0,
+            "pinned_share_fp_idle_tail": 0.0,
+            "pinned_share_mem_15s": 0.705607476635514,
+            "rung": "/srv/e15/runs/pycache/ship-300-nd/N128-lat",
+            "share_true_fp": 1.0,
+            "share_true_mem": 1.0
+          }
+        ]
+      },
+      "latency": {
+        "1": {
+          "py_analyze": 0.09789905829991163,
+          "py_grep": 0.053084175219830665,
+          "py_import": 0.4168745820258243,
+          "py_short": 0.8259694240990703,
+          "py_test": 0.018693880676644348
+        },
+        "128": {
+          "py_analyze": 0.12618218456489627,
+          "py_grep": 0.8102503547489133,
+          "py_import": 0.41394893910977537,
+          "py_short": 0.8750089637863033,
+          "py_test": 0.033100398932817465
+        }
+      }
+    }
+  },
+  "runs": "/srv/e15/runs",
+  "why": [
+    "5a_prime: failed",
+    "3_prime: failed"
+  ]
+}

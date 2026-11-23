@@ -1,0 +1,226 @@
+{
+ "arms": [
+  "sbx",
+  "ship-300"
+ ],
+ "candidates": [
+  32,
+  16,
+  8,
+  4,
+  2,
+  1
+ ],
+ "chosen_scale": null,
+ "guest_ram_mb": 256,
+ "library_256": {
+  "path": "/srv/e15/src/e17/workload/library-256.json",
+  "scale": 0,
+  "sha256": "39302539060099c7dc49c00bcdc1194c7982459d5a92604d175a0df0b0df4cf2"
+ },
+ "measured": "peak RSS: resource.getrusage(RUSAGE_CHILDREN).ru_maxrss of analyze.py (KiB), printed by the gate library's ../venv/bin/python wrapper inside the command; OOM kill: exit or failed_rc 137",
+ "moca_commit": "e5ae5151bbedf47764c0c8e804146c6b1e830fff",
+ "next": "commit chosen_scale into library-256.json's py_analyze (gate256.analyze_cmd(<scale>)), then gen_corpora.sh --gate-256 this file, sync.sh and E17C=1 setup.sh before the ram256 stages",
+ "pass": false,
+ "point": "pycache-d64",
+ "py_analyze_ms": null,
+ "reason": "no candidate scale passed: scale 32 (sbx: 20 OOM kill(s); ship-300: 20 OOM kill(s)); scale 16 (sbx: 20 OOM kill(s); ship-300: 20 OOM kill(s)); scale 8 (sbx: 20 OOM kill(s); ship-300: 20 OOM kill(s)); scale 4 (sbx: 20 OOM kill(s); ship-300: 20 OOM kill(s)); scale 2 (sbx: 20 OOM kill(s); ship-300: 20 OOM kill(s)); scale 1 (sbx: 20 OOM kill(s); ship-300: 20 OOM kill(s))",
+ "results": {
+  "1": {
+   "sbx": {
+    "failed": 0,
+    "gate_library": "/srv/e15/runs/pycache-d64/gate-256-inputs/library-s1.json",
+    "gate_library_sha256": "921f42bb5b118ef21d39f9bef665c5901525422923e38fa8a010c422f8a468ca",
+    "median_ms": null,
+    "ok": 0,
+    "oom_kills": 20,
+    "pass": false,
+    "peak_rss_kb": null,
+    "peak_rss_mib": null,
+    "reason": "20 OOM kill(s)",
+    "rss_missing": 0,
+    "rung": "pycache-d64/sbx/N1-g256-s1",
+    "runs": 20
+   },
+   "ship-300": {
+    "failed": 0,
+    "gate_library": "/srv/e15/runs/pycache-d64/gate-256-inputs/library-s1.json",
+    "gate_library_sha256": "921f42bb5b118ef21d39f9bef665c5901525422923e38fa8a010c422f8a468ca",
+    "median_ms": null,
+    "ok": 0,
+    "oom_kills": 20,
+    "pass": false,
+    "peak_rss_kb": null,
+    "peak_rss_mib": null,
+    "reason": "20 OOM kill(s)",
+    "rss_missing": 0,
+    "rung": "pycache-d64/ship-300/N1-g256-s1",
+    "runs": 20
+   }
+  },
+  "16": {
+   "sbx": {
+    "failed": 0,
+    "gate_library": "/srv/e15/runs/pycache-d64/gate-256-inputs/library-s16.json",
+    "gate_library_sha256": "52d7829469cbdab78bf5dcf2b1e6ce0b0b9a96ca60158266d732428300371a0f",
+    "median_ms": null,
+    "ok": 0,
+    "oom_kills": 20,
+    "pass": false,
+    "peak_rss_kb": null,
+    "peak_rss_mib": null,
+    "reason": "20 OOM kill(s)",
+    "rss_missing": 0,
+    "rung": "pycache-d64/sbx/N1-g256-s16",
+    "runs": 20
+   },
+   "ship-300": {
+    "failed": 0,
+    "gate_library": "/srv/e15/runs/pycache-d64/gate-256-inputs/library-s16.json",
+    "gate_library_sha256": "52d7829469cbdab78bf5dcf2b1e6ce0b0b9a96ca60158266d732428300371a0f",
+    "median_ms": null,
+    "ok": 0,
+    "oom_kills": 20,
+    "pass": false,
+    "peak_rss_kb": null,
+    "peak_rss_mib": null,
+    "reason": "20 OOM kill(s)",
+    "rss_missing": 0,
+    "rung": "pycache-d64/ship-300/N1-g256-s16",
+    "runs": 20
+   }
+  },
+  "2": {
+   "sbx": {
+    "failed": 0,
+    "gate_library": "/srv/e15/runs/pycache-d64/gate-256-inputs/library-s2.json",
+    "gate_library_sha256": "ebfaf87d2aa8e20f95d73738ffa8e0d4faedd2eea44075f1b6c964018fbe1be6",
+    "median_ms": null,
+    "ok": 0,
+    "oom_kills": 20,
+    "pass": false,
+    "peak_rss_kb": null,
+    "peak_rss_mib": null,
+    "reason": "20 OOM kill(s)",
+    "rss_missing": 0,
+    "rung": "pycache-d64/sbx/N1-g256-s2",
+    "runs": 20
+   },
+   "ship-300": {
+    "failed": 0,
+    "gate_library": "/srv/e15/runs/pycache-d64/gate-256-inputs/library-s2.json",
+    "gate_library_sha256": "ebfaf87d2aa8e20f95d73738ffa8e0d4faedd2eea44075f1b6c964018fbe1be6",
+    "median_ms": null,
+    "ok": 0,
+    "oom_kills": 20,
+    "pass": false,
+    "peak_rss_kb": null,
+    "peak_rss_mib": null,
+    "reason": "20 OOM kill(s)",
+    "rss_missing": 0,
+    "rung": "pycache-d64/ship-300/N1-g256-s2",
+    "runs": 20
+   }
+  },
+  "32": {
+   "sbx": {
+    "failed": 0,
+    "gate_library": "/srv/e15/runs/pycache-d64/gate-256-inputs/library-s32.json",
+    "gate_library_sha256": "105e2705caa5e3675c8829d51a8ffb1c5da73e42a926f61606ad74074ae9b528",
+    "median_ms": null,
+    "ok": 0,
+    "oom_kills": 20,
+    "pass": false,
+    "peak_rss_kb": null,
+    "peak_rss_mib": null,
+    "reason": "20 OOM kill(s)",
+    "rss_missing": 0,
+    "rung": "pycache-d64/sbx/N1-g256-s32",
+    "runs": 20
+   },
+   "ship-300": {
+    "failed": 0,
+    "gate_library": "/srv/e15/runs/pycache-d64/gate-256-inputs/library-s32.json",
+    "gate_library_sha256": "105e2705caa5e3675c8829d51a8ffb1c5da73e42a926f61606ad74074ae9b528",
+    "median_ms": null,
+    "ok": 0,
+    "oom_kills": 20,
+    "pass": false,
+    "peak_rss_kb": null,
+    "peak_rss_mib": null,
+    "reason": "20 OOM kill(s)",
+    "rss_missing": 0,
+    "rung": "pycache-d64/ship-300/N1-g256-s32",
+    "runs": 20
+   }
+  },
+  "4": {
+   "sbx": {
+    "failed": 0,
+    "gate_library": "/srv/e15/runs/pycache-d64/gate-256-inputs/library-s4.json",
+    "gate_library_sha256": "eb99745ea14947b3900ed7b0552d84307fd765f826ce591fb22f04a04fe1a91f",
+    "median_ms": null,
+    "ok": 0,
+    "oom_kills": 20,
+    "pass": false,
+    "peak_rss_kb": null,
+    "peak_rss_mib": null,
+    "reason": "20 OOM kill(s)",
+    "rss_missing": 0,
+    "rung": "pycache-d64/sbx/N1-g256-s4",
+    "runs": 20
+   },
+   "ship-300": {
+    "failed": 0,
+    "gate_library": "/srv/e15/runs/pycache-d64/gate-256-inputs/library-s4.json",
+    "gate_library_sha256": "eb99745ea14947b3900ed7b0552d84307fd765f826ce591fb22f04a04fe1a91f",
+    "median_ms": null,
+    "ok": 0,
+    "oom_kills": 20,
+    "pass": false,
+    "peak_rss_kb": null,
+    "peak_rss_mib": null,
+    "reason": "20 OOM kill(s)",
+    "rss_missing": 0,
+    "rung": "pycache-d64/ship-300/N1-g256-s4",
+    "runs": 20
+   }
+  },
+  "8": {
+   "sbx": {
+    "failed": 0,
+    "gate_library": "/srv/e15/runs/pycache-d64/gate-256-inputs/library-s8.json",
+    "gate_library_sha256": "e5ec1a6d649128f3e0d1be36897337040062fa7785773b90a083d3685263bbb4",
+    "median_ms": null,
+    "ok": 0,
+    "oom_kills": 20,
+    "pass": false,
+    "peak_rss_kb": null,
+    "peak_rss_mib": null,
+    "reason": "20 OOM kill(s)",
+    "rss_missing": 0,
+    "rung": "pycache-d64/sbx/N1-g256-s8",
+    "runs": 20
+   },
+   "ship-300": {
+    "failed": 0,
+    "gate_library": "/srv/e15/runs/pycache-d64/gate-256-inputs/library-s8.json",
+    "gate_library_sha256": "e5ec1a6d649128f3e0d1be36897337040062fa7785773b90a083d3685263bbb4",
+    "median_ms": null,
+    "ok": 0,
+    "oom_kills": 20,
+    "pass": false,
+    "peak_rss_kb": null,
+    "peak_rss_mib": null,
+    "reason": "20 OOM kill(s)",
+    "rss_missing": 0,
+    "rung": "pycache-d64/ship-300/N1-g256-s8",
+    "runs": 20
+   }
+  }
+ },
+ "rss_max_mib": 120,
+ "runs_per_arm": 20,
+ "spec": "SPEC \u00a713.5 (R45); PLAN-E17C Task 10",
+ "stage": "gate-256"
+}
