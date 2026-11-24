@@ -1,6 +1,6 @@
 # E17c report — after moca #974, does a lease's charge follow its working set, and what does the drop cost?
 
-Date: 2026-11-23. Spec: `experiments/e17-lease/SPEC.md` v0.8 §13. Plan: `PLAN-E17C.md`. Predictions:
+Date: 2026-11-23. Spec: `experiments/e17-lease/SPEC.md` v0.9 §13. Plan: `PLAN-E17C.md`. Predictions:
 `predictions-e17c.json`, sealed 2026-11-22 (`d21de77`, code `668ba0e`), with the pre-seal cuts E17C-C1/C2 and the
 post-seal deviation E17C-D1. Rig: the E15/E16/E17 metal host (AWS m7i.metal-24xl, 96 vCPU, 377 GiB), profile
 `fresh-metal`, 1024 MiB guests. Code under test: moca `e5ae5151` (#966 `normalise_us`, #970 abort keeps the lease,
@@ -50,8 +50,8 @@ Cut before the seal (user, 2026-11-22):
 | | Criterion | Result |
 |---|---|---|
 | 5a′ | charge follows the working set after a heavy command | **fail**: pinned share 0.0 (0 of 309 at +45 s; bar ≤ 0.50) passes; follow share 0.275 (14 of 51; bar ≥ 0.50) fails |
-| 2′ | warm `py_short` ≥ 50%, `py_import` ≥ 30% faster than `sbx` | **pass**: 0.82 / 0.42 at N = 1, 0.86 / 0.39 at N = 128 |
-| 5b′ | replacement lease's first `py_grep` ≤ 1.5× `sbx` | **pass**: 0.18–0.95 |
+| 2′ | warm `py_short` ≥ 50%, `py_import` ≥ 30% faster than `sbx` | **pass**: 0.82 / 0.42 at N = 1, 0.86 / 0.39 at N = 128; at N = 1 the `py_import` gain is one warm call against one `sbx` call (warm n: 7 `py_short`, 1 `py_import` per lease arm) |
+| 5b′ | replacement lease's first `py_grep` ≤ 1.5× `sbx` | **pass**: 0.18–0.95, on 4 ratios (2 per lease arm: `N1-l12` and `N128-lat`); the other 6 rungs had no replacement-lease `py_grep` (counted, not failed, R-r) |
 | 3′ | squeeze: no guard event, no refusal with an idle lease, idle-longest reclaimed | **fail**: 6 refusals with an idle lease; no guard event; 318 of 318 reclaims correct |
 
 `verdict.json` (`results/e17c/`) is `analysis/verdict_e17c.py` over the rung tree, with the sealed reading `plus45`.
@@ -105,8 +105,9 @@ The follow rule (E17B-R29) judges a heavy command whose growth is ≥ 64 MiB. It
 
 With the drop off, a command starts from a full cache; its growth is mostly anonymous memory that free-page
 reporting returns within 15 s, so 49 of 49 follow. The rule's instant is right for free-page reporting and wrong for
-an idle drop. Judged at +45 s instead (not sealed, reported), no reading is pinned. A future criterion should judge
-the charge after the drop's delay, or at the idle tail.
+an idle drop. The sealed pinned half already reads at +45 s, after the drop, and none of its 309 readings is pinned;
+the follow rule has no +45 s form, so this run does not say whether the growth is given back by then. A future
+follow criterion should judge the charge after the drop's delay, or at the idle tail.
 
 ## 6. Squeeze (3′)
 
@@ -139,10 +140,10 @@ climb at its last valid rung. N = 56 is kept on disk, not counted; it shows 36 r
 
 ## 7. The ownership walk (Q7)
 
-| Files | `normalise_us` median (A) | B | A − B (E17b's inference) |
-|---|---|---|---|
-| 10 000 | 94 ms | 0 | 89 ms |
-| 100 000 | 720 ms | 0 | 762 ms |
+| Files | `normalise_us` median (A) | B | Driver A − B, this run (`median_walk_ms`) | E17b's inference |
+|---|---|---|---|---|
+| 10 000 | 94 ms | 0 | 89 ms | 91 ms |
+| 100 000 | 720 ms | 0 | 762 ms | 756 ms |
 
 The worker's own phase confirms E17b's inference within 6%.
 
