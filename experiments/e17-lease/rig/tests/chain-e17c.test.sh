@@ -199,6 +199,12 @@ lib256() { # SCALE: the staged library-256.json with py_analyze at SCALE (the co
   python3 -c 'import json,sys; sys.path.insert(0, sys.argv[4]); import gate256; l=json.load(open(sys.argv[1])); l["classes"]["py_analyze"][0]["cmd"]=gate256.analyze_cmd(int(sys.argv[2])); json.dump(l, open(sys.argv[3], "w"))' \
     "$RIG/../workload/library-256.json" "$1" "$LIB256" "$RIG/../analysis"
 }
+c256_report() { # [SCALE]: the staged pycache-256 corpus-report.json, built from $G256 (gen_corpora.sh --gate-256's gate_256)
+  mkdir -p "$T/corpora/pycache-256"
+  python3 -c 'import hashlib,json,sys; raw=open(sys.argv[1],"rb").read(); s=sys.argv[3] or json.loads(raw)["chosen_scale"]
+json.dump({"corpus_sha256": "0"*64, "gate_256": {"file": "gate-256.json", "sha256": hashlib.sha256(raw).hexdigest(), "chosen_scale": int(s), "moca_commit": sys.argv[2]}}, open(sys.argv[4], "w"))' \
+    "$G256" "$PIN" "${1:-}" "$T/corpora/pycache-256/corpus-report.json"
+}
 g2q() { python3 -c 'import json,sys; v=json.load(open(sys.argv[1]))
 for k in sys.argv[2].split("."): v = v[int(k)] if isinstance(v, list) else v[k]
 print(json.dumps(v, sort_keys=True))' "$G256" "$1" 2>/dev/null || echo unreadable; }
@@ -332,6 +338,7 @@ test_sealed_stages() {
     "$(chain -- --from ownwalk --to ownwalk)/$(sed 's/ tag=.* e17c=/ e17c=/; s/ e17b=.*//' "$CLOG" | tr '\n' ';')" "0/ownwalk 10000 e17c=1;ownwalk 100000 e17c=1;"
   g256_file true 8
   lib256 8
+  c256_report
   check "ram256: SKIP without E17C_RAM256=1; with it (and a passing gate-256 whose scale is committed) the pycache-d64 N=1 rungs at 256 MiB" \
     "$(chain -- --from ram256-pycache-sbx-n1 --to ram256-squeeze-sbx)/$(grep -c 'SKIP (ram256: E17C_RAM256=1 runs it)' "$TMP/c.out")/$(chain E17C_RAM256=1 -- --from ram256-pycache-sbx-n1 --to ram256-pycache-ship-300-n1)/$(sed 's/ seed=.* ram=/ ram=/; s/ win=.*//' "$CLOG" | tr '\n' ';')" \
     "0/6/0/rung sbx 1 pycache-d64 tag=ram256 ram=256;rung ship-300 1 pycache-d64 tag=ram256 ram=256;"
@@ -516,6 +523,10 @@ test_gate_256() {
   check "ram256: a library-256.json scale other than the gate's refuses" \
     "$(chain E17C_RAM256=1 -- --from ram256-pycache-sbx-n1 --to ram256-pycache-sbx-n1)/$(grep -c 'scale 16.*chose 8' "$T/e17c/ram256-pycache-sbx-n1.log")/$(grep -c . "$CLOG")" "1/1/0"
   lib256 8
+  c256_report 16
+  check "ram256: a staged pycache-256 corpus built from another gate (scale 16, the gate chose 8) refuses: re-run gen_corpora.sh --gate-256" \
+    "$(chain E17C_RAM256=1 -- --from ram256-pycache-sbx-n1 --to ram256-pycache-sbx-n1)/$(grep -c 'was not built from .*chosen_scale 16, not 8.*gen_corpora.sh --gate-256' "$T/e17c/ram256-pycache-sbx-n1.log")/$(grep -c . "$CLOG")" "1/1/0"
+  c256_report
   check "ram256: the gate passed at this pin and its scale is committed -> the stages run (the squeeze-256 climb too)" \
     "$(chain E17C_RAM256=1 E17B_SQUEEZE256_MEMMAX_MB=16384 -- --from ram256-pycache-sbx-n1 --to ram256-squeeze-ship-300)/$(sed 's/ tag=.*//' "$CLOG" | tr '\n' ';')" \
     "0/rung sbx 1 pycache-d64;rung ship-300 1 pycache-d64;baseline squeeze-256 sbx;baseline squeeze-256 ship-300;ladder squeeze-256 ship-300;"

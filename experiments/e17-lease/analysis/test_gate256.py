@@ -1,9 +1,11 @@
 """gate256.py (PLAN-E17C Task 10; SPEC §13.5, R45): the 256 MiB library's calibration gate, on synthetic results."""
 
+import hashlib
 import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -228,8 +230,24 @@ def lib_at(tmp_path, scale):
     return str(p)
 
 
-def state(gate, lib):
-    r = cli("state", "--gate", gate, "--moca-commit", PIN, "--library", lib)
+def report_for(tmp_path, gate, **kw):
+    """the staged pycache-256 corpus-report.json, built from GATE as gen_corpora.sh --gate-256 records it"""
+    raw = open(gate, "rb").read()
+    try:
+        scale = json.loads(raw).get("chosen_scale")
+    except ValueError:  # an unreadable gate: state refuses it before the report
+        scale = None
+    rec = {"file": "gate-256.json", "sha256": hashlib.sha256(raw).hexdigest(), "chosen_scale": scale, "moca_commit": PIN}
+    rec.update(kw)
+    p = tmp_path / "corpus-report.json"
+    p.write_text(json.dumps({"corpus_sha256": "0" * 64, "gate_256": rec}))
+    return str(p)
+
+
+def state(gate, lib, report=None):
+    if report is None:
+        report = report_for(Path(gate).parent, gate) if os.path.exists(gate) else os.devnull
+    r = cli("state", "--gate", gate, "--moca-commit", PIN, "--library", lib, "--corpus-report", str(report))
     return r.returncode, r.stdout.strip()
 
 
@@ -251,6 +269,26 @@ def test_state_passes_only_a_passing_gate_at_this_pin_with_its_scale_committed(t
     assert rc == 1 and "placeholder" in out and "commit" in out
     rc, out = state(gate_doc(tmp_path), lib_at(tmp_path, 16))
     assert rc == 1 and "scale 16" in out and "chose 8" in out
+
+
+def test_state_refuses_a_pycache_256_corpus_built_from_another_gate(tmp_path):
+    gate, lib = gate_doc(tmp_path), lib_at(tmp_path, 8)
+    # a gate re-run that picked scale 8, while the staged corpus is still the scale-16 gate's
+    rc, out = state(gate, lib, report_for(tmp_path, gate, chosen_scale=16, sha256="f" * 64))
+    assert rc == 1 and "was not built from" in out and "chosen_scale 16, not 8" in out and "gen_corpora.sh --gate-256" in out
+    rc, out = state(gate, lib, report_for(tmp_path, gate, moca_commit="1" * 40))
+    assert rc == 1 and "moca_commit" in out
+    # the same scale and pin, but another gate file
+    rep = report_for(tmp_path, gate)
+    Path(gate).write_text(Path(gate).read_text() + "\n")
+    rc, out = state(gate, lib, rep)
+    assert rc == 1 and "sha256" in out
+    # a report without gate_256 (a corpus built without --gate-256), or none at all
+    Path(rep).write_text(json.dumps({"corpus_sha256": "0" * 64}))
+    rc, out = state(gate, lib, rep)
+    assert rc == 1 and "was not built from" in out
+    rc, out = state(gate, lib, str(tmp_path / "none.json"))
+    assert rc == 1 and "unreadable" in out
 
 
 def test_library_cli(tmp_path):

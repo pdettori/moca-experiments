@@ -81,7 +81,9 @@
 #   ram256: pycache-d64 N=1 and the squeeze-256 point at 256 MiB guests (E17B_GUEST_RAM_MB=256), as E17b's, on
 #     library-256.json and the pycache-256 corpus (points.sh under E17C=1). Each reads gate-256.json first
 #     (analysis/gate256.py state): none, an unreadable one, one from another moca_commit, one that did not pass, or a
-#     library-256.json whose scale is not the gate's chosen one (the placeholder 0 included) refuses the stage, naming why.
+#     library-256.json whose scale is not the gate's chosen one (the placeholder 0 included), or a staged pycache-256
+#     corpus not built from this gate file (its corpus-report.json's gate_256: sha256, chosen_scale, moca_commit) refuses
+#     the stage, naming why.
 #   opt: the default baselines (base-default-ARM: baseline.sh default ARM at the pin, ruling R-z4, as chain-e17b.sh's
 #     cal-default-*: ladder.sh needs default/ARM/N1/baseline.json), then the default ladders (sbx, ship-300); ownwalk-500k, which needs a snapshot whose workspace drive is >= 4 GiB
 #     (moca #907's open half): the snapshot manifest records no workspace drive size yet, so it is SKIPPED with that
@@ -601,9 +603,11 @@ run_cmd() {
     fi
     ;;
   esac
-  # Task 10 (ruling R-x): a 256 MiB stage runs only after gate-256 passed at this pin and its scale is committed.
+  # Task 10 (ruling R-x): a 256 MiB stage runs only after gate-256 passed at this pin, its scale is committed and the
+  # staged pycache-256 corpus was built from that gate file.
   case " $* " in *" pycache-d64 "* | *" squeeze-256 "*)
-    out=$(python3 "$GATE256" state --gate "$G256" --moca-commit "$E15_MOCA_PIN" --library "$LIB256") ||
+    out=$(python3 "$GATE256" state --gate "$G256" --moca-commit "$E15_MOCA_PIN" --library "$LIB256" \
+      --corpus-report "$E15_CORPORA/pycache-256/corpus-report.json") ||
       die "${out:-$G256 could not be checked: re-run gate-256}"
     echo "gate-256: passed, scale ${out#pass } ($G256), carried by $LIB256"
     ;;

@@ -3,8 +3,8 @@
 # predictions and caches excluded, as experiments/e16-low-duty/rig/sync.sh), write src/COMMIT, install E15's metal-measured
 # library over commands/library.json (as experiments/e16-low-duty/rig/sync.sh), and stage E17's inputs:
 #   the pycache corpora (experiments/e17-lease/extract/pycache_corpus.py: corpus.jsonl + corpus-report.json)
-#     $E17_CORPORA/<point>/ -> /srv/e15/corpora/<point>/   for point pycache, pycache-low, and pycache-256 when
-#     gen_corpora.sh --gate-256 wrote it (E17c's 256 MiB points, PLAN-E17C Task 10)
+#     $E17_CORPORA/<point>/ -> /srv/e15/corpora/<point>/   for point pycache, pycache-low, and under E17C=1
+#     pycache-256 when gen_corpora.sh --gate-256 wrote it (E17c's 256 MiB points, PLAN-E17C Task 10)
 #     (setup.sh step 8c checks each against its report's corpus_sha256 and records it)
 #   the venv wheels (experiments/e17-lease/workload/wheels.lock)
 #     $E17_WHEELS/ -> /srv/e15/wheels-pycache/   (not /srv/e15/wheels: those are E15's pytest wheels,
@@ -36,7 +36,7 @@ rsync -a -e "$S" experiments/e15-session-density/results/metal/library.json "$H:
 for p in pycache pycache-low; do
   rsync -a -e "$S" "$PC/$p/corpus.jsonl" "$PC/$p/corpus-report.json" "$H:/srv/e15/corpora/$p/"
 done
-if [ -f "$PC/pycache-256/corpus.jsonl" ] && [ -f "$PC/pycache-256/corpus-report.json" ]; then
+if [ "${E17C:-}" = 1 ] && [ -f "$PC/pycache-256/corpus.jsonl" ] && [ -f "$PC/pycache-256/corpus-report.json" ]; then
   $S "$H" 'mkdir -p /srv/e15/corpora/pycache-256'
   rsync -a -e "$S" "$PC/pycache-256/corpus.jsonl" "$PC/pycache-256/corpus-report.json" "$H:/srv/e15/corpora/pycache-256/"
 fi

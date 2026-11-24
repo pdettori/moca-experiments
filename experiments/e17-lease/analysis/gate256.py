@@ -29,10 +29,12 @@ Subcommands (chain-e17c.sh's gate-256 and ram256 stages call them):
       reads ARM/N1-g256-s<S>/{params.json,calls.jsonl} for every scale and arm, writes gate-256.json and prints
       "PASS: ..." or "FAIL: ..."; exits non-zero (no file) when a rung is missing, unreadable, not at 256 MiB or has
       another number of py_analyze calls than --runs-per (a rig error, not a fail)
-  gate256.py state --gate gate-256.json --moca-commit PIN --library LIB256
+  gate256.py state --gate gate-256.json --moca-commit PIN --library LIB256 --corpus-report REPORT
       the ram256 stages' check: prints "pass <scale>" (exit 0) only for a passing gate at this moca_commit whose
-      chosen scale library-256.json carries; else the reason (exit 1). Ruling R-x: the gate reports the scale and
-      library-256.json gets it only through a reviewed, committed change; until then it carries the placeholder 0.
+      chosen scale library-256.json carries, and whose file the staged pycache-256 corpus was built from (REPORT's
+      "gate_256", written by gen_corpora.sh --gate-256: the gate's sha256, chosen_scale and moca_commit); else the
+      reason (exit 1). Ruling R-x: the gate reports the scale and library-256.json gets it only through a reviewed,
+      committed change; until then it carries the placeholder 0.
 """
 
 import argparse
@@ -236,7 +238,8 @@ def cmd_state(a):
         print("no %s: run gate-256 first (SPEC §13.5: the 256 MiB stages run only after its calibration)" % path)
         return 1
     try:
-        g = json.load(open(path))
+        raw = open(path, "rb").read()
+        g = json.loads(raw)
     except (OSError, ValueError):
         g = None
     if not isinstance(g, dict) or not isinstance(g.get("pass"), bool):
@@ -264,6 +267,19 @@ def cmd_state(a):
         print("%s has scale %d, but gate-256 chose %d (%s): commit the gate's scale, or re-run gate-256"
               % (a.library, have, want, path))
         return 1
+    # the staged pycache-256 corpus's py_analyze duration came from a gate: it must be this one
+    try:
+        rec = json.load(open(a.corpus_report)).get("gate_256")
+    except (OSError, ValueError, AttributeError) as e:
+        print("%s is unreadable (%s): re-run gen_corpora.sh --gate-256, then sync.sh" % (a.corpus_report, e))
+        return 1
+    want_rec = {"sha256": hashlib.sha256(raw).hexdigest(), "chosen_scale": want, "moca_commit": a.moca_commit}
+    bad = ["%s %s, not %s" % (k, json.dumps((rec or {}).get(k)), json.dumps(v)) for k, v in want_rec.items()
+           if not isinstance(rec, dict) or json.dumps(rec.get(k)) != json.dumps(v)]
+    if bad:
+        print("%s was not built from %s (%s): re-run gen_corpora.sh --gate-256, then sync.sh"
+              % (a.corpus_report, path, "; ".join(bad)))
+        return 1
     print("pass %d" % want)
     return 0
 
@@ -288,6 +304,7 @@ def main(argv=None):
     st.add_argument("--gate", required=True)
     st.add_argument("--moca-commit", required=True)
     st.add_argument("--library", required=True)
+    st.add_argument("--corpus-report", required=True)
     a = p.parse_args(argv)
     if a.cmd == "library":
         try:
