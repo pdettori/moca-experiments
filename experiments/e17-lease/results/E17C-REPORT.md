@@ -23,7 +23,7 @@ footprint: `memory.current` less reclaimable page cache.
   the median of calls that kept their cache.
 - **3′ fails:** at the squeeze point the worker refused 6 lease starts (`memory-budget`) while an idle lease existed
   (1 at N = 32, 5 at N = 48). Most are moca's futility rule by design; two are not explained (§6). No memory-guard
-  event, and all 368 reclaims took the idle-longest lease.
+  event, and all 318 reclaims took the idle-longest lease.
 - **Squeeze density:** with the smaller charges no rung up to N = 48 reclaimed every minute (E17b: by N ≈ 40). The
   climb ended at N = 48 after a rig error at N = 56 (deviation E17C-D1).
 - **The ownership walk, observed:** 94 ms at 10 000 files and 720 ms at 100 000, against E17b's inferred 91 and
@@ -52,7 +52,7 @@ Cut before the seal (user, 2026-11-22):
 | 5a′ | charge follows the working set after a heavy command | **fail**: pinned share 0.0 (0 of 309 at +45 s; bar ≤ 0.50) passes; follow share 0.275 (14 of 51; bar ≥ 0.50) fails |
 | 2′ | warm `py_short` ≥ 50%, `py_import` ≥ 30% faster than `sbx` | **pass**: 0.82 / 0.42 at N = 1, 0.86 / 0.39 at N = 128 |
 | 5b′ | replacement lease's first `py_grep` ≤ 1.5× `sbx` | **pass**: 0.18–0.95 |
-| 3′ | squeeze: no guard event, no refusal with an idle lease, idle-longest reclaimed | **fail**: 6 refusals with an idle lease; no guard event; 368 of 368 reclaims correct |
+| 3′ | squeeze: no guard event, no refusal with an idle lease, idle-longest reclaimed | **fail**: 6 refusals with an idle lease; no guard event; 318 of 318 reclaims correct |
 
 `verdict.json` (`results/e17c/`) is `analysis/verdict_e17c.py` over the rung tree, with the sealed reading `plus45`.
 
