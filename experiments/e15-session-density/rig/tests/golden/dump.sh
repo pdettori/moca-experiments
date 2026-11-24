@@ -47,7 +47,7 @@ e15_golden_arms() {
 
 e15_golden_profile() {
   local v flags x vals
-  for v in $( (compgen -v E15_; compgen -v E17B; compgen -v E17C) | sort -u); do
+  for v in $( (compgen -v E15_; compgen -v E17B; compgen -v E17C) | LC_ALL=C sort -u); do
     flags=$(declare -p "$v" | cut -d' ' -f2)
     case "$flags" in
     *a*)
