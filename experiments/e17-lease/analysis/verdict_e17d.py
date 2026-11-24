@@ -36,8 +36,8 @@ is null, false otherwise.
 
 Reported, never gated: N = 1 when n1_gated is false; per gated ship-300-l2 rung the level-2 charge (vm_fp at +45 s,
 beside the paired ship-300 rung's), the restart costs and the lease-cold share beside ship-300's; py_short at
-ship-300-l2 against ship-300 (gain_vs_l1); squeeze-l2: each arm's ladder.json squeeze summary and, per rung, the
-memory-budget refusals by why (#1026) and the reclaims of a lease with a running server.
+ship-300-l2 against ship-300 (gain_vs_l1); squeeze-l2: each arm's ladder.json squeeze summary, per rung the
+memory-budget refusals by why (#1026) and the reclaims of a lease with a running server, and the first N of each.
 """
 import argparse
 import json
@@ -230,7 +230,10 @@ def reported(root, rungs, g, p):
                 per[r["name"]] = {"n": r["params"].get("n"), "refusals_by_why": a["refusals"]["by_why"],
                                   "reclaims_of_a_running_server": sum(
                                       1 for j in a["ends"]["judged"] if j["reason"] == "memory_reclaim")}
-        out["squeeze_l2"][arm] = {"ladder": (lj or {}).get("squeeze") if lj else None, "rungs": per}
+        ns = lambda f: min((v["n"] for v in per.values() if f(v) and v["n"] is not None), default=None)  # noqa: E731
+        out["squeeze_l2"][arm] = {"ladder": (lj or {}).get("squeeze") if lj else None, "rungs": per,
+                                  "first_refusal_n": ns(lambda v: sum(v["refusals_by_why"].values()) > 0),
+                                  "first_reclaim_of_a_running_server_n": ns(lambda v: v["reclaims_of_a_running_server"] > 0)}
     return out
 
 

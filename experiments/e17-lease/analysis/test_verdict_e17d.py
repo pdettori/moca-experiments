@@ -128,3 +128,20 @@ def test_top_level_pass_and_cli(tmp_path):
     VD.main([root, "--moca-commit", PIN, "--predictions", preds(tmp_path), "--out", str(out)])
     v = json.loads(out.read_text())
     assert v["pass"] is True and v["why"] == []
+
+
+def test_squeeze_l2_first_refusal_and_reclaim_n(tmp_path):
+    root = tree(tmp_path)
+    src = tmp_path / "sq"
+    src.mkdir()
+    log = ['2026-11-05T11:00:00Z vmpool: memory-budget refusal workspace_key="K" why=futile short_by=1\n']
+    for n in (16, 32):
+        d = T.write_rung(src, "s%d" % n, "ship-300-l2", log if n == 32 else [], [], point="squeeze-l2", n=n)
+        dst = os.path.join(root, "squeeze-l2", "ship-300-l2", "N%d" % n)
+        shutil.copytree(d, dst)
+        p = json.load(open(os.path.join(dst, "params.json")))
+        p["moca_commit"] = PIN
+        json.dump(p, open(os.path.join(dst, "params.json"), "w"))
+    sq = run(root, preds(tmp_path))["reported"]["squeeze_l2"]["ship-300-l2"]
+    assert sq["first_refusal_n"] == 32 and sq["first_reclaim_of_a_running_server_n"] is None
+    assert sq["rungs"]["N32"]["refusals_by_why"] == {"futile": 1}

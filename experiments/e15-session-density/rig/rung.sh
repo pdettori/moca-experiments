@@ -58,9 +58,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/lib.sh"
 # shellcheck source=points.sh
 . "$HERE/points.sh"
-# E17c profile (E17C=1, which implies E17B=1): the same for E17C_MOCA_PIN, first.
 # E17d profile (E17D=1, which implies E17C=1 and E17B=1): the same for E17D_MOCA_PIN, first.
 [ "${E17D:-}" != 1 ] || e17d_require_pin
+# E17c profile (E17C=1, which implies E17B=1): the same for E17C_MOCA_PIN, before the E17b checks.
 [ "${E17C:-}" != 1 ] || e17c_require_pin
 # E17b profile: refuse the placeholder or a malformed E17B_MOCA_PIN before any host change.
 [ "${E17B:-}" != 1 ] || { e17b_require_pin && e17b_require_build; }
