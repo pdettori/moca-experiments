@@ -435,6 +435,7 @@ fi
 if [ "$METAL" = 1 ]; then
   pcs=(pycache pycache-low)
   [ "${E17C:-}" != 1 ] || pcs+=(pycache-256)
+  [ "${E17D:-}" != 1 ] || pcs+=(pycache-l2) # E17d's level-2 point (gen_corpora.sh under E17D=1; PLAN-E17D Task 3)
   for pc in "${pcs[@]}"; do
     pd=$E15_CORPORA/$pc
     if [ -f "$pd/corpus.jsonl" ]; then
