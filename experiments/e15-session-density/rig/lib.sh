@@ -223,6 +223,9 @@ if [ "$E15_HOST_PROFILE" = fresh-metal ] && [ "${E17B:-}" = 1 ]; then E15_ARMS+=
 # E17c (E17C=1, fresh-metal only): ship-300-nd is ship-300 with the idle page-cache drop off (SH_LEASE_CACHE_DROP_S=0;
 # worker_env). With E17C unset the arm list above stands.
 if [ "$E15_HOST_PROFILE" = fresh-metal ] && [ "${E17C:-}" = 1 ]; then E15_ARMS+=(ship-300-nd); fi
+# E17d (E17D=1, fresh-metal only; spec §14.2): ship-300-l2 is ship-300 (the same worker env) whose driver mints the mode
+# lease+processes and runs the level-2 restart rule on library-l2.json (e17d_lease_flags, e17d_arm_library).
+if [ "$E15_HOST_PROFILE" = fresh-metal ] && [ "${E17D:-}" = 1 ]; then E15_ARMS+=(ship-300-l2); fi
 E15_LADDER=(1 8 16 24 32 40 48 56 64 80 96 128)
 # fresh-metal (SPEC §13, user decision 2026-11-04): the ladder extends past 128 until one arm fails,
 # resident arms warm up 1200 s (their VMs are still growing at 600 s), and footprint drift is judged
@@ -243,6 +246,7 @@ e15_default_warmup() {
   fresh-metal:lease-30 | fresh-metal:lease-120) echo 1200 ;; # E17: as resident-300
   fresh-metal:ship-30 | fresh-metal:ship-120 | fresh-metal:ship-300) echo 1200 ;; # E17b: as the lease arms
   fresh-metal:ship-300-nd) echo 1200 ;;                                              # E17c: as ship-300
+  fresh-metal:ship-300-l2) echo 1200 ;;                                              # E17d: as ship-300
   *) echo 600 ;;
   esac
 }
@@ -984,12 +988,15 @@ worker_env() {
   sbx) depth=2 ;;
   resident-inf | resident-300) depth=0 ;;
   lease-30 | lease-120) depth=0 ;; # E17 (fresh-metal only; E15_ARMS)
-  ship-30 | ship-120 | ship-300 | ship-300-nd)
+  ship-30 | ship-120 | ship-300 | ship-300-nd | ship-300-l2)
     # E17b (E17B=1): the shipped lease. Admission is bounded by host RAM less 8 GiB (spec §6) and the slots sit above the
     # ladder's top N; the lease knobs (SH_LEASE_*) are left unset, so the worker's defaults stand and its banner prints them.
     # E17c's ship-300-nd (E17C=1) is ship-300 plus SH_LEASE_CACHE_DROP_S=0 (the idle page-cache drop off; below).
     [ "${E17B:-}" = 1 ] || die "worker_env: arm $arm exists only under E17B=1"
     [ "$arm" != ship-300-nd ] || [ "${E17C:-}" = 1 ] || die "worker_env: arm $arm exists only under E17C=1"
+    # E17d's ship-300-l2 (E17D=1) is ship-300's env exactly: the level-2 mode is the token's claim, not a worker knob
+    # (SH_LEASE_CACHE_DROP_S and SH_LEASE_MAX_PROCESSES stay at the worker's defaults, spec §14.2).
+    [ "$arm" != ship-300-l2 ] || [ "${E17D:-}" = 1 ] || die "worker_env: arm $arm exists only under E17D=1"
     # Standby depth 2, the worker's default (ruling E17B-R44): the stock microvm-worker refuses SH_STANDBY_DEPTH=0
     # ("must be a positive integer"; vmpool treats <= 0 as the default) and a shipped lease is promoted from a standby,
     # so depth 0 (the E15 resident patch's setting, E17a) is not a configuration the shipped worker has.
@@ -1056,19 +1063,45 @@ e17b_require_build() {
   stamp_ok go-stock-e17b "$E15_MOCA_PIN" ||
     die "E17B=1 but the go-stock-e17b build stamp in $E15_STATE is not for $E15_MOCA_PIN; run setup.sh with E17B=1"
 }
-# e17b_lease_arm ARM: true for an E17b shipped-lease arm (ship-*) under E17B=1, and for E17c's ship-300-nd under E17C=1.
+# e17b_lease_arm ARM: true for an E17b shipped-lease arm (ship-*) under E17B=1, for E17c's ship-300-nd under E17C=1 and
+# for E17d's ship-300-l2 under E17D=1.
 e17b_lease_arm() {
   [ "${E17B:-}" = 1 ] && case "$1" in
   ship-30 | ship-120 | ship-300) true ;;
   ship-300-nd) [ "${E17C:-}" = 1 ] ;;
+  ship-300-l2) [ "${E17D:-}" = 1 ] ;;
   *) false ;;
   esac
 }
-# e17b_idle_timeout_s ARM: the lease idle timeout of a ship arm (the token's idle_timeout_s claim); ship-300-nd's is 300.
+# e17b_idle_timeout_s ARM: the lease idle timeout of a ship arm (the token's idle_timeout_s claim); ship-300-nd's and
+# ship-300-l2's are 300.
 e17b_idle_timeout_s() {
   e17b_lease_arm "$1" || die "e17b_idle_timeout_s: $1 is not a ship arm (E17B=1)"
   local s=${1#ship-}
-  echo "${s%-nd}"
+  s=${s%-nd}
+  echo "${s%-l2}"
+}
+# E17d (E17D=1; spec §14.2, ruling E17D-B1): the lease mode is a per-rung value, the mode claim of every token the
+# driver mints. e17d_lease_mode ARM: lease+processes for ship-300-l2, lease for the other ship arms, per-exec for sbx
+# (params.json's lease_mode). e17d_lease_flags ARM: the driver's mode flags, --lease-mode=lease+processes --l2-restart
+# for ship-300-l2 and --lease-mode=lease for the level-1 arms (the mode named, joined with "="; with E17D unset rung.sh
+# keeps the bare --lease-mode, which is lease), nothing for sbx. e17d_arm_library ARM LIBRARY: ship-300-l2 replays
+# library-l2.json (the level-2 client, l2c.py), every other arm LIBRARY, the point's; the driver's Library stays
+# arm-free.
+e17d_lease_mode() {
+  case "$1" in
+  ship-300-l2) echo "lease+processes" ;;
+  *) if e17b_lease_arm "$1"; then echo lease; else echo per-exec; fi ;;
+  esac
+}
+e17d_lease_flags() {
+  case "$(e17d_lease_mode "$1")" in
+  lease+processes) echo "--lease-mode=lease+processes --l2-restart" ;;
+  lease) echo "--lease-mode=lease" ;;
+  esac
+}
+e17d_arm_library() {
+  if [ "$1" = ship-300-l2 ]; then echo "$E15_ROOT/src/e17/workload/library-l2.json"; else echo "$2"; fi
 }
 # E17b snapshot leaf (ruling E17B-R17): under E17B=1 every arm's worker runs on snapshot-e17b.sh's leaf
 # e17b-<first 8 of E15_MOCA_PIN>-<E17B_GUEST_RAM_MB> (1024 by default; 256 for the 256 MiB stages) with that guest RAM,
@@ -1103,6 +1136,16 @@ e17b_require_snapshot() {
   ram=$(e17b_guest_ram_mb) || exit 1
   [ -f "$E15_SNAPDIR/$leaf/manifest.json" ] ||
     die "no E17b snapshot $E15_SNAPDIR/$leaf (manifest.json): build it with $(if [ "${E17D:-}" = 1 ]; then echo E17D=1; elif [ "${E17C:-}" = 1 ]; then echo E17C=1; else echo E17B=1; fi) experiments/e17-lease/rig/snapshot-e17b.sh --ram-mb $ram --leaf $leaf"
+  # E17d (E17D=1): every arm runs on one leaf, and ship-300-l2 needs the process kinds, so the leaf must advertise
+  # lease-processes-v1 (the worker refuses a process kind on a snapshot without it).
+  if [ "${E17D:-}" = 1 ]; then
+    e17d_snapshot_lease_processes "$E15_SNAPDIR/$leaf/manifest.json" ||
+      die "the snapshot $E15_SNAPDIR/$leaf does not advertise lease-processes-v1 (its manifest.json features): E17d's arms need it; build the leaf with E17D=1 experiments/e17-lease/rig/snapshot-e17b.sh"
+  fi
+}
+# e17d_snapshot_lease_processes MANIFEST: true when the manifest's features list lease-processes-v1.
+e17d_snapshot_lease_processes() {
+  python3 -c 'import json,sys; sys.exit(0 if "lease-processes-v1" in (json.load(open(sys.argv[1])).get("features") or []) else 1)' "$1" 2>/dev/null
 }
 # e17b_token_iss: the token issuer the relay's SH_SANDBOX_TOKEN_ISSUER and the driver's --token-iss share.
 e17b_token_iss() { echo e17b-driver; }
@@ -1152,6 +1195,11 @@ worker_bin() {
   ship-300-nd)
     # E17c only (E17C=1): the same stock worker as ship-300
     [ "${E17C:-}" = 1 ] || die "worker_bin: no worker for arm $1"
+    stock_worker_bin
+    ;;
+  ship-300-l2)
+    # E17d only (E17D=1): the same stock worker as ship-300
+    [ "${E17D:-}" = 1 ] || die "worker_bin: no worker for arm $1"
     stock_worker_bin
     ;;
   resident-inf | resident-300) echo "$E15_BIN/microvm-worker-resident" ;;

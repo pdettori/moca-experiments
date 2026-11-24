@@ -4078,6 +4078,102 @@ test_e17c_256_library() {
 test_e17c_256_library
 check "ship-300-nd: record.py judges its footprint drift as the other lease arms (RESIDENT)" \
   "$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import record; print("ship-300-nd" in record.RESIDENT)' "$RIG/../analysis" 2>&1)" "True"
+
+# --- E17d Task 2 (spec §14.2): the ship-300-l2 arm, points pycache-l2 and squeeze-l2, the per-rung lease mode --------
+printf 'E17B_MOCA_PIN=%s\nE17C_MOCA_PIN=%s\nE17D_MOCA_PIN=%s\n' "$E17B_FIXPIN" "$E17C_FIXPIN" "$E17D_FIXPIN" >"$TMP/e17d-rung-pins.sh"
+t17o() { t17m "$1" 1 "$2" E17D=1 E15_TEST_PINS="$TMP/e17d-rung-pins.sh" "${@:3}"; } # PROFILE EXPR [VAR=val ...]: E17D=1
+test_l2_arm_known_under_e17d_only() {
+  local isarm='e15_is_arm ship-300-l2 && echo yes || echo no'
+  check "ship-300-l2: known on fresh-metal under E17D=1; not under E17C=1 alone, E17B=1 alone, E17B unset, or on aws-prelim" \
+    "$(t17o fresh-metal "$isarm")/$(t17n fresh-metal "$isarm")/$(t17m fresh-metal 1 "$isarm")/$(t17m fresh-metal unset "$isarm")/$(t17o aws-prelim "$isarm")" "yes/no/no/no/no"
+  check "ship-300-l2: E15_ARMS under E17D=1 appends it after E17c's arms" \
+    "$(t17o fresh-metal 'echo ${E15_ARMS[*]}')" "sbx resident-inf resident-300 control lease-30 lease-120 ship-30 ship-120 ship-300 ship-300-nd ship-300-l2"
+  check "ship-300-l2: points pycache-l2 (sbx ship-300 ship-300-l2) and squeeze-l2 (ship-300 ship-300-l2) under E17D=1" \
+    "$(t17o fresh-metal 'e15_point_arms pycache-l2')/$(t17o fresh-metal 'e15_point_arms squeeze-l2')" "sbx ship-300 ship-300-l2/ship-300 ship-300-l2"
+  check "ship-300-l2: no other point lists it under E17D=1" \
+    "$(t17o fresh-metal 'for p in default smoke pycache pycache-low pycache-d64 pycache-d768 squeeze squeeze-256 lowduty mem512; do e15_point $p; case " $E15_P_ARMS " in *" ship-300-l2 "*) printf "%s " $p ;; esac; done')" ""
+  check "pycache-l2 and squeeze-l2: unknown with E17D unset (E17C=1, E17B=1, unset) and on aws-prelim" \
+    "$(for e in t17n 't17m fresh-metal 1' 't17m fresh-metal unset'; do case $e in t17n) t17n fresh-metal 'e15_point pycache-l2 && echo y || echo n; e15_point squeeze-l2 && echo y || echo n' ;; *) $e 'e15_point pycache-l2 && echo y || echo n; e15_point squeeze-l2 && echo y || echo n' ;; esac; done | tr '\n' ' ')$(t17o aws-prelim 'e15_point pycache-l2 && echo y || echo n')" "n n n n n n n"
+  local f='e15_point P && echo "$E15_P_CORPUS|${E15_P_LIBRARY#"$E15_ROOT"/}|${E15_P_TEMPLATE#"$E15_ROOT"/}|$E15_P_IMAGE_MB|$E15_P_DATASET_MIB|$E15_P_FALLBACK|$E15_P_PROBE_CAP_MS"'
+  check "pycache-l2: corpus pycache-l2, the E17 library, pycache's D=256 template, 1536 MiB, no fallback, the 120 s probe cap" \
+    "$(t17o fresh-metal "${f/P/pycache-l2}")" "pycache-l2|src/e17/workload/library.json|template-pycache-d256/workspace.img|1536|256|0|120000"
+  check "squeeze-l2: pycache-l2's workload; a squeeze point (e15_is_squeeze)" \
+    "$(t17o fresh-metal "${f/P/squeeze-l2}")/$(t17o fresh-metal 'e15_is_squeeze squeeze-l2 && echo squeeze')" "pycache-l2|src/e17/workload/library.json|template-pycache-d256/workspace.img|1536|256|0|120000/squeeze"
+  check "pycache-l2, squeeze-l2 and pycache have three point signatures" \
+    "$(t17o fresh-metal 'for p in pycache pycache-l2 squeeze-l2; do e15_point_sig $p; done' | sort -u | wc -l | tr -d ' ')" "3"
+  check "ship-300-l2: the default warm-up is 1200 s (as ship-300)" "$(t17o fresh-metal 'e15_default_warmup ship-300-l2')" "1200"
+}
+test_l2_worker_env_and_flags() {
+  local a="$TMP/l2-wenv-300" b="$TMP/l2-wenv-l2"
+  t17o fresh-metal 'worker_env ship-300 "'"$a"'"; worker_env ship-300-l2 "'"$b"'"' >/dev/null
+  check "ship-300-l2 worker_env: exactly ship-300's (SH_LEASE_CACHE_DROP_S and SH_LEASE_MAX_PROCESSES at the defaults)" \
+    "$(diff "$a" "$b" >/dev/null && echo same)/$(grep -c '^SH_LEASE_CACHE_DROP_S\|^SH_LEASE_MAX_PROCESSES' "$b")" "same/0"
+  check "ship-300-l2 worker_env: refused with E17D unset (E17C=1)" \
+    "$(t17n fresh-metal '(worker_env ship-300-l2 "'"$b.x"'") >/dev/null 2>&1; echo $?')" "1"
+  check "ship-300-l2: a lease arm under E17D=1 only; its token idle timeout is 300 s; the stock -e17b worker" \
+    "$(t17o fresh-metal 'e17b_lease_arm ship-300-l2 && echo y || echo n')/$(t17n fresh-metal 'e17b_lease_arm ship-300-l2 && echo y || echo n')/$(t17o fresh-metal 'e17b_idle_timeout_s ship-300-l2')/$(t17o fresh-metal 'worker_bin ship-300-l2')/$(t17n fresh-metal '(worker_bin ship-300-l2) >/dev/null 2>&1; echo $?')" \
+    "y/n/300/$TROOT/bin/microvm-worker-e17b/1"
+  check "e17d driver flags: ship-300-l2 mints lease+processes with the restart rule; the level-1 arms lease; sbx none" \
+    "$(t17o fresh-metal 'for a in ship-300-l2 ship-300 ship-300-nd sbx; do printf "%s=[%s] " $a "$(e17d_lease_flags $a)"; done')" \
+    "ship-300-l2=[--lease-mode=lease+processes --l2-restart] ship-300=[--lease-mode=lease] ship-300-nd=[--lease-mode=lease] sbx=[] "
+  check "e17d library: ship-300-l2 replays library-l2.json, every other arm the point's library" \
+    "$(t17o fresh-metal 'e17d_arm_library ship-300-l2 /x/library.json; e17d_arm_library ship-300 /x/library.json; e17d_arm_library sbx /x/library.json' | sed "s#$TROOT#<ROOT>#" | tr '\n' ' ')" \
+    "<ROOT>/src/e17/workload/library-l2.json /x/library.json /x/library.json "
+  check "e17d lease mode: the mode each arm runs (params.json's lease_mode)" \
+    "$(t17o fresh-metal 'for a in ship-300-l2 ship-300 sbx; do e17d_lease_mode $a; done' | tr '\n' ' ')" "lease+processes lease per-exec "
+}
+drung() { # ARM [VAR=val ...]: srung under E17D=1 at point pycache-l2 (the E17d pin's stamp, leaf and inputs in the harness root)
+  local arm=$1 rc feats=${DRUNG_FEATS:-'"lease-v1", "balloon-fpr-v1", "lease-processes-v1"'}
+  shift
+  printf '%s\n' "$E17D_FIXPIN" >"$RS/state/go-stock-e17b"
+  mkdir -p "$RS/snapshots/e17d-${E17D_FIXPIN:0:8}-1024" "$RS/corpora/pycache-l2" "$RS/template-pycache-d256" "$RS/src/e17/workload"
+  printf '{"hash": "hd", "guest_ram_mb": 1024, "features": [%s]}\n' "$feats" >"$RS/snapshots/e17d-${E17D_FIXPIN:0:8}-1024/manifest.json"
+  printf '{"session":"s","calls":[]}\n' >"$RS/corpora/pycache-l2/corpus.jsonl"
+  printf '{"table": {"mean_span_min": 30}}\n' >"$RS/corpora/pycache-l2/corpus-report.json"
+  cp "$RIG/../../e17-lease/workload/library.json" "$RIG/../../e17-lease/workload/library-l2.json" "$RS/src/e17/workload/"
+  head -c 4096 /dev/zero >"$RS/template-pycache-d256/workspace.img"
+  SRUNG_POINT=${SRUNG_POINT:-pycache-l2} srung "$arm" E17D=1 E15_TEST_PINS="$TMP/e17d-rung-pins.sh" "$@"
+  rc=$?
+  printf '%s\n' "$E17B_FIXPIN" >"$RS/state/go-stock-e17b"
+  return $rc
+}
+l2params() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' "$RS/runs/pycache-l2/$1/N1/params.json" "$2" 2>&1; }
+test_l2_rung() {
+  drung ship-300-l2 STUB_BANNER=drop30
+  check "ship-300-l2 rung: runs (exit 0) with library-l2.json and --lease-mode=lease+processes ... --l2-restart" \
+    "$?/$(grep -c -- "--library $RS/src/e17/workload/library-l2.json " "$SARGS")/$(grep -c -- '--lease-mode=lease+processes --l2-restart --token-key [^ ]* --idle-timeout-s 300 ' "$SARGS")" "0/1/1"
+  check "ship-300-l2 rung: params.json records the mode, the restart rule, the idle timeout, the library, lease-processes-v1 and the leaf" \
+    "$(l2params ship-300-l2 lease_mode)/$(l2params ship-300-l2 l2_restart)/$(l2params ship-300-l2 idle_timeout_s)/$(l2params ship-300-l2 library_name)/$(l2params ship-300-l2 snapshot_lease_processes)/$(l2params ship-300-l2 snapshot_image)/$(l2params ship-300-l2 moca_commit)/$(l2params ship-300-l2 snapshot_hash)" \
+    "lease+processes/True/300/library-l2.json/True/e17d-${E17D_FIXPIN:0:8}-1024/$E17D_FIXPIN/hd"
+  drung ship-300 STUB_BANNER=drop30
+  check "ship-300 under E17D=1: library.json and --lease-mode=lease, no restart rule; params lease_mode lease" \
+    "$?/$(grep -c -- "--library $RS/src/e17/workload/library.json " "$SARGS")/$(grep -c -- '--lease-mode=lease --token-key ' "$SARGS")/$(grep -c -- '--l2-restart' "$SARGS")/$(l2params ship-300 lease_mode)/$(l2params ship-300 l2_restart)" "0/1/1/0/lease/False"
+  drung sbx STUB_BANNER=drop30
+  check "sbx under E17D=1: no lease flag; params lease_mode per-exec, the same leaf" \
+    "$?/$(grep -c -- '--lease-mode\|--l2-restart' "$SARGS")/$(l2params sbx lease_mode)/$(l2params sbx snapshot_image)" "0/0/per-exec/e17d-${E17D_FIXPIN:0:8}-1024"
+  drung ship-300-l2 STUB_BANNER=dropoff
+  check "ship-300-l2 rung: a banner with lease_cache_drop=off is refused before the driver (it needs the default 30s)" \
+    "$?/$(grep -c '^driver$' "$SORD")/$(grep -c 'ship-300-l2 needs the drop on' "$TMP/ship-rung.out")" "1/0/1"
+  drung ship-300-l2 STUB_BANNER=drop45
+  check "ship-300-l2 rung: lease_cache_drop=45s is refused too (exactly 30s, as ship-300)" \
+    "$?/$(grep -c '^driver$' "$SORD")/$(grep -c 'ship-300-l2 needs exactly 30s' "$TMP/ship-rung.out")" "1/0/1"
+  local a
+  for a in ship-300-l2 sbx; do
+    DRUNG_FEATS='"lease-v1", "balloon-fpr-v1"' drung "$a" STUB_BANNER=drop30
+    check "e17d snapshot: $a on a leaf without lease-processes-v1 is refused before any worker starts, naming the feature" \
+      "$?/$(grep -c '^worker-start\|^driver$' "$SORD")/$(grep -c 'does not advertise lease-processes-v1' "$TMP/ship-rung.out")" "1/0/1"
+  done
+  SRUNG_POINT=pycache drung ship-300-l2 STUB_BANNER=drop30
+  check "ship-300-l2 at a point that does not list it (pycache) is refused (exit 2)" "$?" "2"
+  srung ship-300 STUB_BANNER=on
+  check "with E17D unset a ship-300 rung still passes the bare --lease-mode (E17b and E17c unchanged)" \
+    "$?/$(grep -c -- '--lease-mode --token-key ' "$SARGS")/$(sparams ship-300 lease_mode | grep -c KeyError)" "0/1/1"
+}
+test_l2_arm_known_under_e17d_only
+test_l2_worker_env_and_flags
+test_l2_rung
+check "ship-300-l2: record.py judges its footprint drift as the other lease arms (RESIDENT)" \
+  "$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import record; print("ship-300-l2" in record.RESIDENT)' "$RIG/../analysis" 2>&1)" "True"
 rm -rf "$RS" "$RSS"
 echo
 if [ "$fails" -eq 0 ]; then

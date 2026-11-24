@@ -28,8 +28,9 @@ import (
 )
 
 const (
-	leaseModeEpoch    = 1       // the epoch of the set_mode every session sends, and of its Exec tokens
-	leaseModeName     = "lease" // the JWT mode claim
+	leaseModeEpoch    = 1                 // the epoch of the set_mode every session sends, and of its Exec tokens
+	leaseModeName     = "lease"           // the JWT mode claim's default (E17b, E17c: level 1)
+	leaseModeL2       = "lease+processes" // E17d's level-2 arm (--lease-mode=lease+processes)
 	leaseSub          = "e15-driver"
 	leaseTenant       = "e15"
 	leaseDefaultTTL   = 300 * time.Second // base Exec token TTL, refreshed before it runs out; a longer call gets a longer one (E17B-R34)
@@ -48,6 +49,18 @@ type LeaseConfig struct {
 	Wrk          string // the worker's SANDBOX_ID; equals every ExecRequest.sandbox_id
 	IdleTimeoutS int
 	TokenTTL     time.Duration // Exec token TTL; 0 = 300 s
+	// Mode is the JWT mode claim of every Exec token and of the set-mode token (E17d, --lease-mode=MODE): "lease"
+	// (level 1) or "lease+processes" (level 2). "" is "lease", so E17b and E17c's rungs are unchanged.
+	Mode string
+	// L2Restart (E17d, --l2-restart; Mode lease+processes only): the level-2 restart rule (l2.go).
+	L2Restart bool
+}
+
+func (c *LeaseConfig) mode() string {
+	if c.Mode == "" {
+		return leaseModeName
+	}
+	return c.Mode
 }
 
 func (c *LeaseConfig) ttl() time.Duration {
@@ -55,6 +68,25 @@ func (c *LeaseConfig) ttl() time.Duration {
 		return c.TokenTTL
 	}
 	return leaseDefaultTTL
+}
+
+// leaseModeFlag is --lease-mode: a boolean switch as E17b and E17c's rung.sh passes it (bare --lease-mode is "lease"),
+// that also takes the mode claim as --lease-mode=MODE (E17d: "lease" or "lease+processes"). The value must be joined
+// with "=": "--lease-mode lease+processes" would leave the mode as a positional argument, which realMain refuses.
+type leaseModeFlag struct{ mode string }
+
+func (f *leaseModeFlag) IsBoolFlag() bool { return true }
+func (f *leaseModeFlag) String() string   { return f.mode }
+func (f *leaseModeFlag) Set(v string) error {
+	switch v {
+	case "true", leaseModeName:
+		f.mode = leaseModeName
+	case leaseModeL2:
+		f.mode = leaseModeL2
+	default:
+		return fmt.Errorf("want bare --lease-mode (lease), --lease-mode=lease or --lease-mode=lease+processes, got %q", v)
+	}
+	return nil
 }
 
 // LoadTokenKey reads an Ed25519 private key from a PKCS#8 PEM file (openssl genpkey -algorithm ed25519).
@@ -133,7 +165,7 @@ func newLeaseSession(cfg *LeaseConfig, key string) *leaseSession {
 	// session sends and the worker acknowledges.
 	ref := NewRefresher(cfg.Key, SandboxClaims{
 		Iss: cfg.Iss, Sub: leaseSub, Tenant: leaseTenant, Sbx: key, Wrk: cfg.Wrk,
-		Mode: leaseModeName, ModeEpoch: leaseModeEpoch, IdleTimeoutS: cfg.IdleTimeoutS, TTL: cfg.ttl(),
+		Mode: cfg.mode(), ModeEpoch: leaseModeEpoch, IdleTimeoutS: cfg.IdleTimeoutS, TTL: cfg.ttl(),
 	}, nil)
 	return &leaseSession{key: key, cfg: cfg, ref: ref, seen: map[[2]any]bool{}}
 }
@@ -161,7 +193,7 @@ func (l *leaseSession) setMode(ctx context.Context, client pb.SandboxExecClient)
 	ttl := min(l.cfg.ttl(), setModeTokenMaxTTL)
 	smTok, err := l.cfg.Key.MintSetMode(SetModeClaims{
 		Iss: l.cfg.Iss, Sub: leaseSub, Sbx: l.key, Wrk: l.cfg.Wrk,
-		Mode: leaseModeName, ModeEpoch: leaseModeEpoch, IdleTimeoutS: l.cfg.IdleTimeoutS, TTL: ttl,
+		Mode: l.cfg.mode(), ModeEpoch: leaseModeEpoch, IdleTimeoutS: l.cfg.IdleTimeoutS, TTL: ttl,
 	})
 	if err != nil {
 		return err
