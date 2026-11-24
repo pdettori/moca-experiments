@@ -2998,6 +2998,84 @@ test_e17c_pin_is_a_full_sha
 test_e17c_profile_off_is_unchanged
 test_e17c_profile_on
 
+# --- E17d profile (E17D=1: E17C=1 with its own moca pin, checkout and snapshot leaf; with E17D unset nothing changes) ---
+e17d_pin_file="$RE17B/e17d-pins.sh"
+t17d() { # t17d E17D-value|unset E17C-value|unset EXPR [VAR=val ...]: evaluate EXPR after sourcing lib.sh at a scratch root
+  local dv=$1 cv=$2 expr=$3 un=(-u E17B) ea=()
+  shift 3
+  if [ "$dv" = unset ]; then un+=(-u E17D); else ea+=(E17D="$dv"); fi
+  if [ "$cv" = unset ]; then un+=(-u E17C); else ea+=(E17C="$cv"); fi
+  env "${un[@]}" ${ea[@]+"${ea[@]}"} "$@" E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'source "$1"; source "$2"; source "$3"; eval "$4"' \
+    _ "$RIG/lib.sh" "$RIG/points.sh" "$GOLD/dump.sh" "$expr" 2>&1
+}
+E17D_FIXPIN=3333333333333333333333333333333333333333
+printf 'E17D_MOCA_PIN=%s\n' "$E17D_FIXPIN" >"$TMP/e17d-test-pins.sh"
+printf 'MemTotal: 400000000 kB\n' >"$TMP/e17d-meminfo"
+test_e17d_pin_is_a_full_sha() {
+  local want_pin
+  want_pin=$(grep -E '^E17D_MOCA_PIN=' "$e17d_pin_file" | cut -d= -f2)
+  check "e17d: pins file sets E17D_MOCA_PIN to 40 hex digits, not the placeholder" \
+    "$(printf '%s' "$want_pin" | grep -cE '^[0-9a-f]{40}$')/$(printf '%s' "$want_pin" | grep -c '^0*$')" "1/0"
+  check "e17d: the pin is moca main's #1026 merge (a9a11a228b6f, with #1027)" "${want_pin:0:12}" "a9a11a228b6f"
+  check "e17d: pins file is not sourced (E17D_MOCA_PIN undefined) with E17D unset, with or without E17C=1" \
+    "$(t17d unset unset 'echo "${E17D_MOCA_PIN:-none}"')/$(t17d unset 1 'echo "${E17D_MOCA_PIN:-none}"')" "none/none"
+  check "e17d: the committed pin is accepted by e17d_require_pin" "$(t17d 1 unset 'e17d_require_pin && echo ok')" "ok"
+  printf 'E17D_MOCA_PIN=0000000000000000000000000000000000000000\n' >"$TMP/e17d-placeholder.sh"
+  check "e17d: the placeholder sha is refused, naming e17d-pins.sh" \
+    "$(t17d 1 unset '(e17d_require_pin)' E15_TEST_PINS="$TMP/e17d-placeholder.sh" 2>&1 | grep -c 'E17D_MOCA_PIN.*placeholder.*e17d-pins.sh')/$(t17d 1 unset '(e17d_require_pin) >/dev/null 2>&1; echo $?' E15_TEST_PINS="$TMP/e17d-placeholder.sh")" "1/1"
+  printf 'E17D_MOCA_PIN=abc123\n' >"$TMP/e17d-bad1.sh"
+  printf 'E17D_MOCA_PIN=ZZZ%s\n' "${E17D_FIXPIN:3}" >"$TMP/e17d-bad2.sh"
+  check "e17d: a short or non-hex pin is refused, naming e17d-pins.sh" \
+    "$(t17d 1 unset '(e17d_require_pin) >/dev/null 2>&1; echo $?' E15_TEST_PINS="$TMP/e17d-bad1.sh")/$(t17d 1 unset '(e17d_require_pin) >/dev/null 2>&1; echo $?' E15_TEST_PINS="$TMP/e17d-bad2.sh")/$(t17d 1 unset '(e17d_require_pin)' E15_TEST_PINS="$TMP/e17d-bad1.sh" | grep -c 'not a full 40-hex sha (e17d-pins.sh)')" "1/1/1"
+  check "e17d: setup.sh and rung.sh call e17d_require_pin when E17D=1, before the E17c check" \
+    "$(grep -A2 '^\[ "\${E17D:-}" != 1 \] || e17d_require_pin$' "$RIG/setup.sh" | grep -c '^\[ "\${E17C:-}" != 1 \] || e17c_require_pin$')/$(grep -A2 '^\[ "\${E17D:-}" != 1 \] || e17d_require_pin$' "$RIG/rung.sh" | grep -c '^\[ "\${E17C:-}" != 1 \] || e17c_require_pin$')" "1/1"
+  check "e17d: a rung with E17D=1 and the placeholder pin refuses to start (exit 1, names the pin file)" \
+    "$(env -u E17B -u E17C E17D=1 E15_TEST_PINS="$TMP/e17d-placeholder.sh" E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash "$RIG/rung.sh" sbx 1 default >"$TMP/e17d-rung.out" 2>&1; echo $?)/$(grep -c 'E17D_MOCA_PIN.*placeholder.*e17d-pins.sh' "$TMP/e17d-rung.out")" "1/1"
+  check "e17d: the pin-file-not-found error names both candidate paths" \
+    "$(grep -c "but no e17d-pins.sh at.*e17-lease/rig/e17d-pins.sh.*e17/rig/e17d-pins.sh" "$RIG/lib.sh")" "1"
+  check "e17d: pins.sh, e17b-pins.sh and e17c-pins.sh are not touched by the profile (no E17D in them)" \
+    "$(grep -c 'E17D' "$RIG/pins.sh" "$RE17B/e17b-pins.sh" "$RE17B/e17c-pins.sh" | cut -d: -f2 | tr '\n' ' ')" "0 0 0 "
+}
+test_e17d_profile_off_is_unchanged() {
+  check "e17d off: with E17D unset no E17D variable is defined (E17C unset / E17C=1)" \
+    "$(t17d unset unset 'compgen -v E17D | wc -l | tr -d " "')/$(t17d unset 1 'compgen -v E17D | wc -l | tr -d " "')" "0/0"
+  check "e17d off: E17D=0 or empty is E17D unset" \
+    "$(t17d 0 1 'echo $E15_MOCA_PIN $E15_MOCA')/$(t17d '' 1 'echo $E15_MOCA_PIN $E15_MOCA')" "$(t17d unset 1 'echo $E15_MOCA_PIN $E15_MOCA')/$(t17d unset 1 'echo $E15_MOCA_PIN $E15_MOCA')"
+  # The goldens were written from the pre-E17d lib.sh and points.sh (tests/golden/dump.sh says how), so no git ref.
+  t17d unset 1 'e15_golden_profile' E15_HOST_PROFILE=fresh-metal >"$TMP/gold.out"
+  check "e17d off: with E17D unset and E17C=1 every E15_/E17B/E17C/E17D variable lib.sh defines equals the pre-E17d golden" \
+    "$(gsame "$GOLD/profile-e17c-on.txt")" "same"
+  rm -f "$TROOT/env"
+  t17d unset 1 'e15_golden_e17c "$E15_ROOT/env" "'"$TMP/e17d-meminfo"'"' E15_HOST_PROFILE=fresh-metal >"$TMP/gold.out"
+  check "e17d off: with E17D unset and E17C=1 every E17c point and arm (E15_P_*, point_sig, warm-up, worker, env) equals the pre-E17d golden" \
+    "$(gsame "$GOLD/e17c-on.txt")" "same"
+  check "e17d off: with E17D unset and E17C=1 sourcing lib.sh exports no new variable" \
+    "$(env -u E17D -u E17B E17C=1 E15_ROOT="$TROOT" E15_TEST_ROOT="$TROOT" bash -c 'b=$(env | cut -d= -f1 | sort); source "$1"; comm -13 <(echo "$b") <(env | cut -d= -f1 | sort) | tr "\n" " "' _ "$RIG/lib.sh" 2>&1)" "E17B "
+}
+test_e17d_profile_on() {
+  local p="E15_TEST_PINS=$TMP/e17d-test-pins.sh"
+  check "e17d on: E15_MOCA_PIN follows E17D_MOCA_PIN (the committed pin, and a fixture pin)" \
+    "$(t17d 1 unset 'echo $E15_MOCA_PIN')/$(t17d 1 unset 'echo $E15_MOCA_PIN' "$p")" "$(grep -E '^E17D_MOCA_PIN=' "$e17d_pin_file" | cut -d= -f2)/$E17D_FIXPIN"
+  check "e17d on: E15_MOCA is \$E15_ROOT/moca-e17d" "$(t17d 1 unset 'echo $E15_MOCA' "$p")" "$TROOT/moca-e17d"
+  check "e17d on: E17D=1 implies E17C=1 and E17B=1, exported to child processes" \
+    "$(t17d 1 unset 'echo $E17C $E17B; bash -c "echo \$E17C \$E17B"' "$p" | tr '\n' ' ')" "1 1 1 1 "
+  check "e17d on: E17D=1 alone resolves exactly as E17D=1 E17C=1" \
+    "$([ "$(t17d 1 unset 'for v in $(compgen -v E15_; compgen -v E17B; compgen -v E17C; compgen -v E17D); do declare -p "$v"; done' "$p" | sha256sum)" = "$(t17d 1 1 'for v in $(compgen -v E15_; compgen -v E17B; compgen -v E17C; compgen -v E17D); do declare -p "$v"; done' "$p" | sha256sum)" ] && echo same || echo differ)" "same"
+  check "e17d on: the E17c semantics hold (ship-300-nd on fresh-metal, a ship arm is a lease arm, E17a arms refused)" \
+    "$(t17d 1 unset 'case " ${E15_ARMS[*]} " in *" ship-300-nd "*) echo arms ;; *) echo noarms ;; esac; e17b_lease_arm ship-300 && echo lease; e15_e17a_arm_refused lease-300 2>/dev/null && echo refused' "$p" E15_HOST_PROFILE=fresh-metal | tr '\n' ' ')" "arms lease refused "
+  check "e17d on: every pins.sh pin is unchanged" \
+    "$([ "$(t17d unset unset 'for n in "${E15_PINS[@]}"; do echo "$n=${!n}"; done' | sha256sum)" = "$(t17d 1 unset 'for n in "${E15_PINS[@]}"; do echo "$n=${!n}"; done' "$p" | sha256sum)" ] && echo same || echo differ)" "same"
+  check "e17d on: the snapshot leaf is e17d-<E17D pin8>-<ram> and the stock build stamp key carries the E17D pin" \
+    "$(t17d 1 unset 'worker_snapimg' "$p")/$(t17d 1 unset 'worker_snapimg' "$p" E17B_GUEST_RAM_MB=256)/$(t17d 1 unset 'stamp_set() { :; }; mkdir -p "$E15_STATE"; echo "$E15_MOCA_PIN" >"$E15_STATE/go-stock-e17b"; e17b_require_build && echo built' "$p")" "e17d-${E17D_FIXPIN:0:8}-1024/e17d-${E17D_FIXPIN:0:8}-256/built"
+  check "e17d on: the missing-snapshot message names the E17D=1 build" \
+    "$(t17d 1 unset '(e17b_require_snapshot)' "$p" | grep -c 'E17D=1 experiments/e17-lease/rig/snapshot-e17b.sh --ram-mb 1024 --leaf e17d-')" "1"
+  check "e17d off: E17C=1 alone keeps the e17c-<pin8>-<ram> leaf" "$(t17d unset 1 'worker_snapimg' E15_TEST_PINS="$TMP/e17c-test-pins.sh")" "e17c-${E17C_FIXPIN:0:8}-1024"
+  rm -rf "${TROOT:?}/state"
+}
+test_e17d_pin_is_a_full_sha
+test_e17d_profile_off_is_unchanged
+test_e17d_profile_on
+
 test_e17b_setup_never_deletes_the_sealed_snapshot() {
   local snip="$TMP/e17b-snapstep.sh"
   # The snapshot step's opening (ruling E17B-R32): under E17B=1 it is SKIPPED with a log line, never a build; the

@@ -86,6 +86,11 @@ E15_MOCA_URL=${E15_MOCA_URL:-https://github.com/rossoctl/moca.git}
 # refused, resident build skipped; E17C=1 alone is E17C=1 E17B=1, exported to child scripts) except that the pin is
 # E17C_MOCA_PIN (experiments/e17-lease/rig/e17c-pins.sh) and the checkout $E15_ROOT/moca-e17c (set below).
 # With E17C unset (or anything but 1) nothing here runs and E17b and the sealed procedures resolve as before.
+# E17d profile (experiments/e17-lease/PLAN-E17D.md, spec §14): E17D=1 is E17C=1 (and so E17B=1; both exported to child
+# scripts) except that the pin is E17D_MOCA_PIN (experiments/e17-lease/rig/e17d-pins.sh), the checkout
+# $E15_ROOT/moca-e17d and the snapshot leaves e17d-<pin8>-<ram> (set below). With E17D unset (or anything but 1)
+# nothing here runs and E17c, E17b and the sealed procedures resolve as before.
+[ "${E17D:-}" != 1 ] || export E17C=1
 [ "${E17C:-}" != 1 ] || export E17B=1
 if [ "${E17B:-}" = 1 ]; then
   _e17b_here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -110,6 +115,17 @@ if [ "${E17B:-}" = 1 ]; then
     # shellcheck disable=SC1090
     . "$_e17c_f"
   fi
+  if [ "${E17D:-}" = 1 ]; then
+    for _e17d_f in "$_e17b_here/../../e17-lease/rig/e17d-pins.sh" "$_e17b_here/../../e17/rig/e17d-pins.sh"; do
+      [ -f "$_e17d_f" ] && break
+    done
+    [ -f "$_e17d_f" ] || {
+      printf 'lib.sh: E17D=1 but no e17d-pins.sh at %s or %s\n' "$_e17b_here/../../e17-lease/rig/e17d-pins.sh" "$_e17b_here/../../e17/rig/e17d-pins.sh" >&2
+      exit 3
+    }
+    # shellcheck disable=SC1090
+    . "$_e17d_f"
+  fi
   case "$E15_ROOT" in
   */e15-rig-test.*)
     # shellcheck disable=SC1090
@@ -120,6 +136,8 @@ if [ "${E17B:-}" = 1 ]; then
   E15_MOCA_PIN=$E17B_MOCA_PIN
   # shellcheck disable=SC2153 # assigned by the pin file sourced above
   [ "${E17C:-}" != 1 ] || E15_MOCA_PIN=$E17C_MOCA_PIN
+  # shellcheck disable=SC2153 # assigned by the pin file sourced above
+  [ "${E17D:-}" != 1 ] || E15_MOCA_PIN=$E17D_MOCA_PIN
 fi
 # e17b_require_pin: refuse an E17B_MOCA_PIN that is not a full 40-hex sha or is the all-zero placeholder.
 # setup.sh and rung.sh call it when E17B=1; teardown.sh does not (it must always be able to undo).
@@ -142,6 +160,18 @@ e17c_require_pin() {
   esac
   printf '%s' "${E17C_MOCA_PIN:-}" | grep -qE '^[0-9a-f]{40}$' ||
     die "E17C_MOCA_PIN '${E17C_MOCA_PIN:-}' is not a full 40-hex sha (e17c-pins.sh)"
+}
+
+# e17d_require_pin: the same for E17D_MOCA_PIN (e17d-pins.sh). setup.sh and rung.sh call it when E17D=1, before
+# the E17c and E17b checks; teardown.sh does not.
+e17d_require_pin() {
+  case "${E17D_MOCA_PIN:-}" in
+  0000000000000000000000000000000000000000)
+    die "E17D_MOCA_PIN is still the placeholder (all zeros) in e17d-pins.sh; replace it with the upstream/main sha (moca #1026 merged) before any rig run"
+    ;;
+  esac
+  printf '%s' "${E17D_MOCA_PIN:-}" | grep -qE '^[0-9a-f]{40}$' ||
+    die "E17D_MOCA_PIN '${E17D_MOCA_PIN:-}' is not a full 40-hex sha (e17d-pins.sh)"
 }
 
 # Ports (SPEC §4): relay attach, relay exec, null-responder (control arm), worker /stats, Redis.
@@ -752,6 +782,7 @@ E15_LOGS=$E15_ROOT/logs
 E15_MOCA=$E15_ROOT/moca
 [ "${E17B:-}" != 1 ] || E15_MOCA=$E15_ROOT/moca-e17b # E17b profile (above): its own checkout
 [ "${E17C:-}" != 1 ] || E15_MOCA=$E15_ROOT/moca-e17c # E17c profile (above): its own checkout
+[ "${E17D:-}" != 1 ] || E15_MOCA=$E15_ROOT/moca-e17d # E17d profile (above): its own checkout
 E15_SNAPDIR=$E15_ROOT/snapshots
 E15_SNAPIMG=e15
 E15_TEMPLATE=$E15_ROOT/template/workspace.img
@@ -1054,7 +1085,10 @@ worker_snapimg() {
     local ram
     ram=$(e17b_guest_ram_mb) || exit 1
     # E17c (E17C=1, ruling R-i): its own leaves e17c-<E17C pin8>-<ram> (snapshot-e17b.sh under E17C=1)
-    if [ "${E17C:-}" = 1 ]; then echo "e17c-${E15_MOCA_PIN:0:8}-$ram"; else echo "e17b-${E15_MOCA_PIN:0:8}-$ram"; fi
+    # E17d (E17D=1): its own leaves e17d-<E17D pin8>-<ram> (snapshot-e17b.sh under E17D=1)
+    if [ "${E17D:-}" = 1 ]; then
+      echo "e17d-${E15_MOCA_PIN:0:8}-$ram"
+    elif [ "${E17C:-}" = 1 ]; then echo "e17c-${E15_MOCA_PIN:0:8}-$ram"; else echo "e17b-${E15_MOCA_PIN:0:8}-$ram"; fi
   else
     echo "$E15_SNAPIMG"
   fi
@@ -1068,7 +1102,7 @@ e17b_require_snapshot() {
   leaf=$(worker_snapimg) || exit 1
   ram=$(e17b_guest_ram_mb) || exit 1
   [ -f "$E15_SNAPDIR/$leaf/manifest.json" ] ||
-    die "no E17b snapshot $E15_SNAPDIR/$leaf (manifest.json): build it with $([ "${E17C:-}" = 1 ] && echo E17C=1 || echo E17B=1) experiments/e17-lease/rig/snapshot-e17b.sh --ram-mb $ram --leaf $leaf"
+    die "no E17b snapshot $E15_SNAPDIR/$leaf (manifest.json): build it with $(if [ "${E17D:-}" = 1 ]; then echo E17D=1; elif [ "${E17C:-}" = 1 ]; then echo E17C=1; else echo E17B=1; fi) experiments/e17-lease/rig/snapshot-e17b.sh --ram-mb $ram --leaf $leaf"
 }
 # e17b_token_iss: the token issuer the relay's SH_SANDBOX_TOKEN_ISSUER and the driver's --token-iss share.
 e17b_token_iss() { echo e17b-driver; }
