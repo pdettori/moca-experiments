@@ -1,6 +1,11 @@
 # E17 — lease mode: does a warm guest with an idle timeout pay, and does measured admission hold?
 
-Version: 0.8 (draft for review), 2026-11-20
+Version: 0.9, 2026-11-23
+2026-11-23: E17c is run and reported (`results/E17C-REPORT.md`): 2′ and 5b′ pass; 5a′ fails on its follow half (judged
+at +15 s, before the 30 s drop; no +45 s reading is pinned) and 3′ fails (6 refusals with an idle lease, mostly moca's
+futility rule). `pycache-low` and the 256 MiB stages were cut before the seal (C1, C2); the squeeze climb ended at
+N = 48 after a rig error (D1).
+Version: 0.8, 2026-11-20
 2026-11-20: stage **E17c** added (§13): the v0.12.0 measurements. It re-measures criterion 5's first half after moca
 #974 (F1 of the E17b report: an idle lease drops its guest page cache, and its charge leaves out the host's), checks
 that the drop does not cost criterion 2, and runs what E17b deferred: `pycache-low` (R47), the 256 MiB guest stages
@@ -40,7 +45,7 @@ Version: 0.2 (draft for review), 2026-11-10
 answers question 2 at low duty, so E17's rig time goes to the cache-heavy points instead (§7.2, §8). The
 level-1 lease guest (moca plan 1, rossoctl/moca#706) is merged, so E17b's guest side exists.
 Status: **E17a complete (missed, §7.5). Plans 2–5 built and merged. E17b complete (2026-11-19): criteria 1–4
-pass, criterion 5 split (§7.5; `results/E17B-REPORT.md`). E17c (§13) drafted, not built.**
+pass, criterion 5 split (§7.5; `results/E17B-REPORT.md`). E17c (§13) complete (2026-11-23): 2′, 5b′ pass; 5a′, 3′ fail as sealed (`results/E17C-REPORT.md`).**
 Parents: E15 (`experiments/e15-session-density/SPEC.md`, metal procedure in its §13; results in `experiments/e15-session-density/results/metal/RESULTS-METAL.md`)
 and E16 (`experiments/e16-low-duty/SPEC.md`, results under `experiments/e16-low-duty/results/`). E17 reuses their instrument, rig scripts and
 metal host unchanged except where this document says so. "E15 §n" and "E16 §n" refer to those specs.

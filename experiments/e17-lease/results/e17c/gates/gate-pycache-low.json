@@ -1,0 +1,139 @@
+{
+ "arms": {
+  "sbx": [
+   {
+    "calls": 0,
+    "in_window": {
+     "py_import": 0,
+     "py_short": 0
+    },
+    "pass": false,
+    "reason": "sbx seed 1 (N1-g1): 0 in-window py_short/py_import call(s) (py_short 0, py_import 0; record reason empty_window), need 3 with at least 1 of each",
+    "record_reason": "empty_window",
+    "rung": "pycache-low/sbx/N1-g1",
+    "seed": 1
+   },
+   {
+    "calls": 1,
+    "in_window": {
+     "py_import": 1,
+     "py_short": 0
+    },
+    "pass": false,
+    "reason": "sbx seed 2 (N1-g2): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each",
+    "record_reason": "empty_window",
+    "rung": "pycache-low/sbx/N1-g2",
+    "seed": 2
+   },
+   {
+    "calls": 1,
+    "in_window": {
+     "py_import": 0,
+     "py_short": 1
+    },
+    "pass": false,
+    "reason": "sbx seed 3 (N1-g3): 1 in-window py_short/py_import call(s) (py_short 1, py_import 0; record reason empty_window), need 3 with at least 1 of each",
+    "record_reason": "empty_window",
+    "rung": "pycache-low/sbx/N1-g3",
+    "seed": 3
+   },
+   {
+    "calls": 1,
+    "in_window": {
+     "py_import": 1,
+     "py_short": 0
+    },
+    "pass": false,
+    "reason": "sbx seed 4 (N1-g4): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each",
+    "record_reason": "empty_window",
+    "rung": "pycache-low/sbx/N1-g4",
+    "seed": 4
+   }
+  ],
+  "ship-300": [
+   {
+    "calls": 0,
+    "in_window": {
+     "py_import": 0,
+     "py_short": 0
+    },
+    "pass": false,
+    "reason": "ship-300 seed 1 (N1-g1): 0 in-window py_short/py_import call(s) (py_short 0, py_import 0; record reason empty_window), need 3 with at least 1 of each",
+    "record_reason": "empty_window",
+    "rung": "pycache-low/ship-300/N1-g1",
+    "seed": 1
+   },
+   {
+    "calls": 1,
+    "in_window": {
+     "py_import": 1,
+     "py_short": 0
+    },
+    "pass": false,
+    "reason": "ship-300 seed 2 (N1-g2): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each",
+    "record_reason": "empty_window",
+    "rung": "pycache-low/ship-300/N1-g2",
+    "seed": 2
+   },
+   {
+    "calls": 1,
+    "in_window": {
+     "py_import": 0,
+     "py_short": 1
+    },
+    "pass": false,
+    "reason": "ship-300 seed 3 (N1-g3): 1 in-window py_short/py_import call(s) (py_short 1, py_import 0; record reason empty_window), need 3 with at least 1 of each",
+    "record_reason": "empty_window",
+    "rung": "pycache-low/ship-300/N1-g3",
+    "seed": 3
+   },
+   {
+    "calls": 1,
+    "in_window": {
+     "py_import": 1,
+     "py_short": 0
+    },
+    "pass": false,
+    "reason": "ship-300 seed 4 (N1-g4): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each",
+    "record_reason": "empty_window",
+    "rung": "pycache-low/ship-300/N1-g4",
+    "seed": 4
+   }
+  ]
+ },
+ "classes": [
+  "py_short",
+  "py_import"
+ ],
+ "counted": "in-window calls with status ok (holds.window_ok_calls)",
+ "min_calls": 3,
+ "min_class_calls_pooled": 5,
+ "min_per_class_per_seed": 1,
+ "moca_commit": "e5ae5151bbedf47764c0c8e804146c6b1e830fff",
+ "pass": false,
+ "point": "pycache-low",
+ "pooled": {
+  "sbx": {
+   "in_window": {
+    "py_import": 2,
+    "py_short": 1
+   },
+   "pass": false,
+   "reason": "sbx pooled over its 4 gate seeds: py_short 1, py_import 2, need 5 of each (holds.MIN_CLASS_CALLS: the N=128 rungs' class-matched baseline)"
+  },
+  "ship-300": {
+   "in_window": {
+    "py_import": 2,
+    "py_short": 1
+   },
+   "pass": false,
+   "reason": "ship-300 pooled over its 4 gate seeds: py_short 1, py_import 2, need 5 of each (holds.MIN_CLASS_CALLS: the N=128 rungs' class-matched baseline)"
+  }
+ },
+ "reason": "sbx seed 1 (N1-g1): 0 in-window py_short/py_import call(s) (py_short 0, py_import 0; record reason empty_window), need 3 with at least 1 of each; sbx seed 2 (N1-g2): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each; sbx seed 3 (N1-g3): 1 in-window py_short/py_import call(s) (py_short 1, py_import 0; record reason empty_window), need 3 with at least 1 of each; sbx seed 4 (N1-g4): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each; ship-300 seed 1 (N1-g1): 0 in-window py_short/py_import call(s) (py_short 0, py_import 0; record reason empty_window), need 3 with at least 1 of each; ship-300 seed 2 (N1-g2): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each; ship-300 seed 3 (N1-g3): 1 in-window py_short/py_import call(s) (py_short 1, py_import 0; record reason empty_window), need 3 with at least 1 of each; ship-300 seed 4 (N1-g4): 1 in-window py_short/py_import call(s) (py_short 0, py_import 1; record reason empty_window), need 3 with at least 1 of each; sbx pooled over its 4 gate seeds: py_short 1, py_import 2, need 5 of each (holds.MIN_CLASS_CALLS: the N=128 rungs' class-matched baseline); ship-300 pooled over its 4 gate seeds: py_short 1, py_import 2, need 5 of each (holds.MIN_CLASS_CALLS: the N=128 rungs' class-matched baseline)",
+ "seeds_per_arm": 4,
+ "spec": "SPEC \u00a713.5 (R47)",
+ "stage": "gate-pycache-low",
+ "start_zero": true,
+ "window_s": 1800
+}

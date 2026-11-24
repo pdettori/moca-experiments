@@ -1,0 +1,199 @@
+{
+  "status": "SEALED",
+  "sealed": true,
+  "spec": "experiments/e17-lease/SPEC.md v0.8",
+  "section": "13.4",
+  "recordedAt": "2026-11-22",
+  "codeCommit": "668ba0e",
+  "note": "E17c predictions (PLAN-E17C Task 12), drafted from the Task 11 calibration at moca e5ae5151 on the AWS rig (chain-e17c.sh smoke .. gate-256, 2026-11-21 14:53Z .. 2026-11-22 12:54Z, rc 0): N=1 baselines + class probes at pycache for sbx, ship-300 and ship-300-nd (evaluable seeds s1-s3, s7; s4-s6 empty_window in every arm), and the two gates. Not sealed until the user approves.",
+  "calibration": {
+    "host": "AWS m7i.metal-24xl, 96 vCPU, 377 GiB, /srv/e15 XFS reflink, profile fresh-metal",
+    "moca_commit": "e5ae5151bbedf47764c0c8e804146c6b1e830fff",
+    "moca_experiments_commit": "b318affec3234ca8cde935e32d187bad3ed9e57a (calibration); 2541040 (this draft, R-z6)",
+    "snapshots": {
+      "e17c-e5ae5151-1024": "sha256:93f962564d748e71d2f25c387cb27ff7f0958da504438be8840da1880c4a7b72",
+      "e17c-e5ae5151-256": "sha256:c9211e8e4fd842abfd55338f4b4f3126a18830dfa01cb6a3ac60615c52e05cc0",
+      "features": [
+        "lease-v1",
+        "lease-processes-v1",
+        "balloon-fpr-v1"
+      ],
+      "kernel_release": "6.18.44+"
+    },
+    "driver_bin_sha256": "af058bb0f4710769af186322629aca44fc5aa2456717340c22b37f9f3831ebfd",
+    "corpus_sha256_pycache": "864b0b56519cfeb1b03ea82a7d6aa16ffc7147fc59c3ba60b2edba02f72dd864",
+    "corpus_sha256_pycache_low": "07dbecd258f13d7d5adaf6211df3be4bce8b43bdc3ba0418965a1f9705584adc",
+    "worker_banners": {
+      "ship-300": "lease_cache_drop=30s",
+      "ship-300-nd": "lease_cache_drop=off"
+    },
+    "pycache_n1_cal": {
+      "basis": "latency_report.py over N1-s1,s2,s3,s7 per arm, in-window ok calls",
+      "sbx_median_ms": {
+        "py_short": 52,
+        "py_import": 819,
+        "py_grep": 441,
+        "py_analyze": 16889,
+        "py_test": 63024
+      },
+      "gain": {
+        "ship-300": {
+          "py_short": 0.85,
+          "py_import": 0.36,
+          "py_grep": 0.36,
+          "py_analyze": 0.11,
+          "py_test": 0.03
+        },
+        "ship-300-nd": {
+          "py_short": 0.84,
+          "py_import": 0.32,
+          "py_grep": 0.47,
+          "py_analyze": 0.12,
+          "py_test": 0.02
+        }
+      },
+      "warm_n_ship_300": {
+        "py_short": 13,
+        "py_import": 3,
+        "py_grep": 2,
+        "py_analyze": 7,
+        "py_test": 2
+      },
+      "warm_share": {
+        "ship-300": 0.9,
+        "ship-300-nd": 0.9
+      },
+      "after_drop_over_kept_ship_300": {
+        "py_short": 1.6,
+        "py_import": 1.2,
+        "py_analyze": 0.9,
+        "py_test": 1.0,
+        "_n": "after_drop n 3/1/2/1, kept n 10/2/5/1"
+      }
+    },
+    "vm_fp_cal": {
+      "basis": "vm_age_lease.json fpr per ship rung N1-s1..s7",
+      "fp_45s_readings_per_rung": "0-3 (about half the heavy Execs: no next call within 45 s)",
+      "pinned_share_fp_45s": 0.0,
+      "pinned_share_fp_idle_tail": 0.0,
+      "smoke_check": "vm_fp <= vm_mem on every reading (180/180/382); up to 385 MiB per VM left out as reclaimable host cache"
+    },
+    "gate_pycache_low": {
+      "pass": false,
+      "per_seed_in_window_calls": "0-1 py_short+py_import per seed, both arms, with E15_START_ZERO=1 and an 1800 s window",
+      "pooled": {
+        "sbx": {
+          "py_short": 1,
+          "py_import": 2
+        },
+        "ship-300": {
+          "py_short": 1,
+          "py_import": 2
+        }
+      },
+      "need": "3 per seed with >=1 of each; 5 of each pooled"
+    },
+    "gate_256": {
+      "pass": false,
+      "result": "py_analyze OOM-killed 20 of 20 runs at every ANALYZE_WORK_SCALE in 32,16,8,4,2,1, in both sbx and ship-300; no peak RSS (killed)"
+    }
+  },
+  "criterion5a_reading": "plus45",
+  "criterion_thresholds": {
+    "_": "SPEC 13.4, applied by analysis/verdict_e17c.py",
+    "5a_prime": "PASS iff ship-300 pycache pooled (evaluable N1-l<k> + N128-lat) share_true_fp >= 0.50 AND pinned_share_fp_45s <= 0.50 (all heavy +45 s readings at >= 0.9 of guest RAM, pooled by counts; R-p)",
+    "2_prime": "PASS iff ship-300 median warm py_short gain >= 0.50 and py_import gain >= 0.30 against sbx at pycache, N=1 (>= 4 evaluable N1-l<k> per arm pooled, R-z2/R-z6) and N=128 (N128-lat)",
+    "5b_prime": "PASS iff every ship-* rung at pycache (N1-l<k> paired by name with sbx, N128-lat) has replacement ratio_to_sbx <= 1.5; an arm with no ratio at all is null (R-r)",
+    "3_prime": "PASS iff at squeeze, ship-300: zero memory-guard events, zero refusals with an idle lease, every reclaim of the idle-longest lease (E17b's criterion 3)",
+    "missing": "a criterion with a missing input is null, not a pass; top-level pass null if any is null"
+  },
+  "predictions": [
+    {
+      "id": 1,
+      "claim": "5a′ HOLDS: ship-300's pooled pinned_share_fp_45s is in [0.00, 0.20] and share_true_fp in [0.50, 1.00].",
+      "metric": "verdict criteria 5a_prime (vm_age_lease fpr fp_45s_*, share_true_fp, pooled)",
+      "falsifiedBy": "pinned_share_fp_45s > 0.20 or share_true_fp < 0.50",
+      "note": "E17b: 0.536 on memory.current at +15 s. Calibration: 0.0 at N=1 (few readings). At N=128 a VM's guest cache is dropped 30 s after its last call and the host cache is not charged, so a +45 s reading should sit near the working set."
+    },
+    {
+      "id": 2,
+      "claim": "F1's two halves separate: ship-300-nd's pooled pinned_share_fp_45s is in [0.10, 0.60], above ship-300's by at least 0.10.",
+      "metric": "reported ship-300-nd fpr vs ship-300 (same keys)",
+      "falsifiedBy": "ship-300-nd pinned_share_fp_45s outside [0.10, 0.60], or less than 0.10 above ship-300's",
+      "note": "ship-300-nd keeps the guest page cache (anonymous on the host), so only the host-cache exclusion lowers its charge."
+    },
+    {
+      "id": 3,
+      "claim": "2′ HOLDS at N=1 and N=128: ship-300's warm py_short gain in [0.75, 0.95], py_import gain in [0.30, 0.50]. Reported: ship-300-nd within 0.05 of ship-300 on both.",
+      "metric": "verdict criteria 2_prime; latency_report gains",
+      "falsifiedBy": "py_short outside [0.75, 0.95] or py_import outside [0.30, 0.50] at either N; or ship-300-nd more than 0.05 from ship-300",
+      "note": "Calibration 0.85 / 0.36 (py_import warm n 3, 0.06 above its bar). E17b: 0.86/0.47 (N1), 0.87/0.41 (N128). py_import is the risk."
+    },
+    {
+      "id": 4,
+      "claim": "The drop's latency cost is small: ship-300's after_drop/kept median ratio is in [1.0, 1.5] for py_import and in [1.0, 3.0] for py_short at N=128.",
+      "metric": "latency_report 'Warm calls by the guest's page-cache drop'",
+      "falsifiedBy": "py_import ratio outside [1.0, 1.5] or py_short outside [1.0, 3.0]",
+      "note": "Calibration (n 1-3): py_import 1.20, py_short 1.60 (11 vs 7 ms). A dropped cache is re-read from the host page cache."
+    },
+    {
+      "id": 5,
+      "claim": "5b′ HOLDS: every ship rung's replacement ratio_to_sbx is in [0.15, 1.0].",
+      "metric": "verdict criteria 5b_prime",
+      "falsifiedBy": "any ratio outside [0.15, 1.0] (criterion fails above 1.5)",
+      "note": "E17b 0.19-0.88; the drop does not touch the host page cache the replacement reads."
+    },
+    {
+      "id": 6,
+      "claim": "3′ HOLDS at squeeze (24576 MiB): zero memory-guard events, zero refusals with an idle lease, every reclaim of the idle-longest lease; reclaim becomes continuous (one a minute) at N >= 48.",
+      "metric": "verdict criteria 3_prime; the climb's stop N",
+      "falsifiedBy": "any guard event, refusal with an idle lease, or wrong reclaim; or continuous reclaim below N=48",
+      "note": "E17b: continuous at N≈40; lower charges should fit more leases before reclaim."
+    },
+    {
+      "id": 7,
+      "claim": "The ownership walk observed: median normalise_us of A in [50, 200] ms at 10000 files and [400, 1200] ms at 100000; B's 0.",
+      "metric": "ownwalk.json normalise_us_median_a, normalise_us_b_max",
+      "falsifiedBy": "outside those ranges, or B > 0",
+      "note": "E17b inferred 91 ms and 756 ms as A − B."
+    },
+    {
+      "id": 8,
+      "claim": "The driver stays under 1% of host CPU (A2).",
+      "metric": "driver-cpu.jsonl per rung",
+      "falsifiedBy": "any rung's driver CPU >= 1% of host CPU"
+    }
+  ],
+  "cut_before_the_seal": [
+    {
+      "id": "E17C-C1",
+      "by": "user",
+      "at": "2026-11-22",
+      "what": "pycache-low is cut again and reported: its gate failed (0-1 qualifying calls per seed with E15_START_ZERO=1 and an 1800 s window; 1-2 of each class pooled, need 5)",
+      "why": "at 1.5% duty an N=1 baseline needs hours-long windows; E16 covers low duty for capacity"
+    },
+    {
+      "id": "E17C-C2",
+      "by": "user",
+      "at": "2026-11-22",
+      "what": "the 256 MiB stages are cut for this run and reported: py_analyze was OOM-killed 20/20 at every ANALYZE_WORK_SCALE (32..1) in both arms",
+      "why": "the scale is a CPU knob; the memory is the imported stack and the dataset; a 256-specific py_analyze (smaller dataset or shard) is a follow-up"
+    }
+  ],
+  "open_for_the_seal": [
+    "py_import's N=1 calibration gain is 0.36 on 3 warm calls, 0.06 above 2′'s 0.30 bar. Prediction 3 says 2′ holds; a miss there would be on py_import.",
+    "5a′ is judged on +45 s (criterion5a_reading plus45, user 2026-11-22): at N=1 about half the heavy Execs had no next call within 45 s; N=128 should give hundreds of readings."
+  ],
+  "sealedAt": "2026-11-22T14:23:53Z",
+  "sealNote": "Sealed on the user's go-ahead (2026-11-22, 'Seal as drafted'), before any measured E17c rung. Decisions at the seal: criterion5a_reading plus45; pycache-low and the 256 MiB stages cut (cut_before_the_seal E17C-C1, C2).",
+  "deviations": [
+    {
+      "id": "E17C-D1",
+      "at": "2026-11-23",
+      "by": "user",
+      "what": "the squeeze-ship-300 climb ends at N=48, its last valid rung; 3′ is judged as sealed on N=1..48; sbx's squeeze rung runs at N=48",
+      "why": "the climb stopped on a rig error at N=56: the driver aborted because a session's first call ran outside a lease — a VM restore missed its 5 s Firecracker API-socket timeout while the squeezed e15.slice sat at 23.3/24 GiB under memory.high throttling (PSI some up to 69%). The sealed stop (a reclaim in every whole minute) was not met by N=48: reclaims came in bursts (9, 48, 93, 168 at N=24..48). Resuming could not turn 3′ back into a pass: it already counts 6 memory-budget refusals with an idle lease at N=32 and N=48.",
+      "n56": "kept in place as a rig-error rung, not counted; its lease_ends shows 36 memory-budget refusals (30 with an idle lease) and 194 correct reclaims"
+    }
+  ]
+}
