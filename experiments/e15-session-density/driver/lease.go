@@ -117,6 +117,49 @@ type leaseEvent struct {
 	AtUnixMs int64  `json:"at_unix_ms"`
 	AgeMs    uint64 `json:"age_ms"`
 	Mode     string `json:"mode"`
+	// E17d: the processes the event names (moca's display strings and the structured form), nil when it names none.
+	// Unexported (and a pointer, so the struct stays comparable), so lease_events keeps its E17b shape; the call's
+	// process_events carries them (processEventsOf).
+	procs *processEvent
+}
+
+// trackedProc is one moca TrackedProcess as calls.jsonl and lease-tail.jsonl record it (E17d).
+type trackedProc struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Pid         uint32 `json:"pid"`
+	State       string `json:"state"`
+	Code        int32  `json:"code"`
+	AgeMs       uint64 `json:"age_ms"`
+	MemoryBytes uint64 `json:"memory_bytes"`
+}
+
+func trackedOf(ps []*pb.TrackedProcess) []trackedProc {
+	var out []trackedProc
+	for _, p := range ps {
+		out = append(out, trackedProc{ID: p.GetId(), Name: p.GetName(), Pid: p.GetPid(), State: p.GetState(), Code: p.GetCode(), AgeMs: p.GetAgeMs(), MemoryBytes: p.GetMemoryBytes()})
+	}
+	return out
+}
+
+// processEvent is one process_events entry (E17d): a lease event that named processes, with what it named.
+type processEvent struct {
+	State     string        `json:"state"`
+	Reason    string        `json:"reason"`
+	AtUnixMs  int64         `json:"at_unix_ms"`
+	Processes []string      `json:"processes"`
+	Tracked   []trackedProc `json:"tracked"`
+}
+
+// processEventsOf is every event of evs that named a process (processes or tracked), nil when none.
+func processEventsOf(evs []leaseEvent) []processEvent {
+	var out []processEvent
+	for _, e := range evs {
+		if e.procs != nil {
+			out = append(out, *e.procs)
+		}
+	}
+	return out
 }
 
 func modeName(m pb.SandboxMode) string {
@@ -131,7 +174,11 @@ func modeName(m pb.SandboxMode) string {
 }
 
 func eventOf(e *pb.LeaseEvent) leaseEvent {
-	return leaseEvent{State: e.GetState(), Reason: e.GetReason(), AtUnixMs: e.GetAtUnixMs(), AgeMs: e.GetAgeMs(), Mode: modeName(e.GetMode())}
+	ev := leaseEvent{State: e.GetState(), Reason: e.GetReason(), AtUnixMs: e.GetAtUnixMs(), AgeMs: e.GetAgeMs(), Mode: modeName(e.GetMode())}
+	if len(e.GetProcesses()) > 0 || len(e.GetTracked()) > 0 {
+		ev.procs = &processEvent{State: ev.State, Reason: ev.Reason, AtUnixMs: ev.AtUnixMs, Processes: e.GetProcesses(), Tracked: trackedOf(e.GetTracked())}
+	}
+	return ev
 }
 
 // leaseTailRow is one lease-tail.jsonl line: the end-of-run status of one session's workspace.
@@ -145,6 +192,11 @@ type leaseTailRow struct {
 	Pending       *leaseEvent `json:"pending,omitempty"`
 	Error         string      `json:"error,omitempty"`
 	SweptAtUnixMs int64       `json:"swept_at_unix_ms"`
+	// E17d (omitted when empty, so E17b and E17c rows are unchanged): the status's tracked-process table (a live
+	// lease's, exited entries included), and the processes the pending event names.
+	Processes        []trackedProc `json:"processes,omitempty"`
+	PendingProcesses []string      `json:"pending_processes,omitempty"`
+	PendingTracked   []trackedProc `json:"pending_tracked,omitempty"`
 }
 
 // leaseSession is one session's lease state. Its methods are called from the session's own
@@ -387,9 +439,13 @@ func (r *Replayer) sweepLeases(ctx context.Context) {
 				row.Error = errors.New("empty status").Error()
 			default:
 				row.State = st.GetState()
+				row.Processes = trackedOf(st.GetProcesses())
 				if p := st.GetPending(); p != nil {
 					e := eventOf(p)
 					row.Pending = &e
+					if e.procs != nil {
+						row.PendingProcesses, row.PendingTracked = e.procs.Processes, e.procs.Tracked
+					}
 				}
 			}
 			rows[i] = row
