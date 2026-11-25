@@ -27,6 +27,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "$HERE/../../e15/rig/lib.sh" ]; then E15RIG="$HERE/../../e15/rig"; else E15RIG="$HERE/../../../experiments/e15-session-density/rig"; fi
 # shellcheck source=SCRIPTDIR/../../e15-session-density/rig/lib.sh
 . "$E15RIG/lib.sh"
+# shellcheck source=SCRIPTDIR/../../e15-session-density/rig/points.sh
+. "$E15RIG/points.sh"
 [ "${E17D:-}" = 1 ] || die "E17D=1 is required (this is E17d's socket check; spec §14.2)"
 
 L="$E15_RUNS/socket-check"
@@ -61,8 +63,24 @@ if bad:
 print("socket-check: positive half ok: %d restarts, %d warm py_requery, all exit 0" % (len(restarts), len(req) - len(restarts)))
 PY
 
-# 2. the negative half: a stale socket reads as no server.
+# 2. the negative half: a stale socket reads as no server. It needs a worker of its own (a rung
+# leaves none), as smoke.sh's analyze check starts one: a stock sbx worker on a reflinked copy of
+# the point's template.
+e15_point "${E17D_POINT:-pycache-l2}" || die "points.sh: no point ${E17D_POINT:-pycache-l2}"
+WS="$E15_ROOT/workspaces/socket-check"
+sudo -n rm -rf -- "$WS"
+sudo -n mkdir -m 0700 "$WS"
+sudo -n cp "$(workspace_cp_flag "$(workspace_copy_mode)")" "$E15_P_TEMPLATE" "$WS/workspace.img"
+sudo -n chmod 0600 "$WS/workspace.img"
+cleanup() { stop_rung_units; sudo -n rm -rf -- "$WS"; }
+trap cleanup EXIT
+start_worker sbx "$L" "$E15_P_IMAGE_MB"
 KEY=socket-check
+for _ in $(seq 30); do
+  probe=$(gexec _e15-attach-probe true 2>&1 || true)
+  case "$probe" in *"ExecError: invalid-workspace-key: "*) break ;; esac
+  sleep 1
+done
 out="$(gexec "$KEY" 'cd project && (nohup ../venv/bin/python l2srv.py >/tmp/l2srv.log 2>&1 &) ; sleep 3; ls /workspace/.l2/l2.sock' 2>&1)" || true
 printf '%s\n' "$out" | grep -q '/workspace/.l2/l2.sock' || {
   say "FAIL: the server left no /workspace/.l2/l2.sock: $out"
