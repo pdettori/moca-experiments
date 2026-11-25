@@ -648,4 +648,25 @@ expected to fit fewer sessions than level 1: a server's working set is charged, 
 | `squeeze-l2`: the `ship-300` and `ship-300-l2` climbs | 10 |
 | **Total** | **about 30 h** |
 
+### 14.7 Deviations (E17D-D1, recorded before the first measured rung)
+
+E17d runs on the SBX0 metal host, not on E17's AWS m7i.metal-24xl: the AWS rig could not start
+(2026-11-25). Every arm and rung runs on this one host, so 14.4's ratios are within-run; its
+absolute numbers are not comparable with E17b's or E17c's, which ran on the m7i. Four consequences,
+each logged on the host in `~/e17d-manifest.md` with its undo:
+
+1. **The host.** A SYS-7049GP-TRT, 72 cores and 754 GiB RAM, Firecracker v1.17.0 (the same release
+   the m7i ran), kernel 6.8.0-1061-nvidia on the host and the same pinned guest kernel inside.
+2. **The storage.** `/srv/e15` is a 300 GiB sparse XFS image with `reflink=1`, loop-mounted on the
+   host's ext4 root disk, because the host has no dedicated data volume. Reflink (which the rig
+   requires for workspace copies) works; the loop adds a little I/O latency, equally to every arm.
+3. **SBX0 shares the host.** The live SBX0 worker (`sbx-worker@sbx_default`, a 32 GiB budget) and
+   the janitor ran through bring-up and calibration. They are stopped for the measured rungs and
+   restarted after (the user's decision of 2026-11-25), so no rung's window has the live service in
+   it.
+4. **The rig's podman.** The host carries another user's podman 6.1.2 under `/usr/local`, whose
+   conmon was built without journald, and the distro podman fails every run with it. The rig writes
+   and passes its own `containers.conf` beside its `storage.conf` (the distro `crun` and `conmon`,
+   `k8s-file` logs); no rootless podman is used.
+
 `squeeze-l2` can be cut first; L2a–L2d do not depend on it.

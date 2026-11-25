@@ -10,7 +10,7 @@
 
 **Spec:** `experiments/e17-lease/SPEC.md` v0.10 §14 (and §4–§7, §13 for what it inherits). E17b and E17c's records are sealed and not edited. Design under test: moca's lease spec §7 (level 2) and §16 item 6.
 
-**Branches:** this plan on `e17d/plan`; the build on `e17d/build` (moca-experiments). Rig: the AWS m7i.metal-24xl, through `~/gh/aws-rig`. **The user decided on 2026-11-24 to stop it until this plan is approved.**
+**Branches:** this plan on `e17d/plan`; the build on `e17d/build` (moca-experiments). Rig: **the SBX0 metal host** (`ssh sbx-kvm`), not the AWS m7i.metal-24xl: the AWS rig could not start (2026-11-25), recorded as deviation E17D-D1 (SPEC §14.7). **The user decided on 2026-11-24 to stop it until this plan is approved.**
 
 ## Global Constraints
 
