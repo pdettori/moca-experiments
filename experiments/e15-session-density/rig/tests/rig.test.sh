@@ -1041,7 +1041,7 @@ check "profile: fresh-metal keeps npm/corepack/XDG caches under the root" \
   "$(E15_HOST_PROFILE=fresh-metal prof 'e15_userenv user | grep -E "^(npm_config_cache|COREPACK_HOME|XDG_CACHE_HOME)=" | grep -c "=$E15_ROOT/"')" "3"
 check "profile: fresh-metal podman uses storage under the root" \
   "$(E15_HOST_PROFILE=fresh-metal prof 'e15_podman_str; e15_podman_conf_body | grep -c "root = \"$E15_ROOT/containers/"' | tr '\n' ' ')" \
-  "sudo -n env CONTAINERS_STORAGE_CONF=$TROOT/containers/storage.conf podman 2 "
+  "sudo -n env CONTAINERS_STORAGE_CONF=$TROOT/containers/storage.conf CONTAINERS_CONF=$TROOT/containers/containers.conf podman 2 "
 check "profile: an unknown profile is refused (exit 3)" "$(E15_HOST_PROFILE=bogus prof 'echo x' >/dev/null; echo $?)" "3"
 mkdir -p "$TROOT/state" && echo fresh-metal >"$TROOT/state/host_profile"
 check "profile: the recorded profile is the default" "$(prof 'echo $E15_HOST_PROFILE')" "fresh-metal"

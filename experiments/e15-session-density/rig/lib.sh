@@ -682,9 +682,13 @@ workspace_delta_kb() {
 # fresh-metal keeps root podman's storage under /srv/e15 (CONTAINERS_STORAGE_CONF), so no image or
 # layer lands in /var/lib/containers. aws-prelim: root podman as before.
 E15_PODMAN_CONF=$E15_ROOT/containers/storage.conf
+# The runtime settings the same podman needs beside its storage (E17D-D1): a host that carries
+# another user's podman under /usr/local (its conmon built without journald) makes the distro podman
+# fail every run; the explicit conmon and a file log driver live here.
+E15_PODMAN_RUN_CONF=$E15_ROOT/containers/containers.conf
 e15_podman_str() {
   if [ "$E15_HOST_PROFILE" = fresh-metal ]; then
-    echo "sudo -n env CONTAINERS_STORAGE_CONF=$E15_PODMAN_CONF podman"
+    echo "sudo -n env CONTAINERS_STORAGE_CONF=$E15_PODMAN_CONF CONTAINERS_CONF=$E15_PODMAN_RUN_CONF podman"
   else
     echo "sudo -n podman"
   fi
@@ -694,7 +698,7 @@ e15_podman() {
     # No storage.conf (before bootstrap, after --purge): podman must not fall back to
     # /var/lib/containers, so there is no E15 container to see.
     [ -f "$E15_PODMAN_CONF" ] || return 1
-    sudo -n env CONTAINERS_STORAGE_CONF="$E15_PODMAN_CONF" podman "$@"
+    sudo -n env CONTAINERS_STORAGE_CONF="$E15_PODMAN_CONF" CONTAINERS_CONF="$E15_PODMAN_RUN_CONF" podman "$@"
   else
     sudo -n podman "$@"
   fi
@@ -702,6 +706,11 @@ e15_podman() {
 e15_podman_conf_body() {
   printf '[storage]\ndriver = "overlay"\ngraphroot = "%s"\nrunroot = "%s"\n' \
     "$E15_ROOT/containers/storage" "$E15_ROOT/containers/run"
+}
+# e15_podman_run_conf_body: the runtime settings, so the distro podman never picks another user's
+# conmon (built without journald) or a runtime it cannot drive, whatever PATH sudo keeps.
+e15_podman_run_conf_body() {
+  printf '[engine]\nruntime = "/usr/bin/crun"\nconmon_path = ["/usr/bin/conmon"]\n\n[containers]\nlog_driver = "k8s-file"\n'
 }
 
 # e15_artifact NAME SHA256 SOURCE (fresh-metal): one line per artifact in $E15_STATE/artifacts,
