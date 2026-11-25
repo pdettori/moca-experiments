@@ -13,8 +13,10 @@
 # The library (experiments/e17-lease/workload/library.json) arrives with experiments/e17-lease/. E17_CORPORA defaults to
 # /tmp/kagenti/e17-corpora, E17_WHEELS to /tmp/kagenti/e17-wheels-probe. Run by the controller only.
 set -euo pipefail
-K=$HOME/.ssh/id_ed25519
-H=ubuntu@${RIG_IP:?set RIG_IP}
+K=${E17_RIG_KEY:-$HOME/.ssh/id_ed25519}
+# The rig host: the AWS rig's ubuntu@<RIG_IP>. E17_RIG_HOST names another, e.g. the SBX0 metal host's
+# ssh alias (sbx-kvm, user dettori), with E17_RIG_KEY for its key (E17D-D1).
+H=${E17_RIG_HOST:-ubuntu@${RIG_IP:?set RIG_IP, or E17_RIG_HOST for another host}}
 S="ssh -o BatchMode=yes -i $K"
 W="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 PC=${E17_CORPORA:-/tmp/kagenti/e17-corpora}

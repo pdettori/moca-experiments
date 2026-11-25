@@ -2059,6 +2059,8 @@ if [ -f "$SYNC17" ]; then
     "$(grep -c '^X=(--exclude results/ --exclude predictions.json --exclude predictions-metal.json --exclude __pycache__ --exclude .pytest_cache)$' "$SYNC17")/$(grep -cE 'rsync -a --delete "\$\{X\[@\]\}" -e "\$S" experiments/(e15-session-density|e16-low-duty|e17-lease)/ "\$H:/srv/e15/src/(e15|e16|e17)/"' "$SYNC17")" "1/3"
   check "e17 sync.sh: corpora to /srv/e15/corpora/<point>/, wheels to /srv/e15/wheels-pycache/ (not E15's wheels)" \
     "$(grep -c '"\$H:/srv/e15/corpora/\$p/"' "$SYNC17")/$(grep -c '"\$H:/srv/e15/wheels-pycache/"' "$SYNC17")/$(grep -c '/srv/e15/wheels/' "$SYNC17")" "1/1/0"
+  check "e17 sync.sh: E17_RIG_HOST and E17_RIG_KEY override the AWS default" \
+    "$(grep -c '^H=\${E17_RIG_HOST:-ubuntu@\${RIG_IP' "$SYNC17")/$(grep -c '^K=\${E17_RIG_KEY:-\$HOME/.ssh/id_ed25519}$' "$SYNC17")" "1/1"
   check "e17 sync.sh: defaults E17_CORPORA, E17_WHEELS" \
     "$(grep -c 'E17_CORPORA:-/tmp/kagenti/e17-corpora' "$SYNC17")/$(grep -c 'E17_WHEELS:-/tmp/kagenti/e17-wheels-probe' "$SYNC17")" "1/1"
 else
